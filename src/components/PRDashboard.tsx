@@ -14,6 +14,7 @@ import AuthGuard from "./AuthGuard";
 import CreditWallet from "./tabs/CreditWallet";
 import PublishedPress from "./tabs/PublishedPress";
 import HelpGuidelines from "./tabs/HelpGuidelines";
+import CompanyDataPage from "./tabs/CompanyDataPage";
 
 // ─── Global Styles ─────────────────────────────────────────────────────────────
 const GlobalStyles = () => (
@@ -103,7 +104,7 @@ export default function PRDashboard() {
         const { data } = await supabase.from("company_profiles").select("*")
           .eq("location_id", locationId).order("updated_at", { ascending: false }).limit(1).single();
         if (data) {
-          setCompanyData({ name: data.company_name || "", industry: data.industry || "", websiteUrl: data.website_url || "", about: data.about_company || "", services: data.list_of_services || "", address: data.address || "", phone: data.phone || "", email: data.email || "", quoteAttribution: data.quote_attribution || "", googleProfileUrl: "", summaryFileUrl: "" });
+          setCompanyData({ name: data.company_name || "", industry: data.industry || "", websiteUrl: data.website_url || "", googleProfileUrl: data.google_profile_url || "", summaryFileUrl: data.summary_file_url || "", about: data.about_company || data.about_us || "", tagline: data.tagline || "", targetAudience: data.target_audience || "", differentiators: data.differentiators || "", services: data.list_of_services || "", servicePages: data.services_json || [], locationPages: data.locations_json || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quoteAttribution: data.quote_attribution || "" });
         } else {
           const cached = await store.get("mbb:companyData");
           if (cached) setCompanyData(JSON.parse(cached));
@@ -122,7 +123,7 @@ export default function PRDashboard() {
   const saveCompanyData = async (data: CompanyData) => {
     setCompanyData(data);
     try { await store.set("mbb:companyData", JSON.stringify(data)); } catch {}
-    try { await supabase.from("company_profiles").upsert({ location_id: locationId, company_name: data.name, industry: data.industry, website_url: data.websiteUrl || "", about_company: data.about || "", list_of_services: data.services || "", address: data.address || "", phone: data.phone || "", email: data.email || "", quote_attribution: data.quoteAttribution || "", updated_at: new Date().toISOString() }, { onConflict: "location_id" }); } catch {}
+    try { await supabase.from("company_profiles").upsert({ location_id: locationId, company_name: data.name, industry: data.industry, website_url: data.websiteUrl || "", google_profile_url: data.googleProfileUrl || "", about_company: data.about || "", about_us: data.about || "", tagline: data.tagline || "", target_audience: data.targetAudience || "", differentiators: data.differentiators || "", list_of_services: data.services || "", services_json: data.servicePages || [], locations_json: data.locationPages || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quote_attribution: data.quoteAttribution || "", summary_file_url: data.summaryFileUrl || "", updated_at: new Date().toISOString() }, { onConflict: "location_id" }); } catch {}
   };
 
   // ── Place order (called from PRCreator) ───────────────────────────────────
@@ -206,7 +207,7 @@ export default function PRDashboard() {
 
         {/* Company Data + Settings */}
         <div style={{ padding: ".75rem .6rem", display: "flex", flexDirection: "column", gap: ".15rem" }}>
-          <button onClick={() => setShowCompanyData(true)} style={{
+          <button onClick={() => setActiveTab("company_data" as any)} style={{
             display: "flex", alignItems: "center", gap: ".6rem",
             padding: ".6rem .75rem", borderRadius: ".5rem", border: "none", cursor: "pointer",
             background: "transparent", color: "rgba(255,255,255,.62)",
@@ -263,7 +264,7 @@ export default function PRDashboard() {
                   <p style={{ color:"#a5b4fc",fontSize:".78rem",margin:"2px 0 0" }}>AI uses your company data to personalize every output across the dashboard.</p>
                 </div>
               </div>
-              <button onClick={() => setShowCompanyData(true)} className="btn-primary" style={{ flexShrink:0 }}><BuildingIcon size={15}/> Add Company Data</button>
+              <button onClick={() => setActiveTab("company_data" as any)} className="btn-primary" style={{ flexShrink:0 }}><BuildingIcon size={15}/> Add Company Data</button>
             </div>
           )}
 
@@ -273,6 +274,7 @@ export default function PRDashboard() {
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} locationId={locationId} showToast={showToast}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
+          {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
           {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")}/>}
         </main>
       </div>

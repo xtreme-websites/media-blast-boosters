@@ -1,16 +1,15 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface ServicePage  { name: string; url: string; keywords: string[]; }
+export interface LocationPage { name: string; url: string; keywords: string[]; }
+
 export interface CompanyData {
-  name: string;
-  industry: string;
-  websiteUrl: string;
-  googleProfileUrl: string;
-  summaryFileUrl: string;
-  quoteAttribution: string;
-  about: string;
+  name: string; industry: string; websiteUrl: string; googleProfileUrl: string;
+  summaryFileUrl: string; quoteAttribution: string;
+  about: string; tagline: string; targetAudience: string; differentiators: string;
   services: string;
-  address: string;
-  phone: string;
-  email: string;
+  servicePages: ServicePage[];
+  locationPages: LocationPage[];
+  address: string; phone: string; email: string;
 }
 
 export interface Topic {
@@ -35,7 +34,9 @@ export interface Order {
 // ─── Company Data Default ─────────────────────────────────────────────────────
 export const EMPTY_COMPANY: CompanyData = {
   name: "", industry: "", websiteUrl: "", googleProfileUrl: "",
-  summaryFileUrl: "", quoteAttribution: "", about: "", services: "",
+  summaryFileUrl: "", quoteAttribution: "", about: "", tagline: "",
+  targetAudience: "", differentiators: "", services: "",
+  servicePages: [], locationPages: [],
   address: "", phone: "", email: "",
 };
 
