@@ -134,30 +134,27 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
       {activeTab === "company" && (
         <div className="card" style={{ padding:"1.5rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
-            {field("Company Name *", "name", { placeholder:"Acme Corporation" })}
-            {field("Industry *", "industry", { placeholder:"e.g. Digital Marketing" })}
+            {field("Company Name *", "name", { placeholder:"Rockville Home Services" })}
+            {field("Industry *", "industry", { placeholder:"e.g. Home Cleaning, HVAC, Plumbing" })}
           </div>
           {textarea("About Us / Company Description", "about", {
-            placeholder:"2-4 paragraphs describing who you are and what you do. This is the foundation of every generated post.",
+            placeholder:"Locally-owned business specializing in professional window cleaning, power washing, and soft washing. Serving the Rockville and Bethesda areas for over 20 years...",
             hint:"2-4 paragraphs about who they are and what they do.", rows:6
           })}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
-            {field("Tagline / Slogan", "tagline", { placeholder:"Transforming brands with innovative digital marketing solutions." })}
-            {field("Quote Attribution", "quoteAttribution", { placeholder:"Jane Doe — CEO, Acme Corp" })}
+            {field("Tagline / Slogan", "tagline", { placeholder:"Serving homeowners in the DMV area since 2005." })}
+            {field("Quote Attribution", "quoteAttribution", { placeholder:"Carlos Medina — Owner, Breezall Window Cleaning" })}
           </div>
-          {textarea("Target Audience", "targetAudience", { placeholder:"Businesses of all sizes and industries seeking digital marketing, web design, and automation solutions.", hint:"Who are their ideal clients?" })}
+          {textarea("Target Audience", "targetAudience", { placeholder:"Homeowners and property managers in the DC metro area seeking professional exterior cleaning services.", hint:"Who are their ideal clients?" })}
           {textarea("Unique Differentiators", "differentiators", {
-            placeholder:"Turnkey eCommerce™\nXtreme eCommerce™\nTurnkey Websites™",
+            placeholder:"EPA-certified eco-friendly products\nSame-day service available\nFamily-owned and operated",
             hint:"One differentiator per line — what makes them better or different from competitors?", rows:4
           })}
 
           <div style={{ height:1, background:"#f1f5f9", margin:".25rem 0" }}/>
           <p style={{ fontSize:".72rem", fontWeight:700, color:"#6366f1", letterSpacing:".08em", margin:0 }}>CONTACT & LINKS</p>
 
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
-            {field("Website URL", "websiteUrl", { type:"url", placeholder:"https://yoursite.com" })}
-            {field("Google Profile URL", "googleProfileUrl", { type:"url", placeholder:"https://g.page/yourcompany" })}
-          </div>
+          {field("Website URL", "websiteUrl", { type:"url", placeholder:"https://yourcompany.com" })}
           <div>
             <label className="field-label" style={{ display:"flex", alignItems:"center", gap:".35rem" }}><MapPinIcon size={13}/> Address</label>
             <input value={draft.address} onChange={e => set("address", e.target.value)} placeholder="123 Main St, City, State, ZIP" className="field-input"/>
