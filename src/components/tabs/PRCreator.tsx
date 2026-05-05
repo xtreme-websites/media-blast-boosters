@@ -52,6 +52,7 @@ interface PRCreatorProps {
   onOpenCheckout: (packageType: string, prTitle: string, prContent: string) => void;
   onOpenCredits: () => void;
   onNavigateToPublished?: () => void;
+  onOpenHelp?: () => void;
   locationId: string;
   showToast: (msg: string, type?: "success" | "error") => void;
 }
@@ -67,11 +68,12 @@ type PRTier = keyof typeof TIER_CONFIG;
 export default function PRCreator({
   companyData, customPRPrompt,
   selectedTopic, onClearTopic, onNavigateToTopics,
-  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, locationId, showToast,
+  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, locationId, showToast,
 }: PRCreatorProps) {
   const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "topic" });
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
   const [ctaPulse,             setCtaPulse]             = useState(false);
+  const [agreedToTerms,        setAgreedToTerms]        = useState(false);
   const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
   const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
 
@@ -289,22 +291,34 @@ RULES:
                   }
                   .cta-pulse { animation: pulse-ring 1.5s ease-out infinite !important; }
                 `}</style>
-                <div className={ctaPulse ? "cta-pulse" : ""} style={{ position:"sticky", bottom:0, background:`linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, border:`2px solid ${cfg.color}40`, borderRadius:"1rem", padding:"1.25rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1.25rem", flexWrap:"wrap", backdropFilter:"blur(8px)", zIndex:10 }}>
-                  <div>
-                    <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".2rem" }}>Ready to Publish?</div>
-                    <div style={{ fontSize:".82rem", color:"#64748b" }}>
-                      <span style={{ fontWeight:700, color:cfg.color }}>{selectedTier} Package</span> · {bal > 0 ? <span style={{ color:"#16a34a", fontWeight:600 }}>{bal} credit{bal>1?"s":""} available</span> : <span style={{ color:"#ef4444", fontWeight:600 }}>No credits available</span>}
+                <div style={{ position:"sticky", bottom:0, background:`linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, border:`2px solid ${cfg.color}40`, borderRadius:"1rem", padding:"1rem 1.5rem", backdropFilter:"blur(8px)", zIndex:10 }} className={ctaPulse ? "cta-pulse" : ""}>
+                  <style>{`@keyframes pulse-ring { 0%{box-shadow:0 0 0 0 ${cfg.color}60} 70%{box-shadow:0 0 0 12px ${cfg.color}00} 100%{box-shadow:0 0 0 0 ${cfg.color}00} } .cta-pulse{animation:pulse-ring 1.5s ease-out infinite!important}`}</style>
+                  {/* Agree checkbox */}
+                  <label style={{ display:"flex", alignItems:"center", gap:".6rem", marginBottom:".75rem", cursor:"pointer", fontSize:".82rem", color:"#374151" }}>
+                    <input type="checkbox" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)}
+                      style={{ width:16, height:16, accentColor:cfg.color, cursor:"pointer", flexShrink:0 }}/>
+                    I agree to the&nbsp;
+                    <button type="button" onClick={onOpenHelp} style={{ background:"none", border:"none", padding:0, color:cfg.color, fontWeight:700, cursor:"pointer", fontSize:".82rem", textDecoration:"underline" }}>
+                      Editorial Standards
+                    </button>
+                  </label>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1.25rem", flexWrap:"wrap" }}>
+                    <div>
+                      <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".2rem" }}>Ready to Publish?</div>
+                      <div style={{ fontSize:".82rem", color:"#64748b" }}>
+                        <span style={{ fontWeight:700, color:cfg.color }}>{selectedTier} Package</span> · {bal > 0 ? <span style={{ color:"#16a34a", fontWeight:600 }}>{bal} credit{bal>1?"s":""} available</span> : <span style={{ color:"#ef4444", fontWeight:600 }}>No credits available</span>}
+                      </div>
                     </div>
+                    {bal > 0
+                      ? <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first", "error"); return; } handlePlaceOrder(); }}
+                          style={{ background: agreedToTerms ? `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` : "#e2e8f0", color: agreedToTerms ? "white" : "#94a3b8", border:"none", borderRadius:".6rem", padding:".75rem 1.5rem", fontWeight:800, fontSize:".95rem", cursor: agreedToTerms ? "pointer" : "not-allowed", whiteSpace:"nowrap", boxShadow: agreedToTerms ? `0 4px 14px ${cfg.color}40` : "none", transition:"all .2s" }}>
+                          🚀 Order & Launch
+                        </button>
+                      : <button onClick={onOpenCredits} style={{ background:"#ef4444", color:"white", border:"none", borderRadius:".6rem", padding:".75rem 1.5rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                          Buy {selectedTier} Credits →
+                        </button>
+                    }
                   </div>
-                  {bal > 0
-                    ? <button onClick={() => handlePlaceOrder()} style={{ background:`linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)`, color:"white", border:"none", borderRadius:".6rem", padding:".75rem 1.5rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap", boxShadow:`0 4px 14px ${cfg.color}40`, transition:"opacity .15s" }}
-                        onMouseOver={e=>e.currentTarget.style.opacity=".85"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
-                        🚀 Order & Launch
-                      </button>
-                    : <button onClick={onOpenCredits} style={{ background:"#ef4444", color:"white", border:"none", borderRadius:".6rem", padding:".75rem 1.5rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                        Buy {selectedTier} Credits →
-                      </button>
-                  }
                 </div>
               </>
             );

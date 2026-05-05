@@ -29,16 +29,12 @@ const ResourceLink = ({ href, children }: { href: string; children: React.ReactN
   <a href={href} target="_blank" rel="noopener noreferrer" style={{ color:"#6366f1", fontWeight:600, textDecoration:"underline" }}>{children}</a>
 );
 
-export default function HelpGuidelines() {
+interface Props { onOpenHelp?: () => void; }
+export default function HelpGuidelines({ onOpenHelp }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("editorial");
 
   return (
     <div>
-      <div style={{ marginBottom:"1.5rem" }}>
-        <h2 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:0 }}>Help & Guidelines</h2>
-        <p style={{ color:"#64748b", fontSize:".83rem", margin:".25rem 0 0" }}>Everything you need to get your press release approved and distributed</p>
-      </div>
-
       {/* Tab bar */}
       <div style={{ display:"flex", gap:".25rem", background:"white", borderRadius:".75rem", padding:".35rem", marginBottom:"1.5rem", boxShadow:"0 1px 3px rgba(0,0,0,.06)", border:"1px solid #f1f5f9", width:"fit-content" }}>
         {TABS.map(t => (
@@ -78,7 +74,7 @@ export default function HelpGuidelines() {
         <div className="card" style={{ padding:"1.75rem" }}>
           <div style={{ background:"linear-gradient(135deg,#dc2626,#b91c1c)", borderRadius:".75rem", padding:"1rem 1.25rem", marginBottom:"1.5rem" }}>
             <p style={{ color:"rgba(255,255,255,.9)", fontSize:".85rem", margin:0, lineHeight:1.6 }}>
-              To maintain the high authority of the <strong>Media Blast Boosters™</strong> network, Xtreme Websites strictly enforces a <strong>zero-tolerance policy</strong> for the following topics.
+              To maintain the high authority of the <strong>Media Blast Boosters™</strong> network, Xtreme Websites® strictly enforces a <strong>zero-tolerance policy</strong> for the following topics.
             </p>
           </div>
 
@@ -100,7 +96,7 @@ export default function HelpGuidelines() {
         <div className="card" style={{ padding:"1.75rem" }}>
           <div style={{ background:"linear-gradient(135deg,#0ea5e9,#0284c7)", borderRadius:".75rem", padding:"1rem 1.25rem", marginBottom:"1.5rem" }}>
             <p style={{ color:"rgba(255,255,255,.9)", fontSize:".85rem", margin:0, lineHeight:1.6 }}>
-              Need extra help getting your PR ready for the wire? Use the resources below.
+              Need extra help getting your Press Release ready? Use the resources below.
             </p>
           </div>
 
@@ -119,7 +115,7 @@ export default function HelpGuidelines() {
               {
                 icon:"⚖️", title:"Legal Responsibility",
                 color:"#fffbeb", border:"#fde68a",
-                content: <>Xtreme Websites reminds all users that it is the company's responsibility to ensure all information is accurate and that professional claims regarding legal or criminal matters can be substantiated with attested documents.</>
+                content: <>Xtreme Websites® reminds all users that it is the company's responsibility to ensure all information is accurate and that professional claims regarding legal or criminal matters can be substantiated with attested documents.</>
               },
             ].map(r => (
               <div key={r.title} style={{ background:r.color, border:`1px solid ${r.border}`, borderRadius:".75rem", padding:"1.1rem 1.25rem" }}>
