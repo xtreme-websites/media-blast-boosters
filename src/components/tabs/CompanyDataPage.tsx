@@ -136,7 +136,7 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
       <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)", borderRadius:".75rem", padding:"1rem 1.25rem", marginBottom:"1.5rem", display:"flex", gap:".75rem", alignItems:"center", flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:220 }}>
           <div style={{ fontSize:".72rem", fontWeight:600, color:"#a5b4fc", letterSpacing:".06em", marginBottom:".3rem" }}>🤖 AI CRAWL WEBSITE</div>
-          <p style={{ color:"rgba(255,255,255,.7)", fontSize:".78rem", margin:0 }}>Enter your URL and AI will auto-fill all fields below</p>
+          <p style={{ color:"rgba(255,255,255,.7)", fontSize:".78rem", margin:0 }}>Enter your URL and AI will auto-fill all your fields below</p>
         </div>
         <input value={crawlUrl} onChange={e => setCrawlUrl(e.target.value)} placeholder="https://yourcompany.com"
           style={{ flex:2, minWidth:220, padding:".6rem .85rem", borderRadius:".5rem", border:"1px solid rgba(255,255,255,.2)", background:"rgba(255,255,255,.1)", color:"white", fontSize:".85rem", outline:"none" }}
@@ -167,16 +167,16 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
           </div>
           {textarea("About Us / Company Description", "about", {
             placeholder:"Locally-owned business specializing in professional window cleaning, power washing, and soft washing. Serving the Rockville and Bethesda areas for over 20 years...",
-            hint:"2-4 paragraphs about who they are and what they do.", rows:6
+            hint:"2-4 paragraphs about who you are and what you do.", rows:6
           })}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
             {field("Tagline / Slogan", "tagline", { placeholder:"Serving homeowners in the DMV area since 2005." })}
             {field("Quote Attribution", "quoteAttribution", { placeholder:"Carlos Medina — Owner, Breezall Window Cleaning" })}
           </div>
-          {textarea("Target Audience", "targetAudience", { placeholder:"Homeowners and property managers in the DC metro area seeking professional exterior cleaning services.", hint:"Who are their ideal clients?" })}
+          {textarea("Target Audience", "targetAudience", { placeholder:"Homeowners and property managers in the DC metro area seeking professional exterior cleaning services.", hint:"Who are your ideal clients?" })}
           {textarea("Unique Differentiators", "differentiators", {
             placeholder:"EPA-certified eco-friendly products\nSame-day service available\nFamily-owned and operated",
-            hint:"One differentiator per line — what makes them better or different from competitors?", rows:4
+            hint:"One differentiator per line — what makes you better or different from competitors?", rows:4
           })}
 
           <div style={{ height:1, background:"#f1f5f9", margin:".25rem 0" }}/>
