@@ -60,7 +60,6 @@ const TABS = [
   { id: "orders",     icon: <StarMenuIcon size={15}/>,                                             label: "Media Credits"       },
   { id: "pr",         icon: <ArticleEditIcon size={15}/>,                                          label: "Media Content"       },
   { id: "press",      icon: <MegaphoneIcon size={15}/>,                                            label: "Published Press"     },
-  { id: "help",       icon: <i className="fa-solid fa-circle-question" style={{fontSize:15}}/>,    label: "Help & Guidelines"   },
 ];
 
 export default function PRDashboard() {
@@ -219,6 +218,19 @@ export default function PRDashboard() {
             <BuildingIcon size={15}/>
             Company Data
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: hasCompanyData ? "#34d399" : "#f87171", flexShrink: 0, marginLeft: "auto" }}/>
+          </button>
+
+          <button onClick={() => setActiveTab("help")} style={{
+            display: "flex", alignItems: "center", gap: ".6rem",
+            padding: ".6rem .75rem", borderRadius: ".5rem", border: "none", cursor: "pointer",
+            background: activeTab === "help" ? "rgba(255,255,255,.15)" : "transparent", color: activeTab === "help" ? "white" : "rgba(255,255,255,.62)",
+            fontWeight: 500, fontSize: ".82rem", textAlign: "left", width: "100%", transition: "all .15s",
+          }}
+            onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,.1)"; e.currentTarget.style.color = "white"; }}
+            onMouseOut={e => { if (activeTab !== "help") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; } }}
+          >
+            <i className="fa-solid fa-circle-question" style={{fontSize:15}}/>
+            Help & Guidelines
           </button>
 
           <button onClick={() => setShowSettings(true)} style={{
