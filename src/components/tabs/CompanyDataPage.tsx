@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { CompanyData, ServicePage, LocationPage, EMPTY_COMPANY } from "../../lib/constants";
 import { LoaderIcon, SaveIcon, MapPinIcon, PhoneIcon, MailIcon, XIcon } from "../icons";
 
@@ -24,13 +24,31 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
   const [crawling,   setCrawling]   = useState(false);
   const [crawlMsg,   setCrawlMsg]   = useState("");
   const [saving,     setSaving]     = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced auto-save: fires 2s after last change
+  const scheduleSave = useCallback((data: CompanyData) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setAutoSaving(true);
+      await onSave(data);
+      setAutoSaving(false);
+    }, 2000);
+  }, [onSave]);
 
   useEffect(() => {
     setDraft({ ...EMPTY_COMPANY, ...companyData });
     setCrawlUrl(companyData.websiteUrl || "");
   }, [companyData]);
 
-  const set = (k: keyof CompanyData, v: any) => setDraft(p => ({ ...p, [k]: v }));
+  const set = (k: keyof CompanyData, v: any) => {
+    setDraft(p => {
+      const updated = { ...p, [k]: v };
+      scheduleSave(updated);
+      return updated;
+    });
+  };
 
   const crawl = async () => {
     const url = crawlUrl.trim().replace(/\/$/, "");
@@ -41,23 +59,33 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Crawl failed");
       setCrawlMsg("Extracting company data…");
-      setDraft(prev => ({
-        ...prev,
-        name:             data.name             || prev.name,
-        industry:         data.industry         || prev.industry,
-        tagline:          data.tagline          || prev.tagline,
-        targetAudience:   data.target_audience  || prev.targetAudience,
-        about:            data.about_us         || prev.about,
-        differentiators:  data.differentiators  || prev.differentiators,
-        quoteAttribution: data.quote_attribution|| prev.quoteAttribution,
-        websiteUrl:       url,
-        address:          [data.address, data.city, data.state].filter(Boolean).join(", ") || prev.address,
-        phone:            data.phone            || prev.phone,
-        email:            data.email            || prev.email,
-        servicePages:     Array.isArray(data.services)  ? data.services  : prev.servicePages,
-        locationPages:    Array.isArray(data.locations) ? data.locations : prev.locationPages,
-      }));
-      showToast(`✓ Crawl complete — ${(data.services||[]).length} services, ${(data.locations||[]).length} locations found`);
+      const merged = (crawled: string, existing: string) => crawled?.trim() ? crawled : existing;
+      const mergedAddress = data.address ? data.address : prev => [data.address, data.city, data.state, data.zip].filter(Boolean).join(", ") || prev;
+
+      setDraft(prev => {
+        const updated: CompanyData = {
+          ...prev,
+          name:             merged(data.name,              prev.name),
+          industry:         merged(data.industry,          prev.industry),
+          tagline:          merged(data.tagline,           prev.tagline),
+          targetAudience:   merged(data.target_audience,   prev.targetAudience),
+          about:            merged(data.about_us,          prev.about),
+          differentiators:  merged(data.differentiators,   prev.differentiators),
+          quoteAttribution: merged(data.quote_attribution, prev.quoteAttribution),
+          websiteUrl:       url,
+          // Contact: only override if crawl found complete data OR existing is empty
+          address: (data.address?.trim() && data.address.length > 5) ? data.address : prev.address,
+          phone:   (data.phone?.trim()   && data.phone.length > 4)   ? data.phone   : prev.phone,
+          email:   (data.email?.trim()   && data.email.includes('@')) ? data.email   : prev.email,
+          // Services/locations: always use crawl results (they're discovered, not guessed)
+          servicePages:  Array.isArray(data.services)  && data.services.length  > 0 ? data.services  : prev.servicePages,
+          locationPages: Array.isArray(data.locations) && data.locations.length > 0 ? data.locations : prev.locationPages,
+        };
+        // Auto-save immediately after crawl
+        setTimeout(() => onSave(updated), 100);
+        return updated;
+      });
+      showToast(`✓ Profile saved — ${(data.services||[]).length} services, ${(data.locations||[]).length} locations found`);
     } catch (e: any) {
       showToast("Crawl failed: " + (e.message || "unknown error"), "error");
     }
@@ -100,7 +128,7 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
           <p style={{ color:"#64748b", fontSize:".83rem", margin:".25rem 0 0" }}>Powers all AI features — fill this once, no crawling needed at generation time</p>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
-          {saving ? <><LoaderIcon size={14}/> Saving…</> : <><SaveIcon size={14}/> Save Changes</>}
+          {saving ? <><LoaderIcon size={14}/> Saving…</> : autoSaving ? <><LoaderIcon size={14}/> Auto-saving…</> : <><SaveIcon size={14}/> Save Changes</>}
         </button>
       </div>
 
