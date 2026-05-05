@@ -170,7 +170,7 @@ function KeywordPicker({ selected, onChange, companyName, industry, servicePages
             : <p style={{ color:"#94a3b8", fontSize:".78rem", margin:0 }}>No location keywords found. Run the AI Crawl in Company Profile to discover them.</p>
         )}
         {activeSection !== "own" && (
-          <p style={{ fontSize:".68rem", color:"#c8ccd0", margin:".5rem 0 0" }}>Switching source clears your selection. Pick up to {MAX} from this source.</p>
+          <p style={{ fontSize:".68rem", color:"rgb(139,139,139)", margin:".5rem 0 0" }}>Switching source clears your selection. Pick up to {MAX} from this source.</p>
         )}
       </div>
     </div>
