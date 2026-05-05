@@ -33,6 +33,16 @@ function KeywordTagInput({ keywords, onChange, maxKeywords = 2 }: { keywords: st
 // ─── KeywordPicker — 4 source sections ───────────────────────────────────────
 import type { ServicePage, LocationPage } from "../../lib/constants";
 
+function splitIndustryKws(industry: string): string[] {
+  if (!industry) return [];
+  // Split on: " and ", " & ", "/", ",", " or "
+  const parts = industry.split(/\s+and\s+|\s+&\s+|\/|,|\s+or\s+/i)
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  // If only one part that has 3+ words, try to split on " and " within compound phrases
+  return parts.length > 0 ? [...new Set(parts)] : [industry.toLowerCase()];
+}
+
 function KeywordPicker({ selected, onChange, companyName, industry, servicePages, locationPages }: {
   selected: string[];
   onChange: (kw: string[]) => void;
@@ -41,11 +51,17 @@ function KeywordPicker({ selected, onChange, companyName, industry, servicePages
   servicePages: ServicePage[];
   locationPages: LocationPage[];
 }) {
-  const [input,       setInput]       = useState("");
+  const [input,         setInput]         = useState("");
   const [activeSection, setActiveSection] = useState<"own"|"home"|"service"|"location">("own");
   const MAX = 2;
 
   const sanitize = (v: string) => v.toLowerCase().replace(/[^a-z0-9\s-]/g, "");
+
+  // When switching section, clear current selection so user picks fresh from new source
+  const switchSection = (s: typeof activeSection) => {
+    setActiveSection(s);
+    onChange([]); // clear selection when changing source
+  };
 
   const toggle = (kw: string) => {
     const kl = kw.toLowerCase();
@@ -61,36 +77,34 @@ function KeywordPicker({ selected, onChange, companyName, industry, servicePages
     if (t && !selected.includes(t) && selected.length < MAX) { onChange([...selected, t]); setInput(""); }
   };
 
-  // Home page keywords: company name + industry words
+  // Home page keywords: company name + split industry
   const homeKws = [
-    companyName,
-    ...(industry ? industry.split(/[,\/]+/).map(s => s.trim()).filter(Boolean) : []),
-  ].filter(Boolean).map(k => k.toLowerCase());
+    companyName?.toLowerCase(),
+    ...splitIndustryKws(industry),
+  ].filter(Boolean) as string[];
 
-  // Service keywords: flatten all servicePages keywords
-  const serviceKws = [...new Set(servicePages.flatMap(s => s.keywords || []))];
-
-  // Location keywords: flatten all locationPages keywords
+  const serviceKws  = [...new Set(servicePages.flatMap(s => s.keywords || []))];
   const locationKws = [...new Set(locationPages.flatMap(l => l.keywords || []))];
 
   const tabs = [
-    { id:"own"      as const, label:"✍️ Add Your Own",     count: null },
-    { id:"home"     as const, label:"🏠 Home Page",         count: homeKws.length    },
-    { id:"service"  as const, label:"🔧 Services",          count: serviceKws.length },
-    { id:"location" as const, label:"📍 Locations",         count: locationKws.length},
+    { id:"own"      as const, label:"✍️ Add Your Own",  count: null               },
+    { id:"home"     as const, label:"🏠 Home Page",      count: homeKws.length     },
+    { id:"service"  as const, label:"🔧 Services",       count: serviceKws.length  },
+    { id:"location" as const, label:"📍 Locations",      count: locationKws.length },
   ];
 
   const KwChip = ({ kw }: { kw: string }) => {
-    const isSelected = selected.includes(kw.toLowerCase());
+    const kl = kw.toLowerCase();
+    const isSelected = selected.includes(kl);
     const disabled   = !isSelected && selected.length >= MAX;
     return (
-      <button type="button" onClick={() => !disabled && toggle(kw)}
+      <button type="button" onClick={() => !disabled && toggle(kl)}
         style={{ padding:".25rem .6rem", borderRadius:".4rem", border:`1.5px solid ${isSelected ? "#6366f1" : "#e2e8f0"}`,
           background: isSelected ? "#eef2ff" : disabled ? "#fafafa" : "white",
           color: isSelected ? "#4338ca" : disabled ? "#c8ccd0" : "#374151",
           fontSize:".75rem", fontWeight: isSelected ? 700 : 500, cursor: disabled ? "not-allowed" : "pointer",
           transition:"all .12s", display:"flex", alignItems:"center", gap:".25rem" }}>
-        {isSelected && <span style={{ color:"#6366f1" }}>✓</span>}{kw.toLowerCase()}
+        {isSelected && <span style={{ color:"#6366f1" }}>✓</span>}{kl}
       </button>
     );
   };
@@ -100,7 +114,7 @@ function KeywordPicker({ selected, onChange, companyName, industry, servicePages
       {/* Source tabs */}
       <div style={{ display:"flex", borderBottom:"1px solid #f1f5f9", background:"#f8fafc" }}>
         {tabs.map(t => (
-          <button key={t.id} type="button" onClick={() => setActiveSection(t.id)}
+          <button key={t.id} type="button" onClick={() => switchSection(t.id)}
             style={{ flex:1, padding:".45rem .3rem", border:"none", cursor:"pointer", fontSize:".7rem", fontWeight:600, transition:"all .12s",
               background: activeSection===t.id ? "white" : "transparent",
               color: activeSection===t.id ? "#4338ca" : "#94a3b8",
@@ -110,22 +124,20 @@ function KeywordPicker({ selected, onChange, companyName, industry, servicePages
         ))}
       </div>
 
-      {/* Content */}
       <div style={{ padding:".65rem .75rem", minHeight:60 }}>
-        {/* Selected chips always shown */}
+        {/* Selected chips */}
         {selected.length > 0 && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap:".3rem", marginBottom:".5rem" }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:".3rem", marginBottom:".5rem", alignItems:"center" }}>
             {selected.map(kw => (
               <span key={kw} style={{ background:"#4338ca", color:"white", fontSize:".73rem", fontWeight:700, padding:".2rem .6rem", borderRadius:".35rem", display:"flex", alignItems:"center", gap:".25rem" }}>
                 {kw}
                 <button onClick={() => onChange(selected.filter(k => k !== kw))} style={{ color:"rgba(255,255,255,.8)", background:"none", border:"none", cursor:"pointer", lineHeight:1, padding:0, fontSize:".85rem" }}>×</button>
               </span>
             ))}
-            <span style={{ fontSize:".72rem", color:"#94a3b8", alignSelf:"center" }}>{selected.length}/{MAX} selected</span>
+            <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{selected.length}/{MAX}</span>
           </div>
         )}
 
-        {/* Own input */}
         {activeSection === "own" && (
           <div style={{ display:"flex", gap:".5rem" }}>
             <input value={input} onChange={e => setInput(sanitize(e.target.value))}
@@ -140,25 +152,25 @@ function KeywordPicker({ selected, onChange, companyName, industry, servicePages
           </div>
         )}
 
-        {/* Home KWs */}
         {activeSection === "home" && (
           homeKws.length > 0
             ? <div style={{ display:"flex", flexWrap:"wrap", gap:".35rem" }}>{homeKws.map(kw => <KwChip key={kw} kw={kw}/>)}</div>
             : <p style={{ color:"#94a3b8", fontSize:".78rem", margin:0 }}>Add Company Name and Industry in Company Profile to see suggestions here.</p>
         )}
 
-        {/* Service KWs */}
         {activeSection === "service" && (
           serviceKws.length > 0
             ? <div style={{ display:"flex", flexWrap:"wrap", gap:".35rem" }}>{serviceKws.map(kw => <KwChip key={kw} kw={kw}/>)}</div>
             : <p style={{ color:"#94a3b8", fontSize:".78rem", margin:0 }}>No service keywords found. Run the AI Crawl in Company Profile to discover them.</p>
         )}
 
-        {/* Location KWs */}
         {activeSection === "location" && (
           locationKws.length > 0
             ? <div style={{ display:"flex", flexWrap:"wrap", gap:".35rem" }}>{locationKws.map(kw => <KwChip key={kw} kw={kw}/>)}</div>
             : <p style={{ color:"#94a3b8", fontSize:".78rem", margin:0 }}>No location keywords found. Run the AI Crawl in Company Profile to discover them.</p>
+        )}
+        {activeSection !== "own" && (
+          <p style={{ fontSize:".68rem", color:"#c8ccd0", margin:".5rem 0 0" }}>Switching source clears your selection. Pick up to {MAX} from this source.</p>
         )}
       </div>
     </div>

@@ -101,10 +101,16 @@ export default function PRDashboard() {
     (async () => {
       try { const r = await store.get("mbb:webhookUrl"); if (r) setWebhookUrl(r); } catch {}
       try {
-        const { data } = await supabase.from("company_profiles").select("*")
-          .eq("location_id", locationId).order("updated_at", { ascending: false }).limit(1).single();
+        const proxyRes = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ table: "company_profiles", operation: "select", eq: { location_id: locationId } }),
+        });
+        const proxyData = await proxyRes.json();
+        const data = proxyData.data;
         if (data) {
-          setCompanyData({ name: data.company_name || "", industry: data.industry || "", websiteUrl: data.website_url || "", googleProfileUrl: data.google_profile_url || "", summaryFileUrl: data.summary_file_url || "", about: data.about_company || data.about_us || "", tagline: data.tagline || "", targetAudience: data.target_audience || "", differentiators: data.differentiators || "", services: data.list_of_services || "", servicePages: data.services_json || [], locationPages: data.locations_json || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quoteAttribution: data.quote_attribution || "" });
+          const parsed: CompanyData = { name: data.company_name || "", industry: data.industry || "", websiteUrl: data.website_url || "", googleProfileUrl: data.google_profile_url || "", summaryFileUrl: data.summary_file_url || "", about: data.about_company || data.about_us || "", tagline: data.tagline || "", targetAudience: data.target_audience || "", differentiators: data.differentiators || "", services: data.list_of_services || "", servicePages: data.services_json || [], locationPages: data.locations_json || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quoteAttribution: data.quote_attribution || "" };
+          setCompanyData(parsed);
+          try { await store.set("mbb:companyData", JSON.stringify(parsed)); } catch {}
         } else {
           const cached = await store.get("mbb:companyData");
           if (cached) setCompanyData(JSON.parse(cached));
@@ -123,7 +129,12 @@ export default function PRDashboard() {
   const saveCompanyData = async (data: CompanyData) => {
     setCompanyData(data);
     try { await store.set("mbb:companyData", JSON.stringify(data)); } catch {}
-    try { await supabase.from("company_profiles").upsert({ location_id: locationId, company_name: data.name, industry: data.industry, website_url: data.websiteUrl || "", google_profile_url: data.googleProfileUrl || "", about_company: data.about || "", about_us: data.about || "", tagline: data.tagline || "", target_audience: data.targetAudience || "", differentiators: data.differentiators || "", list_of_services: data.services || "", services_json: data.servicePages || [], locations_json: data.locationPages || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quote_attribution: data.quoteAttribution || "", summary_file_url: data.summaryFileUrl || "", updated_at: new Date().toISOString() }, { onConflict: "location_id" }); } catch {}
+    try {
+      await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: "company_profiles", operation: "upsert", onConflict: "location_id", data: { location_id: locationId, company_name: data.name, industry: data.industry, website_url: data.websiteUrl || "", about_company: data.about || "", about_us: data.about || "", tagline: data.tagline || "", target_audience: data.targetAudience || "", differentiators: data.differentiators || "", list_of_services: data.services || "", services_json: data.servicePages || [], locations_json: data.locationPages || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quote_attribution: data.quoteAttribution || "", summary_file_url: data.summaryFileUrl || "", updated_at: new Date().toISOString() } }),
+      });
+    } catch {}
   };
 
   // ── Place order (called from PRCreator) ───────────────────────────────────
