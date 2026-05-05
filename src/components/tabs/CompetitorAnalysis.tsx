@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { callClaude } from "../../lib/ai";
 import { supabase } from "../../lib/supabase";
@@ -20,9 +20,17 @@ interface CompetitorAnalysisProps {
 }
 
 export default function CompetitorAnalysis({ companyName, industry, locationId, showToast }: CompetitorAnalysisProps) {
-  const [competitorData, setCompetitorData] = useState<CompetitorData | null>(null);
+  const [competitorData, setCompetitorData] = useState<CompetitorData | null>(() => {
+    try { const c = localStorage.getItem(`mbb:competitorData:${locationId}`); return c ? JSON.parse(c) : null; } catch { return null; }
+  });
   const [isScanning,     setIsScanning]     = useState(false);
   const [marketError,    setMarketError]    = useState<string | null>(null);
+
+  useEffect(() => {
+    if (competitorData) {
+      try { localStorage.setItem(`mbb:competitorData:${locationId}`, JSON.stringify(competitorData)); } catch {}
+    }
+  }, [competitorData, locationId]);
 
 
   const scanMarket = async () => {

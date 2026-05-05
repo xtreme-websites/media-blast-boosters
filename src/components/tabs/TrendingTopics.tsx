@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { callClaude } from "../../lib/ai";
 import { store } from "../../lib/ai";
 import { SUPABASE_URL } from "../../lib/supabase";
@@ -12,13 +12,22 @@ interface TrendingTopicsProps {
 }
 
 export default function TrendingTopics({ companyData, showToast, onTopicSelect }: TrendingTopicsProps) {
-  const [trendingTopics,   setTrendingTopics]   = useState<Topic[]>([]);
+  const [trendingTopics,   setTrendingTopics]   = useState<Topic[]>(() => {
+    try { const c = localStorage.getItem("mbb:trendingTopics"); return c ? JSON.parse(c) : []; } catch { return []; }
+  });
   const [topicsPage,       setTopicsPage]       = useState(0);
   const [topicsFetched,    setTopicsFetched]    = useState(0);
   const [isLoading,        setIsLoading]        = useState(false);
   const [error,            setError]            = useState<string | null>(null);
   const [contentIdeas,     setContentIdeas]     = useState<Record<string, string[]>>({});
   const [showContentIdeas, setShowContentIdeas] = useState<Record<string, boolean>>({});
+
+  // Persist topics to localStorage whenever they change
+  useEffect(() => {
+    if (trendingTopics.length > 0) {
+      try { localStorage.setItem("mbb:trendingTopics", JSON.stringify(trendingTopics)); } catch {}
+    }
+  }, [trendingTopics]);
 
   const { industry, services } = companyData;
 

@@ -13,6 +13,7 @@ import PRCreator from "./tabs/PRCreator";
 import AuthGuard from "./AuthGuard";
 import CreditWallet from "./tabs/CreditWallet";
 import PublishedPress from "./tabs/PublishedPress";
+import HelpGuidelines from "./tabs/HelpGuidelines";
 
 // ─── Global Styles ─────────────────────────────────────────────────────────────
 const GlobalStyles = () => (
@@ -79,6 +80,7 @@ export default function PRDashboard() {
   const [selectedTopic,   setSelectedTopic]   = useState<(Topic & { selectedIdea?: string }) | null>(null);
   const [showCompanyData, setShowCompanyData] = useState(false);
   const [showSettings,    setShowSettings]    = useState(false);
+  const [showHelp,        setShowHelp]        = useState(false);
   const [toast,           setToast]           = useState<{ message: string; type: string } | null>(null);
   const [checkoutPackage, setCheckoutPackage] = useState<{type:string;title:string;content:string}|null>(null);
 
@@ -231,6 +233,19 @@ export default function PRDashboard() {
             <SettingsIcon size={15}/>
             Settings
           </button>
+
+          <button onClick={() => setShowHelp(true)} style={{
+            display: "flex", alignItems: "center", gap: ".6rem",
+            padding: ".6rem .75rem", borderRadius: ".5rem", border: "none", cursor: "pointer",
+            background: "transparent", color: "rgba(255,255,255,.62)",
+            fontWeight: 500, fontSize: ".82rem", textAlign: "left", width: "100%", transition: "all .15s",
+          }}
+            onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,.1)"; e.currentTarget.style.color = "white"; }}
+            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; }}
+          >
+            <i className="fa-solid fa-circle-question" style={{fontSize:15}}/>
+            Help & Guidelines
+          </button>
         </div>
 
         {/* Bottom padding */}
@@ -266,6 +281,18 @@ export default function PRDashboard() {
       <CompanyDataModal isOpen={showCompanyData} onClose={() => setShowCompanyData(false)} companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} webhookUrl={webhookUrl} customPRPrompt={customPRPrompt}
         onSave={({ webhookUrl: w, customPRPrompt: p }) => { setWebhookUrl(w); setCustomPRPrompt(p); }} showToast={showToast}/>
+      {/* Help & Guidelines slide-over */}
+      {showHelp && (
+        <div style={{ position:"fixed", inset:0, zIndex:998, display:"flex" }} onClick={e => { if (e.target === e.currentTarget) setShowHelp(false); }}>
+          <div style={{ marginLeft:"auto", width:"100%", maxWidth:680, background:"white", height:"100%", overflowY:"auto", boxShadow:"-8px 0 32px rgba(0,0,0,.15)", padding:"1.5rem", animation:"slideUp .25s ease" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.25rem" }}>
+              <div style={{ fontWeight:700, fontSize:"1rem", color:"#1e293b" }}>Help & Guidelines</div>
+              <button onClick={() => setShowHelp(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:"1.25rem" }}>×</button>
+            </div>
+            <HelpGuidelines/>
+          </div>
+        </div>
+      )}
       <CheckoutModal
         isOpen={!!checkoutPackage}
         onClose={() => setCheckoutPackage(null)}
