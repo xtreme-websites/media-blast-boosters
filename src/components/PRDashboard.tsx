@@ -205,7 +205,7 @@ export default function PRDashboard() {
         {/* Divider */}
         <div style={{ height: "1px", background: "rgba(255,255,255,.12)", margin: "0 .75rem" }}/>
 
-        {/* Company Data + Settings */}
+        {/* Company Profile + Settings */}
         <div style={{ padding: ".75rem .6rem", display: "flex", flexDirection: "column", gap: ".15rem" }}>
           <button onClick={() => setActiveTab("company_data" as any)} style={{
             display: "flex", alignItems: "center", gap: ".6rem",
@@ -217,7 +217,7 @@ export default function PRDashboard() {
             onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; }}
           >
             <BuildingIcon size={15}/>
-            Company Data
+            Company Profile
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: hasCompanyData ? "#34d399" : "#f87171", flexShrink: 0, marginLeft: "auto" }}/>
           </button>
 
@@ -264,7 +264,7 @@ export default function PRDashboard() {
                   <p style={{ color:"#a5b4fc",fontSize:".78rem",margin:"2px 0 0" }}>AI uses your company data to personalize every output across the dashboard.</p>
                 </div>
               </div>
-              <button onClick={() => setActiveTab("company_data" as any)} className="btn-primary" style={{ flexShrink:0 }}><BuildingIcon size={15}/> Add Company Data</button>
+              <button onClick={() => setActiveTab("company_data" as any)} className="btn-primary" style={{ flexShrink:0 }}><BuildingIcon size={15}/> Add Company Profile</button>
             </div>
           )}
 
