@@ -60,6 +60,7 @@ const TABS = [
   { id: "orders",     icon: <StarMenuIcon size={15}/>,                                             label: "Media Credits"       },
   { id: "pr",         icon: <ArticleEditIcon size={15}/>,                                          label: "Media Content"       },
   { id: "press",      icon: <MegaphoneIcon size={15}/>,                                            label: "Published Press"     },
+  { id: "help",       icon: <i className="fa-solid fa-circle-question" style={{fontSize:15}}/>,    label: "Help & Guidelines"   },
 ];
 
 export default function PRDashboard() {
