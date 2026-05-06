@@ -171,7 +171,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
     <div>
       {/* Inner tabs */}
       <div style={{ display:"flex", gap:".25rem", background:"white", borderRadius:".75rem", padding:".35rem", marginBottom:"1.5rem", boxShadow:"0 1px 3px rgba(0,0,0,.06)", border:"1px solid #f1f5f9", width:"fit-content" }}>
-        {([["packages","Media Packages"],["credits","Media Credits"],["transactions","Transactions"]] as const).map(([id,label]) => (
+        {([["credits","Media Credits"],["packages","Media Packages"],["transactions","Transactions"]] as const).map(([id,label]) => (
           <button key={id} onClick={() => setActiveTab(id)} style={{ padding:".5rem 1.1rem", borderRadius:".5rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".82rem", transition:"all .15s",
             background: activeTab===id ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent",
             color: activeTab===id ? "white" : "#64748b",
