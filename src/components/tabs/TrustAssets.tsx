@@ -360,23 +360,39 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
         <div style={{ fontSize:".72rem", fontWeight:600, color:"#64748b", letterSpacing:".04em", textTransform:"uppercase", marginBottom:".75rem" }}>
           Saved variations ({variations.length}/3)
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:".65rem" }}>
-          {variations.map(v => (
-            <div key={v.id} onClick={() => setActiveId(v.id)} style={{ border: activeId===v.id ? "1.5px solid #534AB7" : "0.5px solid #e2e8f0", borderRadius:".65rem", padding:".65rem", cursor:"pointer", background:"white", transition:"all .15s", boxShadow: activeId===v.id ? "0 0 0 3px rgba(83,74,183,.1)" : "none" }}>
-              <MiniThumb config={v} tier={tier}/>
-              <div style={{ fontSize:".72rem", color: activeId===v.id ? "#3C3489" : "#64748b", textAlign:"center", marginTop:".4rem", fontWeight:600 }}>{v.name}</div>
-              <div style={{ display:"flex", gap:".3rem", marginTop:".4rem", justifyContent:"center" }}>
-                <button onClick={e => { e.stopPropagation(); openEdit(v); }} style={{ fontSize:".65rem", color:"#6366f1", background:"none", border:"0.5px solid #c7d2fe", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>Edit</button>
-                <button onClick={e => { e.stopPropagation(); copyScript(v); }} style={{ fontSize:".65rem", color:"#475569", background:"none", border:"0.5px solid #e2e8f0", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>📋 Script</button>
-                {variations.length > 1 && <button onClick={e => { e.stopPropagation(); deleteVariation(v.id); }} style={{ fontSize:".65rem", color:"#be123c", background:"none", border:"0.5px solid #fecdd3", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>Del</button>}
+        <div style={{ display:"flex", flexDirection:"column", gap:".6rem" }}>
+          {variations.map((v, idx) => (
+            <div key={v.id} onClick={() => setActiveId(v.id)} style={{ border: activeId===v.id ? "1.5px solid #534AB7" : "1px solid #e2e8f0", borderRadius:".75rem", padding:".75rem 1rem", cursor:"pointer", background: activeId===v.id ? "#fafafe" : "white", transition:"all .15s", boxShadow: activeId===v.id ? "0 0 0 3px rgba(83,74,183,.08)" : "none", display:"flex", alignItems:"center", gap:".85rem" }}>
+              {/* Mini preview */}
+              <div style={{ flexShrink:0, width:80 }}>
+                <MiniThumb config={v} tier={tier}/>
+              </div>
+              {/* Name + version */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:".85rem", color: activeId===v.id ? "#3C3489" : "#1e293b", marginBottom:".15rem", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{v.name}</div>
+                <div style={{ fontSize:".7rem", color:"#94a3b8" }}>Widget v{idx + 1} · {v.layout === "slider" ? "Slider" : "Horizontal"}</div>
+              </div>
+              {/* Actions */}
+              <div style={{ display:"flex", gap:".4rem", flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => copyScript(v)} title="Copy script tag" style={{ display:"flex", alignItems:"center", gap:".3rem", fontSize:".72rem", color:"#6366f1", background:"#eef2ff", border:"none", borderRadius:".4rem", padding:".35rem .65rem", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>
+                  📋 v{idx + 1}
+                </button>
+                <button onClick={() => openEdit(v)} title="Edit" style={{ fontSize:".72rem", color:"#475569", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:".4rem", padding:".35rem .65rem", cursor:"pointer", fontWeight:600 }}>
+                  Edit
+                </button>
+                {variations.length > 1 && (
+                  <button onClick={() => deleteVariation(v.id)} title="Delete" style={{ fontSize:".72rem", color:"#be123c", background:"#fff1f2", border:"1px solid #fecdd3", borderRadius:".4rem", padding:".35rem .5rem", cursor:"pointer" }}>
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
           ))}
           {variations.length < 3 && (
-            <div onClick={openNew} style={{ border:"1.5px dashed #e2e8f0", borderRadius:".65rem", padding:".65rem", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100px", gap:".35rem", background:"white", transition:"border-color .15s" }}
+            <div onClick={openNew} style={{ border:"1.5px dashed #e2e8f0", borderRadius:".75rem", padding:".75rem 1rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".6rem", background:"white", transition:"border-color .15s", color:"#94a3b8" }}
               onMouseOver={e => e.currentTarget.style.borderColor="#a5b4fc"} onMouseOut={e => e.currentTarget.style.borderColor="#e2e8f0"}>
-              <div style={{ fontSize:"1.5rem", color:"#94a3b8", lineHeight:1 }}>+</div>
-              <div style={{ fontSize:".72rem", color:"#94a3b8" }}>New variation</div>
+              <div style={{ width:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.4rem", color:"#cbd5e1" }}>+</div>
+              <div style={{ fontSize:".82rem", fontWeight:600 }}>Add new variation</div>
             </div>
           )}
         </div>
