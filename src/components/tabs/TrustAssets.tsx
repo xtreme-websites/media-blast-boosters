@@ -17,8 +17,9 @@ interface BadgeConfig {
 }
 
 interface TrustAssetsProps {
-  orders: Order[]; locationId: string;
-  showToast: (msg: string, type?: "success" | "error") => void;
+  orders: Order[]; locationId: string; showToast: (msg: string, type?: "success" | "error") => void;
+  credits?: { starter_credits: number; standard_credits: number; premium_credits: number };
+  isDevAccess?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -221,8 +222,11 @@ function MiniThumb({ config, tier }: { config: BadgeConfig; tier: Tier }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function TrustAssets({ orders, locationId, showToast }: TrustAssetsProps) {
-  const [tier,        setTier]        = useState<Tier>("starter");
+export default function TrustAssets({ orders, locationId, showToast, credits, isDevAccess = false }: TrustAssetsProps) {
+  const autoTier: Tier = credits?.premium_credits  ? "premium"
+                        : credits?.standard_credits ? "standard"
+                        : "starter";
+  const [tier, setTier] = useState<Tier>(autoTier);
   const [variations,  setVariations]  = useState<BadgeConfig[]>([]);
   const [activeId,    setActiveId]    = useState<string | null>(null);
   const [showModal,   setShowModal]   = useState(false);
@@ -330,12 +334,13 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
           <p style={{ color:"#64748b", fontSize:".875rem" }}>Embed a professional trust badge on your website</p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:".4rem" }}>
-          {(["starter","standard","premium"] as Tier[]).map(t => (
+          {isDevAccess && (["starter","standard","premium"] as Tier[]).map(t => (
             <button key={t} onClick={() => setTier(t)} style={{ padding:".3rem .75rem", borderRadius:"99px", fontSize:".75rem", fontWeight:600, border: tier===t ? "1.5px solid #534AB7" : "0.5px solid #e2e8f0", background: tier===t ? "#EEEDFE" : "white", color: tier===t ? "#3C3489" : "#64748b", cursor:"pointer", transition:"all .15s", textTransform:"capitalize" }}>
               {t.charAt(0).toUpperCase()+t.slice(1)}
             </button>
           ))}
-          <span style={{ fontSize:".62rem", color:"#94a3b8", paddingLeft:"2px" }}>admin</span>
+          {isDevAccess && <span style={{ fontSize:".62rem", color:"#94a3b8", paddingLeft:"2px" }}>admin</span>}
+          {!isDevAccess && <span style={{ fontSize:".72rem", fontWeight:600, color:"#534AB7", background:"#EEEDFE", padding:".2rem .65rem", borderRadius:"99px", textTransform:"capitalize" }}>{tier}</span>}
         </div>
       </div>
 

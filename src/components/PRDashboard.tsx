@@ -66,6 +66,9 @@ const TABS = [
   { id: "press",      icon: <MegaphoneIcon size={15}/>,                                            label: "Published Press"     },
 ];
 
+const IS_DEV = import.meta.env.DEV ||
+  new URLSearchParams(window.location.search).get("dev_access") === "mbb2026";
+
 export default function PRDashboard() {
   // ── Persistent / shared state ─────────────────────────────────────────────
   const [companyData,    setCompanyData]    = useState<CompanyData>(EMPTY_COMPANY);
@@ -285,7 +288,7 @@ export default function PRDashboard() {
 
           {activeTab === "topics"     && <TrendingTopics companyData={companyData} showToast={showToast} onTopicSelect={handleTopicSelect}/>}
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast}/>}
+          {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV}/>}
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} locationId={locationId} showToast={showToast}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
