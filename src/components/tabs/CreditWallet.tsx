@@ -314,7 +314,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => setActiveTab("packages")} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:`1.5px solid ${ti.color}`, cursor:"pointer", fontWeight:700, fontSize:".78rem", background:"transparent", color:ti.color, transition:"all .15s" }}
+                  <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:`1.5px solid ${ti.color}`, cursor:"pointer", fontWeight:700, fontSize:".78rem", background:"transparent", color:ti.color, transition:"all .15s" }}
                     onMouseOver={e=>{ e.currentTarget.style.background=ti.color; e.currentTarget.style.color="white"; }}
                     onMouseOut={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=ti.color; }}>
                     {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
