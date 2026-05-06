@@ -292,10 +292,10 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:".75rem" }}>
             {[
-              { icon:"🏆", title:"Massive Social Proof",       color:"#6366f1", bg:"#eef2ff", desc:"Build instant credibility with hundreds of verified news placements your prospects can see and trust." },
-              { icon:"🎯", title:"Attract Potential Customers", color:"#8929bd", bg:"#f5f3ff", desc:"Put your message in front of millions of targeted readers actively searching for solutions you offer." },
-              { icon:"📈", title:"Top Rankings on Google",      color:"#0ea5e9", bg:"#f0f9ff", desc:"High-authority backlinks from major news sites boost your domain ranking and organic visibility." },
-              { icon:"🔗", title:"Valuable SEO Backlinks",      color:"#10b981", bg:"#f0fdf4", desc:"Each published article creates powerful do-follow links that compound your SEO results over time." },
+              { icon:"🏆", title:"Elite Brand Authority",      color:"#6366f1", bg:"#eef2ff", desc:"Establish your brand as a verified industry leader through editorial placements on reputable news outlets that prospects instantly recognize and trust." },
+              { icon:"🤖", title:"AI & LLM Visibility",         color:"#8929bd", bg:"#f5f3ff", desc:"Future-proof your business by feeding high-value, authoritative content into the datasets that power AI search engines and Large Language Models (LLMs)." },
+              { icon:"📡", title:"Strategic Media Exposure",    color:"#0ea5e9", bg:"#f0f9ff", desc:"Earn visibility where your audience already spends their time, from hyper-local news sites to leading national and international media publications." },
+              { icon:"📈", title:"Compound SEO Authority",      color:"#10b981", bg:"#f0fdf4", desc:"Strengthen your domain naturally with high-quality editorial backlinks that boost your Google rankings and create long-term organic growth." },
             ].map(r => (
               <div key={r.title} style={{ background:r.bg, border:`1px solid ${r.color}25`, borderRadius:".75rem", padding:"1rem 1.1rem" }}>
                 <div style={{ fontSize:"1.4rem", marginBottom:".4rem" }}>{r.icon}</div>
