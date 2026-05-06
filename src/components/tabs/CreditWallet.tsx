@@ -78,6 +78,8 @@ const TIER_STRATEGY: Record<string, { bestFor: string; useCase: string }> = {
   standard: { bestFor: "Core Services & Optimization",    useCase: "Establishing your brand as a professional authority for specific offerings."                    },
   premium:  { bestFor: "Homepage & National Authority",   useCase: "Launching your Brand Apex on high-authority news sites for maximum trust."                     },
 };
+
+const PACKS = [
   { qty:3,  label:"3-Pack",  discount:null,        discountColor:"" },
   { qty:6,  label:"6-Pack",  discount:"5% Off",    discountColor:"#0ea5e9" },
   { qty:12, label:"12-Pack", discount:"10% Off",   discountColor:"#10b981" },
