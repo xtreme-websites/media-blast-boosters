@@ -225,6 +225,7 @@ export default function PRCreator({
   const [ctaPulse,             setCtaPulse]             = useState(false);
   const [agreedToTerms,        setAgreedToTerms]        = useState(false);
   const [prohibitedMatches,    setProhibitedMatches]    = useState<ProhibitedMatch[]>([]);
+  const [showEditorialPanel,   setShowEditorialPanel]   = useState(false);
   const [authorityFocus,       setAuthorityFocus]       = useState<import("./AuthorityBuilder").AuthorityFocus | null>(null);
   const [strategyMatchTier,    setStrategyMatchTier]    = useState<PRTier | null>(null);
   const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
@@ -477,7 +478,7 @@ RULES:
                     <input type="checkbox" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)}
                       style={{ width:16, height:16, accentColor:cfg.color, cursor:"pointer", flexShrink:0 }}/>
                     I agree to the&nbsp;
-                    <button type="button" onClick={onOpenHelp} style={{ background:"none", border:"none", padding:0, color:cfg.color, fontWeight:700, cursor:"pointer", fontSize:".82rem", textDecoration:"underline" }}>
+                    <button type="button" onClick={() => setShowEditorialPanel(true)} style={{ background:"none", border:"none", padding:0, color:cfg.color, fontWeight:700, cursor:"pointer", fontSize:".82rem", textDecoration:"underline" }}>
                       Editorial Standards
                     </button>
                   </label>
@@ -875,6 +876,50 @@ RULES:
             </div>{/* end disabled wrapper */}
           </div>
         </div>
+      )}
+
+      {/* Editorial Standards Side Panel */}
+      {showEditorialPanel && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:9998, display:"flex" }} onClick={e => { if (e.target === e.currentTarget) setShowEditorialPanel(false); }}>
+          <div style={{ marginLeft:"auto", width:"100%", maxWidth:560, background:"white", height:"100%", overflowY:"auto", boxShadow:"-8px 0 40px rgba(0,0,0,.18)", display:"flex", flexDirection:"column" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1.1rem 1.5rem", borderBottom:"1px solid #f1f5f9", flexShrink:0, background:"white", position:"sticky", top:0, zIndex:1 }}>
+              <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b" }}>📋 Editorial Standards</div>
+              <button onClick={() => setShowEditorialPanel(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:"1.4rem", lineHeight:1 }}>×</button>
+            </div>
+            <div style={{ padding:"1.5rem", flex:1 }}>
+              <div style={{ background:"linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius:".75rem", padding:"1rem 1.25rem", marginBottom:"1.5rem" }}>
+                <p style={{ color:"rgba(255,255,255,.9)", fontSize:".85rem", margin:0, lineHeight:1.6 }}>
+                  These are the "rules of the road" for your content to ensure a <strong>100% approval rate</strong> from our editorial team.
+                </p>
+              </div>
+              <h3 style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", margin:"0 0 .75rem" }}>📋 General Content Requirements</h3>
+              {[
+                ["Newsworthiness","All press releases must share timely, relevant information about an event or announcement regarding your business community."],
+                ["Professional Tone","Content must be written in strictly professional language. Avoid superlatives, hype, jargon, or direct address (using \"you\" or \"I\"), except within official quotations."],
+                ["Prohibited Phrasing","Do not use spam or promotional phrases like Click Here or Great Business Opportunity. Avoid exclamation marks and ALL CAPS used for emphasis."],
+                ["Length & Accuracy","We suggest a length of 450 to 800 words to ensure pickup by Google News. All submissions must be free of spelling and grammatical errors."],
+              ].map(([title, desc]) => (
+                <div key={title as string} style={{ display:"flex", gap:".6rem", marginBottom:".65rem" }}>
+                  <span style={{ width:6, height:6, borderRadius:"50%", background:"#6366f1", flexShrink:0, marginTop:".45rem" }}/>
+                  <span style={{ fontSize:".83rem", color:"#374151", lineHeight:1.65 }}><strong>{title}:</strong> {desc}</span>
+                </div>
+              ))}
+              <h3 style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", margin:"1.25rem 0 .75rem" }}>🖊️ Formatting Your Release</h3>
+              {[
+                ["Headlines","Must be short, to the point, and summarize the release purpose. Do not capitalize every word; only capitalize the first letter and proper nouns."],
+                ["Summary","Provide a maximum of 250 characters that includes your company name and key terms. Do not include links in the summary."],
+                ["Media Contact","A valid phone number and email address are required for every distribution."],
+                ["Links & Keywords","You may embed HTML links in the body. Tagged keywords should be used to help search engines and journalists categorize your news."],
+              ].map(([title, desc]) => (
+                <div key={title as string} style={{ display:"flex", gap:".6rem", marginBottom:".65rem" }}>
+                  <span style={{ width:6, height:6, borderRadius:"50%", background:"#6366f1", flexShrink:0, marginTop:".45rem" }}/>
+                  <span style={{ fontSize:".83rem", color:"#374151", lineHeight:1.65 }}><strong>{title}:</strong> {desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Prohibited Content Modal */}
