@@ -289,8 +289,8 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
   };
 
   const copyScript = (cfg: BadgeConfig) => {
-    const slug = encodeURIComponent(cfg.name.toLowerCase().replace(/\s+/g, '-'));
-    const tag = `<!-- Trust Widget: "${cfg.name}" -->\n<script src="https://mediablast.xlogic.app/trust-widget.js?v=${slug}"></script>`;
+    const idx = variations.findIndex(v => v.id === cfg.id) + 1;
+    const tag = `<!-- Trust Widget: "${cfg.name}" -->\n<script src="https://mediablast.xlogic.app/trust-widget.js?v=${idx}"></script>`;
     navigator.clipboard.writeText(tag);
     showToast(`Script for "${cfg.name}" copied!`);
   };
@@ -396,7 +396,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
         {verifyStatus === "found" && (
           <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:".5rem", padding:".875rem 1rem", display:"flex", alignItems:"center", gap:".5rem", color:"#166534", fontWeight:600 }}>
             <CheckIcon size={16}/> Badge detected and verified ✓
-            {(verifyData as any)?.variationName && <span style={{ fontSize:".78rem", fontWeight:500, color:"#166534", background:"#dcfce7", padding:".1rem .5rem", borderRadius:"99px", marginLeft:".25rem" }}>Variation: "{(verifyData as any).variationName}"</span>}
+            {(verifyData as any)?.variationName && <span style={{ fontSize:".78rem", fontWeight:500, color:"#166534", background:"#dcfce7", padding:".1rem .5rem", borderRadius:"99px", marginLeft:".25rem" }}>Widget v{(verifyData as any).variationName}</span>}
           </div>
         )}
         {verifyStatus === "not-found" && (
