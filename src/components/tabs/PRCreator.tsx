@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { callClaude } from "../../lib/ai";
+import { scanForProhibitedContent } from "../../lib/prohibitedContent";
+import type { ProhibitedMatch } from "../../lib/prohibitedContent";
 import { CompanyData, Topic, PR_PACKAGES, FOCUS_OPTIONS, THEME_OPTIONS } from "../../lib/constants";
 import { SparklesIcon, LoaderIcon, BackIcon, ClipboardIcon, CopyIcon, CheckIcon, XIcon, UploadIcon, BriefIcon } from "../icons";
 
@@ -222,6 +224,7 @@ export default function PRCreator({
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
   const [ctaPulse,             setCtaPulse]             = useState(false);
   const [agreedToTerms,        setAgreedToTerms]        = useState(false);
+  const [prohibitedMatches,    setProhibitedMatches]    = useState<ProhibitedMatch[]>([]);
   const [authorityFocus,       setAuthorityFocus]       = useState<import("./AuthorityBuilder").AuthorityFocus | null>(null);
   const [strategyMatchTier,    setStrategyMatchTier]    = useState<PRTier | null>(null);
   const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
@@ -274,6 +277,10 @@ export default function PRCreator({
     if (!prFormData.about.trim() || !prFormData.quote.trim()) {
       showToast("Please fill in both the About and Quote fields", "error"); return;
     }
+    // Scan form fields for prohibited content before generating
+    const formText = [prFormData.about, prFormData.quote, prFormData.partnerQuote].join(" ");
+    const formMatches = scanForProhibitedContent(formText);
+    if (formMatches.length > 0) { setProhibitedMatches(formMatches); return; }
     // Media type validation
     if (prFormData.mediaType === "topic" && !selectedTopic) {
       showToast("Please select a Trending Topic or change Media Type", "error"); return;
@@ -386,6 +393,10 @@ RULES:
   };
 
   const handlePlaceOrder = (packageType?: string) => {
+    // Scan generated PR for prohibited content
+    const prMatches = scanForProhibitedContent(generatedPR);
+    if (prMatches.length > 0) { setProhibitedMatches(prMatches); return; }
+
     const pkg = packageType ?? selectedTier;
     const h1Match = generatedPR.match(/<h1[^>]*>(.*?)<\/h1>/i);
     const prTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, "") : prFormData.about.slice(0, 80) || "Press Release";
@@ -558,9 +569,9 @@ RULES:
               <label className="field-label">Media Type <span style={{ color: "#ef4444" }}>*</span></label>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:".5rem" }}>
                 {([
+                  { id:"authority", icon:"🏗️", title:"Authority Builder",  desc:"Based on website structure" },
                   { id:"topic",     icon:"📰", title:"Trending Topic",    desc:"Based on industry news" },
                   { id:"article",   icon:"📋", title:"Existing Article",  desc:"Reference article" },
-                  { id:"authority", icon:"🏗️", title:"Authority Builder",  desc:"Based on website structure" },
                   { id:"freestyle", icon:"✍️", title:"Freestyle",          desc:"Open form" },
                 ] as const).map(opt => (
                   <button key={opt.id} type="button" onClick={() => setPrFormData(p => ({ ...p, mediaType: opt.id }))}
@@ -864,6 +875,45 @@ RULES:
             </div>{/* end disabled wrapper */}
           </div>
         </div>
+      )}
+
+      {/* Prohibited Content Modal */}
+      {prohibitedMatches.length > 0 && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)" }}>
+          <div style={{ background:"white", borderRadius:"1.25rem", width:"100%", maxWidth:460, padding:"2rem", margin:"1rem", boxShadow:"0 32px 80px rgba(0,0,0,.3)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:".75rem", marginBottom:"1rem" }}>
+              <div style={{ width:44, height:44, borderRadius:"50%", background:"#fef2f2", border:"2px solid #fecaca", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.3rem", flexShrink:0 }}>
+                🚫
+              </div>
+              <div>
+                <h3 style={{ fontWeight:800, fontSize:"1.05rem", color:"#991b1b", margin:0 }}>Content Not Permitted</h3>
+                <p style={{ color:"#64748b", fontSize:".78rem", margin:0, marginTop:".15rem" }}>Your content contains restricted topics. Please revise before submitting.</p>
+              </div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:".5rem", marginBottom:"1.25rem" }}>
+              {prohibitedMatches.map((m, i) => (
+                <div key={i} style={{ background:"#fff7f7", border:"1px solid #fecaca", borderRadius:".6rem", padding:".75rem 1rem" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".2rem" }}>
+                    <span style={{ fontSize:".65rem", fontWeight:800, color:"#dc2626", background:"#fef2f2", padding:".15rem .5rem", borderRadius:"99px", border:"1px solid #fecaca", textTransform:"uppercase", letterSpacing:".06em" }}>
+                      {m.type}
+                    </span>
+                  </div>
+                  <div style={{ fontWeight:700, fontSize:".82rem", color:"#7f1d1d" }}>{m.rule}</div>
+                  <div style={{ fontSize:".75rem", color:"#94a3b8", marginTop:".15rem" }}>
+                    Detected: <span style={{ color:"#dc2626", fontFamily:"monospace" }}>"{m.matched}"</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ background:"#fef3c7", border:"1px solid #f59e0b", borderRadius:".6rem", padding:".65rem .85rem", fontSize:".75rem", color:"#92400e", marginBottom:"1.25rem", lineHeight:1.5 }}>
+              💡 Review the <strong>Prohibited Content</strong> guidelines in Help & Guidelines for the full list of restricted topics.
+            </div>
+            <button onClick={() => setProhibitedMatches([])} style={{ width:"100%", padding:".7rem", borderRadius:".6rem", border:"none", background:"linear-gradient(135deg,#8929bd,#4338ca)", color:"white", fontWeight:700, fontSize:".88rem", cursor:"pointer" }}>
+              Edit Content
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Strategy Match Warning */}
