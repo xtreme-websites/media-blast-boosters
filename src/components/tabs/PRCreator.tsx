@@ -185,7 +185,7 @@ interface PRFormData {
   includePartnerQuote: "no" | "yes";
   partnerQuote: string;
   partnerAttribution: string;
-  mediaType: "topic" | "article" | "authority";
+  mediaType: "topic" | "article" | "authority" | "freestyle";
 }
 
 interface PRCreatorProps {
@@ -195,11 +195,12 @@ interface PRCreatorProps {
   onClearTopic: () => void;
   onNavigateToTopics: () => void;
   onOpenCompanyData: () => void;
-  onPlaceOrder: (packageType: string, prTitle: string, prContent: string) => void;
+  onPlaceOrder: (packageType: string, prTitle: string, prContent: string, seoFocus?: string) => void;
   onOpenCheckout: (packageType: string, prTitle: string, prContent: string) => void;
   onOpenCredits: () => void;
   onNavigateToPublished?: () => void;
   onOpenHelp?: () => void;
+  authorityPayload?: import("./AuthorityBuilder").ExecutePayload | null;
   locationId: string;
   showToast: (msg: string, type?: "success" | "error") => void;
 }
@@ -215,12 +216,25 @@ type PRTier = keyof typeof TIER_CONFIG;
 export default function PRCreator({
   companyData, customPRPrompt,
   selectedTopic, onClearTopic, onNavigateToTopics,
-  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, locationId, showToast,
+  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, authorityPayload, locationId, showToast,
 }: PRCreatorProps) {
   const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "topic" });
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
   const [ctaPulse,             setCtaPulse]             = useState(false);
   const [agreedToTerms,        setAgreedToTerms]        = useState(false);
+  const [authorityFocus,       setAuthorityFocus]       = useState<import("./AuthorityBuilder").AuthorityFocus | null>(null);
+  const [strategyMatchTier,    setStrategyMatchTier]    = useState<PRTier | null>(null);
+  const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
+
+  // Apply authority payload when coming from AuthorityBuilder "Execute Now"
+  useEffect(() => {
+    if (!authorityPayload) return;
+    setPrFormData(p => ({ ...p, mediaType: "authority" }));
+    setAuthorityFocus(authorityPayload.authorityFocus);
+    setSelectedTier(authorityPayload.packageTier as PRTier);
+    setStrategyMatchTier(authorityPayload.packageTier as PRTier);
+    setShowGeneratedView(false);
+  }, [authorityPayload]);
   const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
   const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
 
@@ -375,7 +389,14 @@ RULES:
     const pkg = packageType ?? selectedTier;
     const h1Match = generatedPR.match(/<h1[^>]*>(.*?)<\/h1>/i);
     const prTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, "") : prFormData.about.slice(0, 80) || "Press Release";
-    onPlaceOrder(pkg, prTitle, generatedPR);
+    // Build seoFocus
+    let seoFocus = "";
+    if (authorityFocus) {
+      seoFocus = authorityFocus.seoFocus;
+    } else if (prFormData.keywords.length > 0) {
+      seoFocus = `own:${prFormData.keywords.join(",")}`;
+    }
+    onPlaceOrder(pkg, prTitle, generatedPR, seoFocus);
     setOrderConfirm({ tier: pkg as PRTier, title: prTitle });
   };
 
@@ -489,7 +510,18 @@ RULES:
                   const isSelected = selectedTier === tier;
                   const noCredits = bal === 0;
                   return (
-                    <div key={tier} onClick={() => setSelectedTier(tier)} style={{ border: `2px solid ${isSelected ? cfg.color : "#e2e8f0"}`, borderRadius: ".75rem", padding: "1rem", cursor: "pointer", background: isSelected ? cfg.light : "white", transition: "all .15s", position: "relative", boxShadow: isSelected ? `0 4px 14px ${cfg.color}30` : "none" }}>
+                    <div key={tier} onClick={() => {
+                      if (strategyMatchTier && tier !== strategyMatchTier) {
+                        setShowStrategyWarning(true);
+                      }
+                      setSelectedTier(tier);
+                    }} style={{ border: `2px solid ${isSelected ? cfg.color : "#e2e8f0"}`, borderRadius: ".75rem", padding: "1rem", cursor: "pointer", background: isSelected ? cfg.light : "white", transition: "all .15s", position: "relative", boxShadow: isSelected ? `0 4px 14px ${cfg.color}30` : "none" }}>
+                      {/* Strategy Match badge */}
+                      {strategyMatchTier === tier && (
+                        <div style={{ position:"absolute", top:-8, left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#c9a84c,#f0c040)", color:"#1e1b4b", fontSize:".6rem", fontWeight:800, padding:".15rem .6rem", borderRadius:"99px", whiteSpace:"nowrap", letterSpacing:".04em" }}>
+                          ⚡ Strategy Match
+                        </div>
+                      )}
                       {/* Credit badge */}
                       <div style={{ position: "absolute", top: 8, right: 8, background: noCredits ? "#fef2f2" : "#f0fdf4", color: noCredits ? "#ef4444" : "#10b981", fontSize: ".65rem", fontWeight: 700, padding: ".15rem .45rem", borderRadius: "99px", border: `1px solid ${noCredits ? "#fecaca" : "#bbf7d0"}` }}>
                         {noCredits ? "0 credits" : `${bal} credit${bal > 1 ? "s" : ""}`}
@@ -528,7 +560,7 @@ RULES:
                 {([
                   { id:"topic",     icon:"📰", title:"Trending Topic",    desc:"Base on news" },
                   { id:"article",   icon:"📋", title:"Existing Article",  desc:"Reference article" },
-                  { id:"authority", icon:"🏛️", title:"Authority",          desc:"Industry expert" },
+                  { id:"authority", icon:"🏗️", title:"Authority Builder",  desc:"Based on website structure" },
                   { id:"freestyle", icon:"✍️", title:"Freestyle",          desc:"Open form" },
                 ] as const).map(opt => (
                   <button key={opt.id} type="button" onClick={() => setPrFormData(p => ({ ...p, mediaType: opt.id }))}
@@ -659,9 +691,11 @@ RULES:
                 )}
 
                 {prFormData.mediaType === "authority" && (
-                  <div style={{ background:"#f8fafc", border:"1px dashed #cbd5e1", borderRadius:".6rem", padding:"1rem", textAlign:"center" }}>
-                    <p style={{ color:"#94a3b8", fontSize:".8rem" }}>🏛️ Authority Building options coming soon. Your PR will be crafted to position you as an industry leader.</p>
-                  </div>
+                  <AuthorityFocusPicker
+                    focus={authorityFocus}
+                    onChange={setAuthorityFocus}
+                    companyData={companyData}
+                  />
                 )}
 
                 {prFormData.mediaType === "freestyle" && (
@@ -837,7 +871,27 @@ RULES:
         </div>
       )}
 
-      {/* Refine Dialog */}
+      {/* Strategy Match Warning */}
+      {showStrategyWarning && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.5)", backdropFilter:"blur(4px)" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:400, padding:"2rem", textAlign:"center", margin:"1rem", boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
+            <div style={{ fontSize:"2rem", marginBottom:".75rem" }}>⚡</div>
+            <h3 style={{ fontWeight:800, fontSize:"1.05rem", color:"#1e293b", margin:"0 0 .5rem" }}>Deviating from Strategy Match</h3>
+            <p style={{ color:"#64748b", fontSize:".83rem", lineHeight:1.6, margin:"0 0 1.25rem" }}>
+              Our AI recommended a specific package tier based on your authority roadmap. Changing it may reduce the effectiveness of this PR in the overall 1:3:12 strategy.
+            </p>
+            <div style={{ display:"flex", gap:".6rem" }}>
+              <button onClick={() => { setShowStrategyWarning(false); }} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"none", background:"#6366f1", color:"white", fontWeight:700, cursor:"pointer" }}>
+                Got it, I'll proceed
+              </button>
+              <button onClick={() => { setSelectedTier(strategyMatchTier!); setShowStrategyWarning(false); }} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, cursor:"pointer" }}>
+                Restore Strategy
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       {showRefineDialog && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "1rem" }}>
           <div className="card modal-panel" style={{ maxWidth: "460px", width: "100%", padding: "1.5rem" }}>
@@ -915,3 +969,102 @@ RULES:
   );
 }
 
+
+// ── AuthorityFocusPicker ──────────────────────────────────────────────────────
+function AuthorityFocusPicker({ focus, onChange, companyData }: {
+  focus: import("./AuthorityBuilder").AuthorityFocus | null;
+  onChange: (f: import("./AuthorityBuilder").AuthorityFocus) => void;
+  companyData: CompanyData;
+}) {
+  const [activeTab, setActiveTab] = useState<"home"|"service"|"location">("home");
+  const services  = companyData.servicePages  || [];
+  const locations = companyData.locationPages || [];
+
+  const select = (type: "home"|"service"|"location", url: string, name: string, keywords: string[]) => {
+    const kw = keywords[0] || name.toLowerCase();
+    onChange({ type, url, name, keyword: kw, seoFocus: `${type}:${url}:${kw}` });
+  };
+
+  if (services.length === 0 && locations.length === 0) return (
+    <div style={{ background:"#f8fafc", border:"1px dashed #cbd5e1", borderRadius:".6rem", padding:".85rem", textAlign:"center" }}>
+      <p style={{ color:"#94a3b8", fontSize:".8rem", margin:0 }}>Run the AI Crawl in Company Profile to discover your services and locations.</p>
+    </div>
+  );
+
+  const tabs = [
+    { id:"home"     as const, label:"🌐 Homepage",  disabled: false },
+    { id:"service"  as const, label:"🔧 Services",  disabled: services.length === 0 },
+    { id:"location" as const, label:"📍 Locations", disabled: locations.length === 0 },
+  ];
+
+  return (
+    <div style={{ border:"1px solid #e2e8f0", borderRadius:".65rem", overflow:"hidden" }}>
+      <div style={{ display:"flex", borderBottom:"1px solid #f1f5f9", background:"#f8fafc" }}>
+        {tabs.map(t => (
+          <button key={t.id} type="button" disabled={t.disabled} onClick={() => setActiveTab(t.id)}
+            style={{ flex:1, padding:".45rem .3rem", border:"none", cursor: t.disabled ? "not-allowed" : "pointer", fontSize:".72rem", fontWeight:600,
+              background: activeTab===t.id ? "white" : "transparent",
+              color: t.disabled ? "#c8ccd0" : activeTab===t.id ? "#4338ca" : "#94a3b8",
+              borderBottom: activeTab===t.id ? "2px solid #6366f1" : "2px solid transparent" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ padding:".65rem .75rem" }}>
+        {/* Selected */}
+        {focus && (
+          <div style={{ background:"#eef2ff", border:"1px solid #c7d2fe", borderRadius:".45rem", padding:".5rem .75rem", marginBottom:".6rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ fontSize:".78rem", fontWeight:600, color:"#4338ca" }}>
+              {focus.type === "home" ? "🌐" : focus.type === "service" ? "🔧" : "📍"} {focus.name}
+            </span>
+            <button onClick={() => onChange(null as any)} style={{ background:"none", border:"none", color:"#6366f1", cursor:"pointer", fontSize:".85rem", padding:0 }}>×</button>
+          </div>
+        )}
+
+        {activeTab === "home" && (
+          <button type="button" onClick={() => select("home", companyData.websiteUrl||"", companyData.name||"Your Brand", [companyData.name?.toLowerCase()||"brand"])}
+            style={{ width:"100%", padding:".65rem .85rem", border:`1.5px solid ${focus?.type==="home" ? "#6366f1" : "#e2e8f0"}`, borderRadius:".5rem", background: focus?.type==="home" ? "#eef2ff" : "white", cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:".65rem" }}>
+            <span style={{ fontSize:"1.1rem" }}>🌐</span>
+            <div>
+              <div style={{ fontWeight:700, fontSize:".83rem", color:"#1e293b" }}>{companyData.name || "Your Brand"}</div>
+              <div style={{ fontSize:".7rem", color:"#94a3b8" }}>{companyData.websiteUrl || "Add website in Company Profile"}</div>
+            </div>
+            {focus?.type==="home" && <span style={{ marginLeft:"auto", color:"#6366f1", fontWeight:700 }}>✓</span>}
+          </button>
+        )}
+
+        {activeTab === "service" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:".4rem", maxHeight:200, overflowY:"auto" }}>
+            {services.map(s => (
+              <button key={s.url} type="button" onClick={() => select("service", s.url, s.name, s.keywords||[])}
+                style={{ padding:".55rem .75rem", border:`1.5px solid ${focus?.url===s.url ? "#6366f1" : "#e2e8f0"}`, borderRadius:".45rem", background: focus?.url===s.url ? "#eef2ff" : "white", cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:".5rem" }}>
+                <span>🔧</span>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:".82rem", color:"#1e293b" }}>{s.name}</div>
+                  <div style={{ fontSize:".68rem", color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.url}</div>
+                </div>
+                {focus?.url===s.url && <span style={{ marginLeft:"auto", color:"#6366f1", fontWeight:700, flexShrink:0 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "location" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:".4rem", maxHeight:200, overflowY:"auto" }}>
+            {locations.map(l => (
+              <button key={l.url} type="button" onClick={() => select("location", l.url, l.name, l.keywords||[])}
+                style={{ padding:".55rem .75rem", border:`1.5px solid ${focus?.url===l.url ? "#6366f1" : "#e2e8f0"}`, borderRadius:".45rem", background: focus?.url===l.url ? "#eef2ff" : "white", cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:".5rem" }}>
+                <span>📍</span>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:".82rem", color:"#1e293b" }}>{l.name}</div>
+                  <div style={{ fontSize:".68rem", color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{l.url}</div>
+                </div>
+                {focus?.url===l.url && <span style={{ marginLeft:"auto", color:"#6366f1", fontWeight:700, flexShrink:0 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

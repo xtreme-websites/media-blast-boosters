@@ -15,6 +15,8 @@ import CreditWallet from "./tabs/CreditWallet";
 import PublishedPress from "./tabs/PublishedPress";
 import HelpGuidelines from "./tabs/HelpGuidelines";
 import CompanyDataPage from "./tabs/CompanyDataPage";
+import AuthorityBuilder from "./tabs/AuthorityBuilder";
+import type { ExecutePayload } from "./tabs/AuthorityBuilder";
 
 // ─── Global Styles ─────────────────────────────────────────────────────────────
 const GlobalStyles = () => (
@@ -57,6 +59,7 @@ const GlobalStyles = () => (
 const TABS = [
   { id: "topics",     icon: <i className="fa-solid fa-fire-flame-curved" style={{fontSize:15}}/>, label: "Trending Topics"     },
   { id: "competitor", icon: <i className="fa-solid fa-chart-bar" style={{fontSize:15}}/>,          label: "Competitor Analysis" },
+  { id: "authority",   icon: <i className="fa-solid fa-trophy" style={{fontSize:15}}/>,               label: "Authority Builder"   },
   { id: "widgets",    icon: <MedalIcon size={15}/>,                                                label: "Trust Widgets"       },
   { id: "orders",     icon: <StarMenuIcon size={15}/>,                                             label: "Media Credits"       },
   { id: "pr",         icon: <ArticleEditIcon size={15}/>,                                          label: "Media Content"       },
@@ -82,7 +85,8 @@ export default function PRDashboard() {
   const [showCompanyData, setShowCompanyData] = useState(false);
   const [showSettings,    setShowSettings]    = useState(false);
   const [toast,           setToast]           = useState<{ message: string; type: string } | null>(null);
-  const [checkoutPackage, setCheckoutPackage] = useState<{type:string;title:string;content:string}|null>(null);
+  const [checkoutPackage,  setCheckoutPackage]  = useState<{type:string;title:string;content:string}|null>(null);
+  const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
 
   const locationId = useMemo(() => {
     try {
@@ -138,7 +142,7 @@ export default function PRDashboard() {
   };
 
   // ── Place order (called from PRCreator) ───────────────────────────────────
-  const placeOrder = async (packageType: string, prTitle: string, prContent: string) => {
+  const placeOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus = "") => {
     const pkg      = PR_PACKAGES[packageType];
     const newOrder: Order = { id: crypto.randomUUID(), prTitle, productName: packageType, price: pkg.price, date: new Date().toLocaleDateString("en-US"), prContent };
     setOrders(prev => [newOrder, ...prev]);
@@ -151,7 +155,7 @@ export default function PRDashboard() {
       });
     } catch {}
     if (locationId !== "preview-mode") {
-      try { await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$", "")), pr_content: prContent }); } catch {}
+      try { await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$", "")), pr_content: prContent, seo_focus: seoFocus }); } catch {}
     }
     if (webhookUrl) {
       try { await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "order.placed", location_id: locationId, order_id: newOrder.id, pr_title: prTitle, package: packageType, price: pkg.price, pr_content: prContent, company_name: companyData.name, industry: companyData.industry, timestamp: new Date().toISOString() }) }); } catch {}
@@ -282,9 +286,10 @@ export default function PRDashboard() {
           {activeTab === "topics"     && <TrendingTopics companyData={companyData} showToast={showToast} onTopicSelect={handleTopicSelect}/>}
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
           {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} locationId={locationId} showToast={showToast}/>}
+          {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} authorityPayload={authorityPayload} locationId={locationId} showToast={showToast}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
+          {activeTab === "authority"  && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
           {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")}/>}
         </main>

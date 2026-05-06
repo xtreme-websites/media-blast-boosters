@@ -29,6 +29,10 @@ export interface Order {
   price: string;
   date: string;
   prContent: string;
+  seoFocus?: string;    // format: "home:kw" | "service:url:kw" | "location:url:kw" | "own:kw"
+  serviceUrl?: string;
+  locationUrl?: string;
+  status?: string;
 }
 
 // ─── Company Data Default ─────────────────────────────────────────────────────

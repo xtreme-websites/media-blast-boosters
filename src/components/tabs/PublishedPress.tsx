@@ -56,6 +56,7 @@ export default function PublishedPress({ orders }: Props) {
             <tr style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed)"}}>
               <th style={th}>Package</th>
               <th style={th}>PR Title</th>
+              <th style={th}>SEO Focus</th>
               <th style={th}>Date</th>
               <th style={th}>Article</th>
               <th style={th}>Status</th>
@@ -132,5 +133,28 @@ export default function PublishedPress({ orders }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
+  if (!seoFocus) return <span style={{ fontSize:".72rem", color:"#94a3b8" }}>—</span>;
+  const [type, ...rest] = seoFocus.split(":");
+  const typeColors: Record<string,{color:string;bg:string;icon:string}> = {
+    home:     { color:"#8929bd", bg:"#f5f3ff", icon:"🌐" },
+    service:  { color:"#6366f1", bg:"#eef2ff", icon:"🔧" },
+    location: { color:"#0ea5e9", bg:"#f0f9ff", icon:"📍" },
+    own:      { color:"#64748b", bg:"#f8fafc",  icon:"✍️" },
+  };
+  const style = typeColors[type] || typeColors.own;
+  // Extract readable label
+  let label = rest[rest.length - 1] || type;
+  if (label.startsWith("http")) {
+    const parts = label.split("/").filter(Boolean);
+    label = parts[parts.length - 1]?.replace(/-/g," ") || type;
+  }
+  return (
+    <span style={{ fontSize:".68rem", fontWeight:700, color:style.color, background:style.bg, padding:".15rem .5rem", borderRadius:"99px", display:"inline-flex", alignItems:"center", gap:".25rem", whiteSpace:"nowrap" }}>
+      {style.icon} {label}
+    </span>
   );
 }
