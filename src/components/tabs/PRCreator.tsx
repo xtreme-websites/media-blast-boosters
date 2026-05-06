@@ -221,7 +221,7 @@ export default function PRCreator({
   selectedTopic, onClearTopic, onNavigateToTopics,
   onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, locationId, showToast,
 }: PRCreatorProps) {
-  const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "topic" });
+  const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "authority" });
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
   const [ctaPulse,             setCtaPulse]             = useState(false);
   const [agreedToTerms,        setAgreedToTerms]        = useState(false);

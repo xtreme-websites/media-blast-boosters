@@ -182,7 +182,7 @@ function generateEmbedHTML(config: BadgeConfig, logos: LogoDef[], tier: Tier): s
   const isSlider = config.layout === "slider";
   const animId   = `mbb-scroll-${config.id.slice(0,8)}`;
 
-  const BASE = "https://media-blast-boosters.vercel.app";
+  const BASE = "https://mediablast.xlogic.app";
   const logoEl = (l: LogoDef) => `<span style="font-family:${l.font};font-size:${l.size};font-weight:${l.weight};color:${lc};letter-spacing:${l.spacing??"normal"};line-height:${l.lh??"1.2"};font-style:${l.fStyle??"normal"};display:inline-block;white-space:nowrap">${l.label.replace("\n","<br>")}</span>`;
 
   // Use hosted SVG files instead of inlining massive path data
@@ -336,8 +336,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:".5rem" }}>
             <span style={{ fontSize:".72rem", fontWeight:600, color:"#64748b", letterSpacing:".04em", textTransform:"uppercase" }}>Active badge · {active.name}</span>
             <div style={{ display:"flex", gap:".5rem" }}>
-              <button onClick={() => { navigator.clipboard.writeText(`<script src="https://media-blast-boosters.vercel.app/mbb-widget.js"></script>`); showToast("Script tag copied!"); }} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
-              <button onClick={() => copyHTML(active)} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><CopyIcon size={13}/> Copy HTML</button>
+              <button onClick={() => { navigator.clipboard.writeText(`<script src="https://mediablast.xlogic.app/trust-widget.js"></script>`); showToast("Script tag copied!"); }} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
               <button onClick={() => openEdit(active)} className="btn-primary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><SparklesIcon size={13}/> Customize</button>
             </div>
           </div>
