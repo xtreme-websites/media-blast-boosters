@@ -92,6 +92,7 @@ const PENDING_KEY = "mbb_pending_purchase";
 
 export default function CreditWallet({ locationId, showToast, onNavigateToPR }: Props) {
   const [activeTab,       setActiveTab]       = useState<"packages"|"credits"|"transactions">("credits");
+  const [activeTier,      setActiveTier]      = useState<Tier>("starter");
   const [credits,         setCredits]         = useState<Credits>({ starter_credits:0, standard_credits:0, premium_credits:0 });
   const [loading,         setLoading]         = useState(true);
   const [checkout,        setCheckout]        = useState<{ tier:Tier; qty:number }|null>(null);
@@ -194,9 +195,27 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
             <h2 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:0 }}>Media Packages</h2>
             <p style={{ color:"#64748b", fontSize:".83rem", margin:".25rem 0 0" }}>Purchase PR credit packs — use anytime to launch press releases</p>
           </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:"2rem" }}>
+
+          {/* Tier tabs */}
+          <div style={{ display:"flex", gap:".25rem", background:"white", borderRadius:".75rem", padding:".35rem", marginBottom:"1.5rem", boxShadow:"0 1px 3px rgba(0,0,0,.06)", border:"1px solid #f1f5f9" }}>
             {(Object.entries(TIERS) as [Tier, typeof TIERS[Tier]][]).map(([key, ti]) => (
-              <div key={key} className="card" style={{ overflow:"hidden" }}>
+              <button key={key} onClick={() => setActiveTier(key)} style={{ flex:1, padding:".5rem .75rem", borderRadius:".5rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".78rem", transition:"all .15s", textAlign:"center", lineHeight:1.3,
+                background: activeTier===key ? `linear-gradient(135deg,${ti.color},${ti.color}cc)` : "transparent",
+                color: activeTier===key ? "white" : "#64748b",
+                boxShadow: activeTier===key ? `0 2px 8px ${ti.color}40` : "none" }}>
+                <div>{ti.label}</div>
+                <div style={{ fontSize:".65rem", fontWeight: activeTier===key ? 600 : 400, opacity: activeTier===key ? .9 : .7, marginTop:".1rem" }}>
+                  {TIER_STRATEGY[key].bestFor}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Active tier content */}
+          {(Object.entries(TIERS) as [Tier, typeof TIERS[Tier]][]).filter(([key]) => key === activeTier).map(([key, ti]) => (
+            <div key={key}>
+              {/* Tier header */}
+              <div className="card" style={{ overflow:"hidden", marginBottom:"1.25rem" }}>
                 <div style={{ background:`linear-gradient(135deg, ${ti.color}18, ${ti.color}06)`, borderBottom:`1px solid ${ti.color}25`, padding:"1rem 1.5rem", display:"flex", alignItems:"flex-start", gap:".75rem" }}>
                   <div style={{ width:10, height:10, borderRadius:"50%", background:ti.color, boxShadow:`0 0 8px ${ti.color}`, flexShrink:0, marginTop:".35rem" }}/>
                   <div style={{ flex:1 }}>
@@ -239,8 +258,28 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Why Publish section */}
+              <div style={{ marginBottom:".75rem" }}>
+                <h3 style={{ fontWeight:700, fontSize:"1rem", color:"#1e293b", margin:"0 0 .25rem" }}>Why Publish with Media Blast Boosters™?</h3>
+                <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Get published across hundreds of top outlets, reaching millions monthly.</p>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:".75rem" }}>
+                {[
+                  { icon:"🏆", title:"Elite Brand Authority",    color:"#6366f1", bg:"#eef2ff", desc:"Establish your brand as a verified industry leader through editorial placements on reputable news outlets that prospects instantly recognize and trust." },
+                  { icon:"🤖", title:"AI & LLM Visibility",      color:"#8929bd", bg:"#f5f3ff", desc:"Future-proof your business by feeding high-value, authoritative content into the datasets that power AI search engines and Large Language Models (LLMs)." },
+                  { icon:"📡", title:"Strategic Media Exposure", color:"#0ea5e9", bg:"#f0f9ff", desc:"Earn visibility where your audience already spends their time, from hyper-local news sites to leading national and international media publications." },
+                  { icon:"📈", title:"Compound SEO Authority",   color:"#10b981", bg:"#f0fdf4", desc:"Strengthen your domain naturally with high-quality editorial backlinks that boost your Google rankings and create long-term organic growth." },
+                ].map(r => (
+                  <div key={r.title} style={{ background:r.bg, border:`1px solid ${r.color}25`, borderRadius:".75rem", padding:"1rem 1.1rem" }}>
+                    <div style={{ fontSize:"1.4rem", marginBottom:".4rem" }}>{r.icon}</div>
+                    <div style={{ fontWeight:700, fontSize:".85rem", color:r.color, marginBottom:".3rem" }}>{r.title}</div>
+                    <div style={{ fontSize:".75rem", color:"#475569", lineHeight:1.5 }}>{r.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
