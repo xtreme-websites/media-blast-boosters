@@ -232,6 +232,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
   const [isVerifying,  setIsVerifying]  = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<null | "found" | "not-found" | "error">(null);
   const [verifyReason, setVerifyReason] = useState("");
+  const [verifyData,   setVerifyData]   = useState<Record<string,unknown>>({});
 
   useEffect(() => {
     const rank: Record<string, number> = { Starter: 1, Standard: 2, Premium: 3 };
@@ -287,6 +288,13 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
     showToast("HTML copied!");
   };
 
+  const copyScript = (cfg: BadgeConfig) => {
+    const slug = encodeURIComponent(cfg.name.toLowerCase().replace(/\s+/g, '-'));
+    const tag = `<!-- Trust Widget: "${cfg.name}" -->\n<script src="https://mediablast.xlogic.app/trust-widget.js?v=${slug}"></script>`;
+    navigator.clipboard.writeText(tag);
+    showToast(`Script for "${cfg.name}" copied!`);
+  };
+
   const d = (key: keyof BadgeConfig, val: unknown) => setDraft(p => ({ ...p, [key]: val }));
 
   const runVerify = async () => {
@@ -300,6 +308,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
       const data = await res.json();
       if (data.found) {
         setVerifyStatus("found");
+        setVerifyData(data);
         showToast("Badge verified!");
       } else {
         setVerifyStatus("not-found");
@@ -336,7 +345,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:".5rem" }}>
             <span style={{ fontSize:".72rem", fontWeight:600, color:"#64748b", letterSpacing:".04em", textTransform:"uppercase" }}>Active badge · {active.name}</span>
             <div style={{ display:"flex", gap:".5rem" }}>
-              <button onClick={() => { navigator.clipboard.writeText(`<script src="https://mediablast.xlogic.app/trust-widget.js"></script>`); showToast("Script tag copied!"); }} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
+              <button onClick={() => copyScript(active)} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
               <button onClick={() => openEdit(active)} className="btn-primary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><SparklesIcon size={13}/> Customize</button>
             </div>
           </div>
@@ -358,7 +367,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
               <div style={{ fontSize:".72rem", color: activeId===v.id ? "#3C3489" : "#64748b", textAlign:"center", marginTop:".4rem", fontWeight:600 }}>{v.name}</div>
               <div style={{ display:"flex", gap:".3rem", marginTop:".4rem", justifyContent:"center" }}>
                 <button onClick={e => { e.stopPropagation(); openEdit(v); }} style={{ fontSize:".65rem", color:"#6366f1", background:"none", border:"0.5px solid #c7d2fe", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>Edit</button>
-                <button onClick={e => { e.stopPropagation(); copyHTML(v); }} style={{ fontSize:".65rem", color:"#475569", background:"none", border:"0.5px solid #e2e8f0", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>Copy</button>
+                <button onClick={e => { e.stopPropagation(); copyScript(v); }} style={{ fontSize:".65rem", color:"#475569", background:"none", border:"0.5px solid #e2e8f0", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>📋 Script</button>
                 {variations.length > 1 && <button onClick={e => { e.stopPropagation(); deleteVariation(v.id); }} style={{ fontSize:".65rem", color:"#be123c", background:"none", border:"0.5px solid #fecdd3", borderRadius:".3rem", padding:".18rem .45rem", cursor:"pointer" }}>Del</button>}
               </div>
             </div>
@@ -387,6 +396,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
         {verifyStatus === "found" && (
           <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:".5rem", padding:".875rem 1rem", display:"flex", alignItems:"center", gap:".5rem", color:"#166534", fontWeight:600 }}>
             <CheckIcon size={16}/> Badge detected and verified ✓
+            {(verifyData as any)?.variationName && <span style={{ fontSize:".78rem", fontWeight:500, color:"#166534", background:"#dcfce7", padding:".1rem .5rem", borderRadius:"99px", marginLeft:".25rem" }}>Variation: "{(verifyData as any).variationName}"</span>}
           </div>
         )}
         {verifyStatus === "not-found" && (
