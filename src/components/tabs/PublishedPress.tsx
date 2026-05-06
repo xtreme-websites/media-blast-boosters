@@ -55,10 +55,9 @@ export default function PublishedPress({ orders }: Props) {
           <thead>
             <tr style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed)"}}>
               <th style={th}>Package</th>
-              <th style={th}>PR Title</th>
+              <th style={th}>PR Title & Document</th>
               <th style={th}>SEO Focus</th>
               <th style={th}>Date</th>
-              <th style={th}>Article</th>
               <th style={th}>Status</th>
               <th style={thLast}>Report</th>
             </tr>
@@ -68,13 +67,13 @@ export default function PublishedPress({ orders }: Props) {
               const status = (order as any).status ?? "pending";
               const sc = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
               const dt = new Date(order.date);
-              const shortTitle = order.prTitle;
               const isLast = i === orders.length - 1;
               const c  = (extra: React.CSSProperties = {}) => td({ ...extra, borderBottom: isLast ? "none" : "1px solid #f8fafc" });
               const cl = (extra: React.CSSProperties = {}) => tdLast({ ...extra, borderBottom: isLast ? "none" : "1px solid #f8fafc" });
 
               return (
                 <tr key={order.id}>
+                  {/* Package */}
                   <td style={c()}>
                     <span style={{ fontSize:".72rem", fontWeight:700,
                       color: order.productName==="Starter" ? "#6366f1" : order.productName==="Standard" ? "#8929bd" : "#d97706",
@@ -83,24 +82,40 @@ export default function PublishedPress({ orders }: Props) {
                       {order.productName}
                     </span>
                   </td>
+
+                  {/* PR Title & Document — clickable with outward link icon */}
                   <td style={c()}>
-                    <span style={{ fontWeight:600, fontSize:".83rem", color:"#1e293b" }}>{shortTitle}</span>
+                    <button onClick={() => setArticleModal(order)}
+                      style={{ background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"flex-start", gap:".4rem", color:"#1e293b" }}>
+                      <span style={{ fontWeight:600, fontSize:".83rem", lineHeight:1.4 }}>{order.prTitle}</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:".15rem" }}>
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                    </button>
                   </td>
+
+                  {/* SEO Focus */}
+                  <td style={c()}>
+                    <SeoFocusBadge seoFocus={(order as any).seoFocus || (order as any).seo_focus || ""} />
+                  </td>
+
+                  {/* Date */}
                   <td style={c()}>
                     <span style={{ fontSize:".72rem", color:"#94a3b8", whiteSpace:"nowrap" }}>
                       {isNaN(dt.getTime()) ? order.date : dt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
                     </span>
                   </td>
-                  <td style={c()}>
-                    <button onClick={() => setArticleModal(order)} style={{ background:"#eef2ff", color:"#6366f1", border:"none", borderRadius:".4rem", padding:".3rem .65rem", fontSize:".72rem", fontWeight:600, cursor:"pointer" }}>
-                      View
-                    </button>
-                  </td>
+
+                  {/* Status */}
                   <td style={c()}>
                     <span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .55rem", borderRadius:"99px", whiteSpace:"nowrap" }}>
                       {sc.label}
                     </span>
                   </td>
+
+                  {/* Report */}
                   <td style={cl()}>
                     {status === "published"
                       ? <button style={{ background:"#f0fdf4", color:"#16a34a", border:"1px solid #bbf7d0", borderRadius:".4rem", padding:".3rem .65rem", fontSize:".72rem", fontWeight:600, cursor:"pointer" }}>Report</button>
