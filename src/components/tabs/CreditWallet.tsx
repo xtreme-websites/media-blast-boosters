@@ -73,7 +73,11 @@ const PACK_PRICES: Record<Tier, Record<number,number>> = {
   premium:  { 3: 897, 6: 877, 12: 857 },
 };
 
-const PACKS = [
+const TIER_STRATEGY: Record<string, { bestFor: string; useCase: string }> = {
+  starter:  { bestFor: "Local SEO & Location Pages",      useCase: "Building geographic \"Entity\" signals and dominating local Map Packs."                        },
+  standard: { bestFor: "Core Services & Optimization",    useCase: "Establishing your brand as a professional authority for specific offerings."                    },
+  premium:  { bestFor: "Homepage & National Authority",   useCase: "Launching your Brand Apex on high-authority news sites for maximum trust."                     },
+};
   { qty:3,  label:"3-Pack",  discount:null,        discountColor:"" },
   { qty:6,  label:"6-Pack",  discount:"5% Off",    discountColor:"#0ea5e9" },
   { qty:12, label:"12-Pack", discount:"10% Off",   discountColor:"#10b981" },
@@ -191,11 +195,19 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
           <div style={{ display:"flex", flexDirection:"column", gap:"2rem" }}>
             {(Object.entries(TIERS) as [Tier, typeof TIERS[Tier]][]).map(([key, ti]) => (
               <div key={key} className="card" style={{ overflow:"hidden" }}>
-                <div style={{ background:`linear-gradient(135deg, ${ti.color}18, ${ti.color}06)`, borderBottom:`1px solid ${ti.color}25`, padding:"1rem 1.5rem", display:"flex", alignItems:"center", gap:".75rem" }}>
-                  <div style={{ width:10, height:10, borderRadius:"50%", background:ti.color, boxShadow:`0 0 8px ${ti.color}`, flexShrink:0 }}/>
-                  <div>
+                <div style={{ background:`linear-gradient(135deg, ${ti.color}18, ${ti.color}06)`, borderBottom:`1px solid ${ti.color}25`, padding:"1rem 1.5rem", display:"flex", alignItems:"flex-start", gap:".75rem" }}>
+                  <div style={{ width:10, height:10, borderRadius:"50%", background:ti.color, boxShadow:`0 0 8px ${ti.color}`, flexShrink:0, marginTop:".35rem" }}/>
+                  <div style={{ flex:1 }}>
                     <div style={{ fontWeight:800, fontSize:"1.05rem", color:"#1e293b" }}>{ti.label} PR Package</div>
                     <div style={{ fontSize:".75rem", color:"#64748b", marginTop:".1rem" }}>{ti.outlets} outlets · {ti.words} words · {ti.readers} readers · DA {ti.authority}</div>
+                    <div style={{ marginTop:".6rem", display:"flex", gap:".5rem", flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ fontSize:".72rem", fontWeight:700, color:ti.color, background:`${ti.color}15`, padding:".2rem .65rem", borderRadius:"99px", border:`1px solid ${ti.color}30` }}>
+                        Best For: {TIER_STRATEGY[key].bestFor}
+                      </span>
+                    </div>
+                    <div style={{ fontSize:".75rem", color:"#64748b", marginTop:".45rem", lineHeight:1.5 }}>
+                      {TIER_STRATEGY[key].useCase}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"1rem", padding:"1.25rem" }}>
