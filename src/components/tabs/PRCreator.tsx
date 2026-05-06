@@ -558,7 +558,7 @@ RULES:
               <label className="field-label">Media Type <span style={{ color: "#ef4444" }}>*</span></label>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:".5rem" }}>
                 {([
-                  { id:"topic",     icon:"📰", title:"Trending Topic",    desc:"Base on news" },
+                  { id:"topic",     icon:"📰", title:"Trending Topic",    desc:"Based on industry news" },
                   { id:"article",   icon:"📋", title:"Existing Article",  desc:"Reference article" },
                   { id:"authority", icon:"🏗️", title:"Authority Builder",  desc:"Based on website structure" },
                   { id:"freestyle", icon:"✍️", title:"Freestyle",          desc:"Open form" },
@@ -763,18 +763,13 @@ RULES:
               </div>
             </div>
 
-            {/* Keywords */}
-            <div>
-              <label className="field-label">Target Keywords <span style={{ color: "#94a3b8", fontWeight: 400 }}>(pick up to 2)</span></label>
-              <KeywordPicker
-                selected={prFormData.keywords}
-                onChange={kw => setPrFormData(p => ({ ...p, keywords: kw }))}
-                companyName={companyData.name}
-                industry={companyData.industry}
-                servicePages={companyData.servicePages || []}
-                locationPages={companyData.locationPages || []}
-              />
-            </div>
+            {/* Keywords — hidden when Authority Builder (focus provides KWs) */}
+            {prFormData.mediaType !== "authority" && (
+              <div>
+                <label className="field-label">Target Keywords <span style={{ color: "#94a3b8", fontWeight: 400 }}>(up to 2)</span></label>
+                <KeywordTagInput keywords={prFormData.keywords} onChange={kw => setPrFormData(p => ({ ...p, keywords: kw }))} maxKeywords={2}/>
+              </div>
+            )}
 
             {/* About field with AI enhance */}
             <div>
@@ -881,11 +876,11 @@ RULES:
               Our AI recommended a specific package tier based on your authority roadmap. Changing it may reduce the effectiveness of this PR in the overall 1:3:12 strategy.
             </p>
             <div style={{ display:"flex", gap:".6rem" }}>
-              <button onClick={() => { setShowStrategyWarning(false); }} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"none", background:"#6366f1", color:"white", fontWeight:700, cursor:"pointer" }}>
-                Got it, I'll proceed
-              </button>
-              <button onClick={() => { setSelectedTier(strategyMatchTier!); setShowStrategyWarning(false); }} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, cursor:"pointer" }}>
+              <button onClick={() => { setSelectedTier(strategyMatchTier!); setShowStrategyWarning(false); }} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"none", background:"linear-gradient(135deg,#8929bd,#4338ca)", color:"white", fontWeight:700, cursor:"pointer" }}>
                 Restore Strategy
+              </button>
+              <button onClick={() => { setShowStrategyWarning(false); }} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"none", background:"transparent", color:"#94a3b8", fontWeight:500, cursor:"pointer" }}>
+                Got it, I'll proceed
               </button>
             </div>
           </div>
