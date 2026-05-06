@@ -202,6 +202,7 @@ interface PRCreatorProps {
   onOpenCredits: () => void;
   onNavigateToPublished?: () => void;
   onOpenHelp?: () => void;
+  onNavigateToAuthorityBuilder?: () => void;
   authorityPayload?: import("./AuthorityBuilder").ExecutePayload | null;
   locationId: string;
   showToast: (msg: string, type?: "success" | "error") => void;
@@ -218,7 +219,7 @@ type PRTier = keyof typeof TIER_CONFIG;
 export default function PRCreator({
   companyData, customPRPrompt,
   selectedTopic, onClearTopic, onNavigateToTopics,
-  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, authorityPayload, locationId, showToast,
+  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, locationId, showToast,
 }: PRCreatorProps) {
   const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "topic" });
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
@@ -703,11 +704,24 @@ RULES:
                 )}
 
                 {prFormData.mediaType === "authority" && (
-                  <AuthorityFocusPicker
-                    focus={authorityFocus}
-                    onChange={setAuthorityFocus}
-                    companyData={companyData}
-                  />
+                  authorityFocus
+                    ? <AuthorityFocusPicker
+                        focus={authorityFocus}
+                        onChange={setAuthorityFocus}
+                        companyData={companyData}
+                      />
+                    : <div style={{ background:"#f8fafc", border:"1.5px dashed #c7d2fe", borderRadius:".65rem", padding:"1rem", display:"flex", alignItems:"center", justifyContent:"space-between", gap:".75rem" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:".6rem" }}>
+                          <span style={{ fontSize:"1.1rem" }}>🏗️</span>
+                          <div>
+                            <div style={{ fontWeight:700, fontSize:".82rem", color:"#1e293b" }}>No Authority Strategy selected</div>
+                            <div style={{ fontSize:".75rem", color:"#94a3b8", marginTop:".1rem" }}>Go to Authority Builder to pick your next best move</div>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => onNavigateToAuthorityBuilder?.()} style={{ background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", border:"none", borderRadius:".5rem", padding:".45rem .9rem", fontWeight:700, fontSize:".75rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                          Choose Strategy →
+                        </button>
+                      </div>
                 )}
 
                 {prFormData.mediaType === "freestyle" && (

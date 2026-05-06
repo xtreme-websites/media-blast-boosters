@@ -179,16 +179,16 @@ function generateEmbedHTML(config: BadgeConfig, logos: LogoDef[], tier: Tier): s
   const bg    = config.bgColor;
   const lineC = hexToRgba(lc, 0.18);
   const textC = hexToRgba(lc, 0.52);
-  const leafC = hexToRgba(lc, 0.22);
   const isSlider = config.layout === "slider";
   const animId   = `mbb-scroll-${config.id.slice(0,8)}`;
 
+  const BASE = "https://media-blast-boosters.vercel.app";
   const logoEl = (l: LogoDef) => `<span style="font-family:${l.font};font-size:${l.size};font-weight:${l.weight};color:${lc};letter-spacing:${l.spacing??"normal"};line-height:${l.lh??"1.2"};font-style:${l.fStyle??"normal"};display:inline-block;white-space:nowrap">${l.label.replace("\n","<br>")}</span>`;
-  const laurelSVG = (side: "left" | "right") => {
-    const d = side === "left" ? LEFT_LAUREL_D : RIGHT_LAUREL_D;
-    const t = side === "left" ? LEFT_LAUREL_TRANSFORM : RIGHT_LAUREL_TRANSFORM;
-    return `<svg width="52" height="104" viewBox="0 0 191 385" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:0.85"><path d="${d}" fill="${leafC}" transform="${t}"/></svg>`;
-  };
+
+  // Use hosted SVG files instead of inlining massive path data
+  const laurelImg = (side: "left" | "right") =>
+    `<img src="${BASE}/laurel-${side}.svg" width="52" height="104" alt="" style="flex-shrink:0;opacity:0.85">`;
+
   const header = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1;height:0.5px;background:${lineC}"></div><span style="font-family:Arial,sans-serif;font-size:10px;letter-spacing:.22em;color:${textC};font-weight:600;white-space:nowrap">AS SEEN ON</span><div style="flex:1;height:0.5px;background:${lineC}"></div></div>`;
   const counter = config.outletCounter ? `<span style="font-family:Arial,sans-serif;font-size:9px;letter-spacing:.18em;color:${textC};font-weight:500">AND OVER ${OUTLET_COUNT[tier]} NEWS SITES</span>` : "";
   const verif   = config.verificationBadge ? `<span style="font-family:Arial,sans-serif;font-size:8px;color:${textC};margin-top:10px;display:flex;align-items:center;gap:4px;font-weight:600"><span style="display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;border:0.8px solid ${textC};font-size:7px;line-height:1;flex-shrink:0">&#10003;</span>Verified by <a href="${VERIFICATION_URL}" target="_blank" rel="noopener noreferrer" style="color:${textC};text-decoration:none;font-weight:600">Media Blast Boosters&#8482;</a></span>` : "";
@@ -196,11 +196,10 @@ function generateEmbedHTML(config: BadgeConfig, logos: LogoDef[], tier: Tier): s
   const logosHTML = logos.map(logoEl).join("");
 
   if (isSlider) {
-    // 6× duplication guarantees the strip is wide enough to never show a gap
     const loopLogos = Array(6).fill(null).flatMap(() => logos).map(logoEl).join("");
     return `<style>@keyframes ${animId}{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}</style><div style="background:${bg};border-radius:6px;padding:12px 0;overflow:hidden">${header}<div style="overflow:hidden;-webkit-mask-image:linear-gradient(to right,transparent,black 10%,black 90%,transparent);mask-image:linear-gradient(to right,transparent,black 10%,black 90%,transparent)"><div style="display:flex;align-items:center;gap:40px;animation:${animId} ${config.sliderSpeed}s linear infinite;width:max-content;padding:4px 0">${loopLogos}</div></div>${footer}</div>`;
   }
-  const logoRow = `<div style="display:flex;justify-content:center;align-items:center">${config.showLaurels ? `<div style="margin-right:30px;flex-shrink:0">${laurelSVG("left")}</div>` : ""}<div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap">${logosHTML}</div>${config.showLaurels ? `<div style="margin-left:30px;flex-shrink:0">${laurelSVG("right")}</div>` : ""}</div>`;
+  const logoRow = `<div style="display:flex;justify-content:center;align-items:center">${config.showLaurels ? `<div style="margin-right:30px;flex-shrink:0">${laurelImg("left")}</div>` : ""}<div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap">${logosHTML}</div>${config.showLaurels ? `<div style="margin-left:30px;flex-shrink:0">${laurelImg("right")}</div>` : ""}</div>`;
   return `<div style="background:${bg};border-radius:6px;padding:12px 8px">${header}${logoRow}${footer}</div>`;
 }
 
@@ -337,6 +336,7 @@ export default function TrustAssets({ orders, locationId, showToast }: TrustAsse
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:".5rem" }}>
             <span style={{ fontSize:".72rem", fontWeight:600, color:"#64748b", letterSpacing:".04em", textTransform:"uppercase" }}>Active badge · {active.name}</span>
             <div style={{ display:"flex", gap:".5rem" }}>
+              <button onClick={() => { navigator.clipboard.writeText(`<script src="https://media-blast-boosters.vercel.app/mbb-widget.js"></script>`); showToast("Script tag copied!"); }} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
               <button onClick={() => copyHTML(active)} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><CopyIcon size={13}/> Copy HTML</button>
               <button onClick={() => openEdit(active)} className="btn-primary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><SparklesIcon size={13}/> Customize</button>
             </div>
