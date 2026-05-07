@@ -167,6 +167,32 @@ export default function PRDashboard() {
     return newId;
   };
 
+  const scheduleAutomatic = async (packageType: string, seoFocus: string, scheduledDate: string, authorityFocus: Record<string,unknown>) => {
+    const newId = crypto.randomUUID();
+    const title = `${packageType} PR — ${String(authorityFocus.name || "Authority Builder")}`;
+    const order: import("./tabs/AuthorityBuilder").ExecutePayload & {id:string} = {
+      mediaType:"authority", authorityFocus: authorityFocus as any, packageTier: packageType, strategyMatch: true, id: newId
+    };
+    // Decrement credit first
+    try {
+      const creditRes = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ table:"profiles", operation:"decrement_credits", location_id:locationId, tier:packageType.toLowerCase(), reason:`Auto-Generate — ${title}` })
+      });
+      const cd = await creditRes.json();
+      if (cd.insufficient) { showToast("Insufficient credits for auto-generation","error"); return; }
+    } catch {}
+    // Insert scheduled order with source=authority_builder
+    try {
+      await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ table:"orders", operation:"insert", data:{ id:newId, location_id:locationId, pr_title:title, product_name:packageType, package_type:packageType, price:parseFloat((PR_PACKAGES[packageType]?.price||"$0").replace("$","")), pr_content:"", seo_focus:seoFocus, status:"scheduled", source:"authority_builder", scheduled_date:scheduledDate, last_edited_at:new Date().toISOString(), form_data:{authorityFocus} } })
+      });
+    } catch {}
+    setOrders(prev => [{ id:newId, prTitle:title, productName:packageType, price:PR_PACKAGES[packageType]?.price||"$0", date:new Date().toLocaleDateString("en-US"), prContent:"", seoFocus, status:"scheduled" as any, scheduledDate, formData:{authorityFocus} }, ...prev]);
+    showToast(`🤖 Scheduled for auto-generation on ${new Date(scheduledDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}`);
+  };
+
   const scheduleOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus: string, scheduledDate: string, formData?: Record<string,unknown>, existingId?: string) => {
     const newId = existingId || crypto.randomUUID();
     const order: Order = { id: newId, prTitle, productName: packageType, price: PR_PACKAGES[packageType]?.price || "$0", date: new Date().toLocaleDateString("en-US"), prContent, seoFocus, status: "scheduled", scheduledDate, lastEditedAt: new Date().toISOString(), formData };
@@ -266,7 +292,7 @@ export default function PRDashboard() {
                 onMouseOut={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; } }}
               >
                 <span style={{ opacity: active ? 1 : .75 }}>{t.icon}</span>
-                {t.label}
+                {t.label}{(t as any).id==="press" && orders.filter(o=>o.status==="draft_pending_review").length > 0 ? <span style={{marginLeft:".3rem",background:"#ef4444",color:"white",fontSize:".6rem",fontWeight:800,padding:".05rem .35rem",borderRadius:"99px",minWidth:14,display:"inline-block",textAlign:"center"}}>{orders.filter(o=>o.status==="draft_pending_review").length}</span> : null}
               </button>
             );
           })}
@@ -344,7 +370,7 @@ export default function PRDashboard() {
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
-          {activeTab === "authority"  && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
+          {activeTab === "authority"  && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
           {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")}/>}
         </main>

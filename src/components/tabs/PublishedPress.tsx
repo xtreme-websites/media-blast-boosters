@@ -15,7 +15,8 @@ const STATUS_CONFIG: Record<string, { label:string; color:string; bg:string }> =
   published:      { label:"Published",       color:"#7c3aed", bg:"#ede9fe" },
   rejected:       { label:"Revision Needed", color:"#991b1b", bg:"#fee2e2" },
   submitted:      { label:"Submitted",       color:"#065f46", bg:"#d1fae5" },
-  draft:          { label:"Draft",           color:"#475569", bg:"#f1f5f9" },
+  draft:                { label:"Draft",             color:"#475569", bg:"#f1f5f9" },
+  draft_pending_review: { label:"⏳ Pending Review",  color:"#92400e", bg:"#fef3c7" },
   scheduled:      { label:"Scheduled",       color:"#0369a1", bg:"#e0f2fe" },
 };
 
@@ -59,7 +60,7 @@ export default function PublishedPress({ orders, onLoadDraft }: Props) {
   const [articleModal, setArticleModal] = useState<Order | null>(null);
 
   const published = orders.filter(o => !o.status || o.status === "submitted" || o.status === "pending_review" || o.status === "published");
-  const drafts    = orders.filter(o => o.status === "draft" || o.status === "scheduled");
+  const drafts    = orders.filter(o => o.status === "draft" || o.status === "scheduled" || o.status === "draft_pending_review");
 
   return (
     <div>

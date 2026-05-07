@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { CompanyData, Order, ServicePage, LocationPage } from "../../lib/constants";
-import { getRecommendedDate, getProjectedDates, formatDate } from "../../lib/velocityScheduler";
+import { getRecommendedDate, getProjectedDates, formatDate, formatDateInput } from "../../lib/velocityScheduler";
 
 interface Props {
   companyData: CompanyData;
   orders: Order[];
   onExecute: (payload: ExecutePayload) => void;
+  onScheduleAutomatic?: (pkg:string, seoFocus:string, scheduledDate:string, authorityFocus:Record<string,unknown>) => void;
   onNavigateToCompanyProfile: () => void;
 }
 
@@ -56,7 +57,7 @@ const ProgressBar = ({ steps, current }: { steps: string[]; current: number }) =
   </div>
 );
 
-export default function AuthorityBuilder({ companyData, orders, onExecute, onNavigateToCompanyProfile }: Props) {
+export default function AuthorityBuilder({ companyData, orders, onExecute, onScheduleAutomatic, onNavigateToCompanyProfile }: Props) {
   const [innerTab, setInnerTab] = useState<"roadmap"|"timeline">("roadmap");
   const services  = companyData.servicePages  || [];
   const locations = companyData.locationPages || [];
@@ -178,7 +179,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
           <div style={{ display:"flex", alignItems:"center", gap:".75rem", flexWrap:"wrap" }}>
             <button onClick={() => onExecute({ mediaType:"authority", authorityFocus: nextMove.focus, packageTier: nextMove.tier, strategyMatch: true })}
               style={{ background:`linear-gradient(135deg,${GOLD},${GOLD2})`, color:"#1e1b4b", border:"none", borderRadius:".6rem", padding:".7rem 1.5rem", fontWeight:800, fontSize:".88rem", cursor:"pointer", boxShadow:`0 4px 20px ${GOLD}40` }}>
-              ⚡ Execute Now
+              ✏️ Create Manually
             </button>
             <div style={{ display:"flex", alignItems:"center", gap:".4rem" }}>
               <span style={{ fontSize:".72rem", color:"rgba(255,255,255,.5)" }}>Recommended tier:</span>
@@ -208,7 +209,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
                 ? <span style={{ fontSize:".78rem", fontWeight:700, color:"#16a34a" }}>✓ Anchor established</span>
                 : <button onClick={() => onExecute({ mediaType:"authority", authorityFocus:{ type:"home", url:websiteUrl, name:companyData.name||"Brand", keyword:companyData.name?.toLowerCase()||"", seoFocus:`home:${companyData.name?.toLowerCase()||"brand"}` }, packageTier:"Premium", strategyMatch:true })}
                     style={{ background:"linear-gradient(135deg,#8929bd,#4338ca)", color:"white", border:"none", borderRadius:".5rem", padding:".55rem 1rem", fontWeight:700, fontSize:".8rem", cursor:"pointer" }}>
-                    Launch Brand PR →
+                    ✏️ Create Manually
                   </button>
               }
             </div>
@@ -263,7 +264,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
 
       {/* Timeline Tab */}
       {innerTab === "timeline" && (
-        <Timeline orders={orders} companyData={companyData} servicePRs={servicePRs} locationPRs={locationPRs} onExecute={onExecute}/>
+        <Timeline orders={orders} companyData={companyData} servicePRs={servicePRs} locationPRs={locationPRs} onExecute={onExecute} onScheduleAutomatic={onScheduleAutomatic}/>
       )}
     </div>
   );
@@ -307,7 +308,7 @@ function ServiceRow({ svc, onExecute }: { svc: ServicePage & { prs: number }; on
           ? <span style={{ fontSize:".75rem", fontWeight:700, color:"#16a34a", display:"flex", alignItems:"center", gap:".3rem" }}>✓ {svc.prs} PR{svc.prs>1?"s":""}</span>
           : <button onClick={() => onExecute({ mediaType:"authority", authorityFocus:{ type:"service", url:svc.url, name:svc.name, keyword:(svc.keywords||[])[0]||svc.name.toLowerCase(), seoFocus:`service:${svc.url}:${(svc.keywords||[])[0]||svc.name.toLowerCase()}` }, packageTier:"Standard", strategyMatch:true })}
               style={{ background:"#6366f1", color:"white", border:"none", borderRadius:".4rem", padding:".35rem .75rem", fontWeight:700, fontSize:".75rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-              Launch PR →
+              ✏️ Create Manually
             </button>
         }
       </div>
@@ -391,10 +392,11 @@ function BlindspotDetector({ servicePRs, locationPRs, orders }: { servicePRs: (S
 }
 
 // ── Timeline Component ────────────────────────────────────────────────────────
-function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute }: {
+function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onScheduleAutomatic }: {
   orders: Order[]; companyData: CompanyData;
   servicePRs: (ServicePage & {prs:number})[]; locationPRs: (LocationPage & {prs:number})[];
   onExecute: (p: ExecutePayload) => void;
+  onScheduleAutomatic?: (pkg:string, seoFocus:string, scheduledDate:string, authorityFocus:Record<string,unknown>) => void;
 }) {
   const websiteUrl = companyData.websiteUrl || "";
 
@@ -528,9 +530,13 @@ function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute }: {
                     <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".15rem" }}>{formatDate(node.date)}</div>
                   </div>
                   {node.type === "projected" && (
-                    <button onClick={() => onExecute({ mediaType:"authority", authorityFocus:{ type:node.seoType, url:node.url, name:node.label, keyword:node.keyword, seoFocus:`${node.seoType}:${node.url}:${node.keyword}` }, packageTier:node.tier, strategyMatch:true })}
-                      style={{ flexShrink:0, padding:".35rem .75rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", color:"#6366f1", fontWeight:700, fontSize:".72rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                      Execute →
+                    <button onClick={() => {
+                      if (onScheduleAutomatic) {
+                        onScheduleAutomatic(node.tier, `${node.seoType}:${node.url}:${node.keyword}`, formatDateInput(node.date), { type:node.seoType, url:node.url, name:node.label, keyword:node.keyword, seoFocus:`${node.seoType}:${node.url}:${node.keyword}` });
+                      }
+                    }}
+                      style={{ flexShrink:0, padding:".35rem .75rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:700, fontSize:".72rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                      🤖 Auto-Generate
                     </button>
                   )}
                 </div>
