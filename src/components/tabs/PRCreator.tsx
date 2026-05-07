@@ -503,16 +503,19 @@ RULES:
           <div className="card" style={{ padding: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: ".75rem" }}>
               <h2 className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a" }}>Generated Press Release</h2>
-              <button onClick={() => {
-                setShowGeneratedView(false);
-                setTimeout(() => {
-                  if (externalRefEl.current && externalRef) {
-                    externalRefEl.current.innerHTML = externalRef;
-                  }
-                }, 50);
-              }} className="btn-secondary" style={{ fontSize: ".8rem" }}>
-                <BackIcon size={14}/> Edit Instructions
-              </button>
+              {/* Hide Edit Instructions for auto-generated drafts (draft_pending_review) */}
+              {(propOrders || []).find(o => o.id === currentDraftId)?.status !== "draft_pending_review" && (
+                <button onClick={() => {
+                  setShowGeneratedView(false);
+                  setTimeout(() => {
+                    if (externalRefEl.current && externalRef) {
+                      externalRefEl.current.innerHTML = externalRef;
+                    }
+                  }, 50);
+                }} className="btn-secondary" style={{ fontSize: ".8rem" }}>
+                  <BackIcon size={14}/> Edit Instructions
+                </button>
+              )}
             </div>
             {/* Featured image */}
             {imagePreviewUrl && (
