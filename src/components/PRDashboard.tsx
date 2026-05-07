@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { store } from "../lib/ai";
 import { supabase, SUPABASE_URL, SUPABASE_ANON } from "../lib/supabase";
 import { CompanyData, Topic, Order, EMPTY_COMPANY, PR_PACKAGES } from "../lib/constants";
@@ -79,10 +80,10 @@ export default function PRDashboard() {
   const [showThankYou,   setShowThankYou]   = useState(false);
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [activeTab,       setActiveTab]       = useState(() => {
-    // If returning from Stripe checkout, land on orders tab directly
-    return new URLSearchParams(window.location.search).get("checkout") === "complete"
-      ? "orders" : "topics";
+  const [activeTab,       setActiveTab]       = useState<string>(() => {
+    // If returning from Stripe checkout, land on orders tab
+    if (new URLSearchParams(window.location.search).get("checkout") === "complete") return "orders";
+    return "authority";
   });
   const [selectedTopic,   setSelectedTopic]   = useState<(Topic & { selectedIdea?: string }) | null>(null);
   const [showCompanyData, setShowCompanyData] = useState(false);
@@ -433,7 +434,6 @@ export default function PRDashboard() {
 }
 
 // ── AutoGenerateModal ──────────────────────────────────────────────────────────
-import { createPortal } from "react-dom";
 
 const STEPS = [
   { icon:"🔍", label:"Analyzing your company profile..." },
