@@ -92,7 +92,7 @@ export default function PRDashboard() {
   const [checkoutPackage,  setCheckoutPackage]  = useState<{type:string;title:string;content:string}|null>(null);
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
-  const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:''});
+  const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string;pendingDate:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:'',pendingDate:''});
 
   const locationId = useMemo(() => {
     try {
@@ -180,10 +180,10 @@ export default function PRDashboard() {
       if (cd.insufficient) { showToast("Insufficient credits for auto-generation","error"); return; }
     } catch {}
     // Show generation modal — pendingPkg/pendingSeo trigger the generation
-    setAutoGenState({ show:true, step:0, orderId:null, result:null, pendingPkg:packageType, pendingSeo:seoFocus });
+    setAutoGenState({ show:true, step:0, orderId:null, result:null, pendingPkg:packageType, pendingSeo:seoFocus, pendingDate:_scheduledDate });
   };
 
-  const runAutoGenerate = async (packageType: string, seoFocus: string) => {
+  const runAutoGenerate = async (packageType: string, seoFocus: string, scheduledDate?: string) => {
     // step 1
     setAutoGenState(s => ({...s, step:1}));
     await new Promise(r => setTimeout(r, 700));
@@ -195,7 +195,7 @@ export default function PRDashboard() {
     try {
       const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/generate-pr", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ location_id:locationId, package_type:packageType, seo_focus:seoFocus })
+        body: JSON.stringify({ location_id:locationId, package_type:packageType, seo_focus:seoFocus, scheduled_date:scheduledDate })
       });
       const data = await res.json();
       if (!res.ok || !data.pr_content) { showToast("Generation failed — please try again","error"); setAutoGenState(s => ({...s,show:false,step:0})); return; }
@@ -277,7 +277,8 @@ export default function PRDashboard() {
         result={autoGenState.result}
         packageType={autoGenState.pendingPkg}
         seoFocus={autoGenState.pendingSeo}
-        onStart={(pkg, seo) => runAutoGenerate(pkg, seo)}
+        scheduledDate={autoGenState.pendingDate}
+        onStart={(pkg, seo) => runAutoGenerate(pkg, seo, autoGenState.pendingDate)}
         onNavigate={() => { setAutoGenState(s => ({...s,show:false})); setActiveTab("press"); }}
         onClose={() => setAutoGenState(s => ({...s,show:false,step:0,orderId:null,result:null}))}
       />}
@@ -450,10 +451,10 @@ const STEPS = [
   { icon:"✅", label:"PR ready for your review!"        },
 ];
 
-function AutoGenerateModal({ step, result, packageType, seoFocus, onStart, onNavigate, onClose }: {
+function AutoGenerateModal({ step, result, packageType, seoFocus, scheduledDate, onStart, onNavigate, onClose }: {
   step: number; result: Order | null;
-  packageType: string; seoFocus: string;
-  onStart: (pkg: string, seo: string) => void;
+  packageType: string; seoFocus: string; scheduledDate?: string;
+  onStart: (pkg: string, seo: string, date?: string) => void;
   onNavigate: () => void;
   onClose: () => void;
 }) {
@@ -462,7 +463,7 @@ function AutoGenerateModal({ step, result, packageType, seoFocus, onStart, onNav
   useEffect(() => {
     if (!started && packageType) {
       setStarted(true);
-      onStart(packageType, seoFocus);
+      onStart(packageType, seoFocus, scheduledDate);
     }
   }, [packageType]);
 

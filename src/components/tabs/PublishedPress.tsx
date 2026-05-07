@@ -211,7 +211,7 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
                 <span style={{ fontSize:"1.1rem", flexShrink:0 }}>⏰</span>
                 <div style={{ flex:1 }}>
                   <div style={{ fontWeight:700, fontSize:".82rem", color:"#92400e" }}>Review Required</div>
-                  <div style={{ fontSize:".75rem", color:"#78350f" }}>Your review and approval are required. If no action is taken, this PR will be automatically submitted for distribution on the scheduled date.</div>
+                  <div style={{ fontSize:".75rem", color:"#78350f" }}>Your review and approval are required. You have until the scheduled date to approve or edit. After that, it will be automatically submitted for distribution.</div>
                 </div>
                 <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
                   <button style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
