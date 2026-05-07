@@ -505,24 +505,54 @@ RULES:
               <h2 className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a" }}>Generated Press Release</h2>
               <button onClick={() => {
                 setShowGeneratedView(false);
-                // Restore external ref content into the contentEditable div
                 setTimeout(() => {
                   if (externalRefEl.current && externalRef) {
                     externalRefEl.current.innerHTML = externalRef;
                   }
                 }, 50);
               }} className="btn-secondary" style={{ fontSize: ".8rem" }}>
-                <BackIcon size={14}/> Back to Edit
+                <BackIcon size={14}/> Edit Instructions
               </button>
             </div>
-            {/* Featured image above PR content */}
+            {/* Featured image */}
             {imagePreviewUrl && (
               <div style={{ marginBottom: "1rem" }}>
                 <img src={imagePreviewUrl} alt="Featured" style={{ width: "100%", maxHeight: 320, objectFit: "cover", borderRadius: ".5rem", border: "1px solid #e2e8f0" }}/>
               </div>
             )}
-            <div className="prose" style={{ maxWidth: "none", padding: "1rem", background: "#f8fafc", borderRadius: ".6rem", border: "1px solid #e2e8f0" }}
-              dangerouslySetInnerHTML={{ __html: generatedPR }}/>
+            {/* Inline-editable PR content */}
+            {(() => {
+              const isSubmitted = currentDraftId && (propOrders || [])?.find?.((o: any) => o.id === currentDraftId)?.status === "submitted";
+              return (
+                <>
+                  <div
+                    contentEditable={!isSubmitted}
+                    suppressContentEditableWarning
+                    onInput={e => setGeneratedPR((e.currentTarget as HTMLDivElement).innerHTML)}
+                    style={{ padding: "1.25rem 1.5rem", background: "#f8fafc", borderRadius: ".6rem", border: `1px solid ${isSubmitted ? "#e2e8f0" : "#c7d2fe"}`, outline: "none", cursor: isSubmitted ? "default" : "text", lineHeight: 1.75, color: "#1e293b", fontSize: "0.875rem" }}
+                    dangerouslySetInnerHTML={{ __html: generatedPR }}
+                  />
+                  <style>{`
+                    [contenteditable][style*="cursor: text"] h1 { font-size:1.45rem; font-weight:800; color:#0f172a; margin:0 0 1rem; line-height:1.25; }
+                    [contenteditable] h2 { font-size:1rem; font-weight:700; color:#1e293b; margin:1.25rem 0 .35rem; }
+                    [contenteditable] p  { margin:0 0 .85rem; line-height:1.75; }
+                    [contenteditable] em { font-style:italic; }
+                    [contenteditable] strong { font-weight:700; }
+                    [contenteditable] a  { color:#6366f1; text-decoration:underline; }
+                  `}</style>
+                  {isSubmitted && (
+                    <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginTop:".5rem", fontSize:".75rem", color:"#94a3b8" }}>
+                      <span>🔒</span> This PR has been submitted and cannot be edited.
+                    </div>
+                  )}
+                  {!isSubmitted && (
+                    <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".4rem" }}>
+                      💡 Click anywhere in the text above to edit inline before ordering.
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <div style={{ display: "flex", gap: ".75rem", marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid #f1f5f9", flexWrap: "wrap" }}>
               <button onClick={() => { navigator.clipboard.writeText(generatedPR.replace(/<[^>]*>/g, "")); showToast("Copied!"); }} className="btn-secondary"><ClipboardIcon size={15}/> Copy Text</button>
               <button onClick={() => { navigator.clipboard.writeText(generatedPR); showToast("HTML copied!"); }} className="btn-secondary"><CopyIcon size={15}/> Copy HTML</button>
