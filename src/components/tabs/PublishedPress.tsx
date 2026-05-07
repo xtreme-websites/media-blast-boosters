@@ -7,6 +7,7 @@ interface Props {
   orders: Order[];
   locationId: string;
   onLoadDraft?: (order: Order) => void;
+  preOpenDraftId?: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { label:string; color:string; bg:string }> = {
@@ -55,9 +56,17 @@ function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
   );
 }
 
-export default function PublishedPress({ orders, onLoadDraft }: Props) {
+export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: Props) {
   const [activeTab, setActiveTab] = useState<"published"|"drafts">("published");
   const [articleModal, setArticleModal] = useState<Order | null>(null);
+
+  // Auto-open draft if coming from auto-generate
+  useEffect(() => {
+    if (!preOpenDraftId) return;
+    setActiveTab("drafts");
+    const order = orders.find(o => o.id === preOpenDraftId);
+    if (order) setArticleModal(order);
+  }, [preOpenDraftId, orders]);
 
   const published = orders.filter(o => !o.status || o.status === "submitted" || o.status === "pending_review" || o.status === "published");
   const drafts    = orders.filter(o => o.status === "draft" || o.status === "scheduled" || o.status === "draft_pending_review");
@@ -186,6 +195,25 @@ export default function PublishedPress({ orders, onLoadDraft }: Props) {
                 <XIcon size={18}/>
               </button>
             </div>
+            {/* 48hr banner for pending review drafts */}
+            {articleModal.status === "draft_pending_review" && (
+              <div style={{ background:"linear-gradient(135deg,#fffbeb,#fef3c7)", borderBottom:"1px solid #fde68a", padding:".75rem 1.25rem", display:"flex", alignItems:"center", gap:".75rem", flexShrink:0 }}>
+                <span style={{ fontSize:"1.1rem" }}>⏰</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:".82rem", color:"#92400e" }}>Auto-Submit Pending</div>
+                  <div style={{ fontSize:".75rem", color:"#78350f" }}>If no action is taken, this PR auto-submits for distribution after 48 hours.</div>
+                </div>
+                <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
+                  <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); }}
+                    style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontSize:".78rem", fontWeight:600, cursor:"pointer" }}>
+                    ✏️ Edit
+                  </button>
+                  <button style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
+                    ✅ Approve & Submit
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="prose" style={{ overflowY:"auto", padding:"1.5rem", maxWidth:"none" }}
               dangerouslySetInnerHTML={{ __html: articleModal.prContent ?? "<p>Content not available.</p>" }}/>
           </div>

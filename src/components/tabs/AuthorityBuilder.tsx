@@ -532,7 +532,7 @@ function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onS
   const NODE_STYLES = {
     live:      { dot:"#c9a84c", dotBorder:"#f0c040", glow:true,    opacity:1,   dash:false, badge:"✓ Live",      badgeColor:"#c9a84c", badgeBg:"#fffbeb" },
     scheduled: { dot:"#6366f1", dotBorder:"#8b5cf6", glow:true,    opacity:1,   dash:false, badge:"⏰ Scheduled", badgeColor:"#4338ca", badgeBg:"#eef2ff" },
-    projected: { dot:"#cbd5e1", dotBorder:"#94a3b8", glow:false,   opacity:0.55, dash:true,  badge:"◦ Projected", badgeColor:"#64748b", badgeBg:"#f8fafc" },
+    projected: { dot:"#818cf8", dotBorder:"#6366f1", glow:false,   opacity:1,    dash:true,  badge:"◦ Projected", badgeColor:"#6366f1", badgeBg:"#eef2ff" },
   };
 
   const tierColors: Record<string,string> = { Premium:"#d97706", Standard:"#8929bd", Starter:"#6366f1" };

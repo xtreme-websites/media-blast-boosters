@@ -91,6 +91,7 @@ export default function PRDashboard() {
   const [checkoutPackage,  setCheckoutPackage]  = useState<{type:string;title:string;content:string}|null>(null);
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
+  const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:''});
 
   const locationId = useMemo(() => {
     try {
@@ -167,30 +168,43 @@ export default function PRDashboard() {
     return newId;
   };
 
-  const scheduleAutomatic = async (packageType: string, seoFocus: string, scheduledDate: string, authorityFocus: Record<string,unknown>) => {
-    const newId = crypto.randomUUID();
-    const title = `${packageType} PR — ${String(authorityFocus.name || "Authority Builder")}`;
-    const order: import("./tabs/AuthorityBuilder").ExecutePayload & {id:string} = {
-      mediaType:"authority", authorityFocus: authorityFocus as any, packageTier: packageType, strategyMatch: true, id: newId
-    };
+  const scheduleAutomatic = async (packageType: string, seoFocus: string, _scheduledDate: string, authorityFocus: Record<string,unknown>) => {
     // Decrement credit first
     try {
       const creditRes = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ table:"profiles", operation:"decrement_credits", location_id:locationId, tier:packageType.toLowerCase(), reason:`Auto-Generate — ${title}` })
+        body: JSON.stringify({ table:"profiles", operation:"decrement_credits", location_id:locationId, tier:packageType.toLowerCase(), reason:`Auto-Generate — ${String(authorityFocus.name||"Authority Builder")}` })
       });
       const cd = await creditRes.json();
       if (cd.insufficient) { showToast("Insufficient credits for auto-generation","error"); return; }
     } catch {}
-    // Insert scheduled order with source=authority_builder
+    // Show generation modal — pendingPkg/pendingSeo trigger the generation
+    setAutoGenState({ show:true, step:0, orderId:null, result:null, pendingPkg:packageType, pendingSeo:seoFocus });
+  };
+
+  const runAutoGenerate = async (packageType: string, seoFocus: string) => {
+    // step 1
+    setAutoGenState(s => ({...s, step:1}));
+    await new Promise(r => setTimeout(r, 700));
+    // step 2
+    setAutoGenState(s => ({...s, step:2}));
+    await new Promise(r => setTimeout(r, 800));
+    // step 3 — actual generation
+    setAutoGenState(s => ({...s, step:3}));
     try {
-      await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+      const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/generate-pr", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ table:"orders", operation:"insert", data:{ id:newId, location_id:locationId, pr_title:title, product_name:packageType, package_type:packageType, price:parseFloat((PR_PACKAGES[packageType]?.price||"$0").replace("$","")), pr_content:"", seo_focus:seoFocus, status:"scheduled", source:"authority_builder", scheduled_date:scheduledDate, last_edited_at:new Date().toISOString(), form_data:{authorityFocus} } })
+        body: JSON.stringify({ location_id:locationId, package_type:packageType, seo_focus:seoFocus })
       });
-    } catch {}
-    setOrders(prev => [{ id:newId, prTitle:title, productName:packageType, price:PR_PACKAGES[packageType]?.price||"$0", date:new Date().toLocaleDateString("en-US"), prContent:"", seoFocus, status:"scheduled" as any, scheduledDate, formData:{authorityFocus} }, ...prev]);
-    showToast(`🤖 Scheduled for auto-generation on ${new Date(scheduledDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}`);
+      const data = await res.json();
+      if (!res.ok || !data.pr_content) { showToast("Generation failed — please try again","error"); setAutoGenState(s => ({...s,show:false,step:0})); return; }
+      // step 4 — saving
+      setAutoGenState(s => ({...s, step:4}));
+      await new Promise(r => setTimeout(r, 500));
+      const newOrder: Order = { id: crypto.randomUUID(), prTitle: data.pr_title, productName: packageType, price: PR_PACKAGES[packageType]?.price||"$0", date: new Date().toLocaleDateString("en-US"), prContent: data.pr_content, seoFocus, status:"draft_pending_review" as any, lastEditedAt: new Date().toISOString() };
+      setOrders(prev => [newOrder, ...prev]);
+      setAutoGenState({ show:true, step:5, orderId:newOrder.id, result:newOrder });
+    } catch { showToast("Generation failed — please try again","error"); setAutoGenState(s => ({...s,show:false,step:0})); }
   };
 
   const scheduleOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus: string, scheduledDate: string, formData?: Record<string,unknown>, existingId?: string) => {
@@ -255,6 +269,16 @@ export default function PRDashboard() {
     <AuthGuard locationId={locationId}>
     <div className="mbb-root" style={{ display:"flex", minHeight:"100vh", background:"#f1f5f9" }}>
       <GlobalStyles/>
+
+      {/* Auto-Generate Modal */}
+      {autoGenState.show && <AutoGenerateModal
+        step={autoGenState.step}
+        result={autoGenState.result}
+        packageType={autoGenState.pendingPkg}
+        seoFocus={autoGenState.pendingSeo}
+        onNavigate={() => { setAutoGenState(s => ({...s,show:false})); setActiveTab("press"); }}
+        onClose={() => setAutoGenState(s => ({...s,show:false,step:0,orderId:null,result:null}))}
+      />}
 
       {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════════ */}
       <aside style={{
@@ -373,7 +397,7 @@ export default function PRDashboard() {
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
           {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV}/>}
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}/>}
+          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }} preOpenDraftId={autoGenState.result?.id || null}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
           {activeTab === "authority"  && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
@@ -405,5 +429,104 @@ export default function PRDashboard() {
       )}
     </div>
     </AuthGuard>
+  );
+}
+
+// ── AutoGenerateModal ──────────────────────────────────────────────────────────
+import { createPortal } from "react-dom";
+
+const STEPS = [
+  { icon:"🔍", label:"Analyzing your company profile..." },
+  { icon:"🎯", label:"Building your PR strategy..."     },
+  { icon:"✍️",  label:"Generating press release..."      },
+  { icon:"💾", label:"Saving draft for review..."       },
+  { icon:"✅", label:"PR ready for your review!"        },
+];
+
+function AutoGenerateModal({ step, result, packageType, seoFocus, onStart, onNavigate, onClose }: {
+  step: number; result: Order | null;
+  packageType: string; seoFocus: string;
+  onStart: (pkg: string, seo: string) => void;
+  onNavigate: () => void;
+  onClose: () => void;
+}) {
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (!started && packageType) {
+      setStarted(true);
+      onStart(packageType, seoFocus);
+    }
+  }, [packageType]);
+
+  const done = step === 5;
+
+  return createPortal(
+    <div style={{ position:"fixed", inset:0, zIndex:10000, background:"linear-gradient(135deg,rgba(30,27,75,.97),rgba(49,46,129,.97))", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"2rem" }}>
+      <div style={{ width:"100%", maxWidth:480, textAlign:"center" }}>
+        {/* Header */}
+        <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>{done ? "✅" : "🤖"}</div>
+        <h2 style={{ fontWeight:900, fontSize:"1.4rem", color:"white", margin:"0 0 .5rem" }}>
+          {done ? "Your PR is Ready!" : "Auto-Generating PR..."}
+        </h2>
+        <p style={{ color:"rgba(255,255,255,.65)", fontSize:".85rem", margin:"0 0 2rem" }}>
+          {done ? "Review, edit, or approve below. If no action in 48 hrs, it auto-submits." : "AI is crafting your press release using your company data and authority strategy."}
+        </p>
+
+        {/* Steps */}
+        <div style={{ display:"flex", flexDirection:"column", gap:".6rem", marginBottom:"2rem", textAlign:"left" }}>
+          {STEPS.map((s, i) => {
+            const current = i === step - 1;
+            const done    = i < step - 1;
+            const pending = i >= step;
+            return (
+              <div key={i} style={{ display:"flex", alignItems:"center", gap:".75rem", padding:".6rem .85rem", borderRadius:".6rem",
+                background: done ? "rgba(99,102,241,.2)" : current ? "rgba(201,168,76,.15)" : "rgba(255,255,255,.04)",
+                border:`1px solid ${done ? "rgba(99,102,241,.4)" : current ? "rgba(201,168,76,.4)" : "rgba(255,255,255,.08)"}`,
+                opacity: pending ? .4 : 1, transition:"all .3s" }}>
+                <span style={{ fontSize:"1.1rem", width:24, textAlign:"center", flexShrink:0 }}>
+                  {done ? "✓" : current ? <span style={{ display:"inline-block", animation:"spin .8s linear infinite" }}>⟳</span> : s.icon}
+                </span>
+                <span style={{ fontSize:".83rem", fontWeight: current ? 700 : 500, color: done ? "#a5b4fc" : current ? "#fde68a" : "rgba(255,255,255,.7)" }}>
+                  {s.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Progress bar */}
+        {!done && (
+          <div style={{ background:"rgba(255,255,255,.12)", borderRadius:99, height:6, overflow:"hidden", marginBottom:"2rem" }}>
+            <div style={{ height:"100%", background:"linear-gradient(90deg,#c9a84c,#f0c040)", borderRadius:99, width:`${Math.max(5,(step/5)*100)}%`, transition:"width .6s ease" }}/>
+          </div>
+        )}
+
+        {/* Done state */}
+        {done && result && (
+          <>
+            <div style={{ background:"rgba(251,191,36,.12)", border:"1px solid rgba(251,191,36,.35)", borderRadius:".75rem", padding:".85rem 1rem", marginBottom:"1.25rem" }}>
+              <div style={{ fontSize:".75rem", fontWeight:800, color:"#fde68a", marginBottom:".25rem" }}>⏰ 48-Hour Review Window</div>
+              <div style={{ fontSize:".78rem", color:"rgba(255,255,255,.7)", lineHeight:1.5 }}>
+                If no action is taken, this PR will be <strong style={{color:"white"}}>automatically submitted</strong> for distribution after 48 hours.
+              </div>
+            </div>
+            <button onClick={onNavigate}
+              style={{ width:"100%", padding:".85rem", borderRadius:".7rem", border:"none", background:"linear-gradient(135deg,#c9a84c,#f0c040)", color:"#1e1b4b", fontWeight:800, fontSize:".95rem", cursor:"pointer", boxShadow:"0 4px 20px rgba(201,168,76,.4)" }}>
+              Review My PR →
+            </button>
+          </>
+        )}
+
+        {/* Cancel (only before done) */}
+        {!done && (
+          <button onClick={onClose} style={{ marginTop:"1rem", background:"none", border:"none", color:"rgba(255,255,255,.4)", fontSize:".78rem", cursor:"pointer" }}>
+            Cancel
+          </button>
+        )}
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>,
+    document.body
   );
 }
