@@ -204,7 +204,7 @@ export default function PRDashboard() {
       await new Promise(r => setTimeout(r, 500));
       const newOrder: Order = { id: crypto.randomUUID(), prTitle: data.pr_title, productName: packageType, price: PR_PACKAGES[packageType]?.price||"$0", date: new Date().toLocaleDateString("en-US"), prContent: data.pr_content, seoFocus, status:"draft_pending_review" as any, lastEditedAt: new Date().toISOString() };
       setOrders(prev => [newOrder, ...prev]);
-      setAutoGenState({ show:true, step:5, orderId:newOrder.id, result:newOrder });
+      setAutoGenState(s => ({ ...s, show:true, step:5, orderId:newOrder.id, result:newOrder }));
     } catch { showToast("Generation failed — please try again","error"); setAutoGenState(s => ({...s,show:false,step:0})); }
   };
 
@@ -277,6 +277,7 @@ export default function PRDashboard() {
         result={autoGenState.result}
         packageType={autoGenState.pendingPkg}
         seoFocus={autoGenState.pendingSeo}
+        onStart={(pkg, seo) => runAutoGenerate(pkg, seo)}
         onNavigate={() => { setAutoGenState(s => ({...s,show:false})); setActiveTab("press"); }}
         onClose={() => setAutoGenState(s => ({...s,show:false,step:0,orderId:null,result:null}))}
       />}
