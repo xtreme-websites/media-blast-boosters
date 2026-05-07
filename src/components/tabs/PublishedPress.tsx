@@ -11,9 +11,9 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { label:string; color:string; bg:string }> = {
-  pending_review: { label:"Pending Review",  color:"#92400e", bg:"#fef3c7" },
   reviewing:      { label:"In Review",       color:"#1d4ed8", bg:"#dbeafe" },
   published:      { label:"Published",       color:"#7c3aed", bg:"#ede9fe" },
+  rejected:       { label:"Revision Needed", color:"#991b1b", bg:"#fee2e2" },
   rejected:       { label:"Revision Needed", color:"#991b1b", bg:"#fee2e2" },
   submitted:      { label:"Submitted",       color:"#065f46", bg:"#d1fae5" },
   draft:                { label:"Draft",             color:"#475569", bg:"#f1f5f9" },
@@ -68,7 +68,7 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
     if (order) setArticleModal(order);
   }, [preOpenDraftId, orders]);
 
-  const published = orders.filter(o => !o.status || o.status === "submitted" || o.status === "pending_review" || o.status === "published");
+  const published = orders.filter(o => !o.status || o.status === "submitted" || o.status === "published" || o.status === "rejected");
   const drafts    = orders.filter(o => o.status === "draft" || o.status === "scheduled" || o.status === "draft_pending_review");
 
   return (
@@ -112,7 +112,7 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
               </thead>
               <tbody>
                 {published.map((order, i) => {
-                  const sc = STATUS_CONFIG[order.status || "submitted"] || STATUS_CONFIG.pending_review;
+                  const sc = STATUS_CONFIG[order.status || "submitted"] || STATUS_CONFIG.submitted;
                   const submittedDt = new Date((order as any).submitted_at || order.date);
                   const publishedDt = (order as any).published_date ? new Date((order as any).published_date) : null;
                   const isLast = i === published.length - 1;
@@ -231,7 +231,7 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
 
             {/* PR content — editable for draft/scheduled/draft_pending_review, read-only for submitted */}
             {(() => {
-              const isReadOnly = articleModal.status === "submitted" || !articleModal.status || articleModal.status === "pending_review" || articleModal.status === "published";
+              const isReadOnly = articleModal.status === "submitted" || !articleModal.status || articleModal.status === "published" || articleModal.status === "rejected";
               return (
                 <>
                   <div

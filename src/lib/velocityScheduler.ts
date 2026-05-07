@@ -12,7 +12,7 @@ import { Order } from "./constants";
 export function getRecommendedDate(orders: Order[]): Date {
   const published = orders.filter(o => {
     const s = (o as any).status;
-    return !s || s === "submitted" || s === "pending_review" || s === "published";
+    return !s || s === "submitted" || s === "submitted" || s === "published";
   });
 
   const today = new Date();
@@ -61,7 +61,7 @@ export function getProjectedDates(orders: Order[], totalCredits: number): Date[]
   const dates: Date[] = [];
   const published = orders.filter(o => {
     const s = (o as any).status;
-    return !s || s === "submitted" || s === "pending_review" || s === "published";
+    return !s || s === "submitted" || s === "submitted" || s === "published";
   });
 
   let baseDate = getRecommendedDate(orders);

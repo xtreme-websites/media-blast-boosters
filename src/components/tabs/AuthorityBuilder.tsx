@@ -455,7 +455,7 @@ function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onS
   const websiteUrl = companyData.websiteUrl || "";
 
   // Count total remaining credits (rough estimate from props)
-  const publishedOrders = orders.filter(o => !o.status || o.status==="submitted" || o.status==="pending_review" || o.status==="published");
+  const publishedOrders = orders.filter(o => !o.status || o.status==="submitted" || o.status==="submitted" || o.status==="published");
   const scheduledOrders = orders.filter(o => o.status === "scheduled");
   const draftOrders     = orders.filter(o => o.status === "draft");
 

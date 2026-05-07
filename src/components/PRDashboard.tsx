@@ -228,7 +228,7 @@ export default function PRDashboard() {
     showToast("PR scheduled!");
   };
 
-  const placeOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus = "", orderId?: string, status: string = "pending_review", scheduledDate?: string, formData?: Record<string,unknown>) => {
+  const placeOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus = "", orderId?: string, status: string = "submitted", scheduledDate?: string, formData?: Record<string,unknown>) => {
     const pkg      = PR_PACKAGES[packageType];
     const newOrder: Order = { id: crypto.randomUUID(), prTitle, productName: packageType, price: pkg.price, date: new Date().toLocaleDateString("en-US"), prContent };
     setOrders(prev => [newOrder, ...prev]);
@@ -246,10 +246,10 @@ export default function PRDashboard() {
           // Update existing draft/scheduled
           await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
             method:"POST", headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: orderId }, data:{ pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="pending_review" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} } })
+            body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: orderId }, data:{ pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="submitted" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} } })
           });
         } else {
-          await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="pending_review" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} });
+          await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="submitted" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} });
         }
       } catch {}
     }

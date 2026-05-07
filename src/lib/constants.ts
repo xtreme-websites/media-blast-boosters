@@ -22,7 +22,7 @@ export interface Topic {
   selectedIdea?: string;
 }
 
-export type OrderStatus = "draft" | "scheduled" | "submitted" | "pending_review" | "published";
+export type OrderStatus = "draft" | "scheduled" | "submitted" | "draft_pending_review" | "published" | "rejected";
 
 export interface Order {
   id: string;
