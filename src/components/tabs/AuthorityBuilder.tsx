@@ -58,7 +58,8 @@ const ProgressBar = ({ steps, current }: { steps: string[]; current: number }) =
 );
 
 export default function AuthorityBuilder({ companyData, orders, onExecute, onScheduleAutomatic, onNavigateToCompanyProfile }: Props) {
-  const [innerTab, setInnerTab] = useState<"roadmap"|"timeline">("roadmap");
+  const [innerTab, setInnerTab] = useState<"strategy"|"roadmap">("strategy");
+  const [execMode, setExecMode] = useState<"manual"|"auto">("manual");
   const services  = companyData.servicePages  || [];
   const locations = companyData.locationPages || [];
   const websiteUrl = companyData.websiteUrl || "";
@@ -70,7 +71,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
   // ── Stage gates ──────────────────────────────────────────────────────────────
   if (services.length === 0) return (
     <div>
-      <PageHeader innerTab={innerTab} setInnerTab={setInnerTab}/>
+      <PageHeader innerTab={innerTab} setInnerTab={setInnerTab} execMode={execMode} setExecMode={setExecMode}/>
       <div className="card" style={{ padding:"3rem", textAlign:"center" }}>
         <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>🏗️</div>
         <h3 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:"0 0 .5rem" }}>Foundation Missing</h3>
@@ -116,7 +117,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"1.5rem" }}>
-      <PageHeader innerTab={innerTab} setInnerTab={setInnerTab}/>
+      <PageHeader innerTab={innerTab} setInnerTab={setInnerTab} execMode={execMode} setExecMode={setExecMode}/>
 
       {/* Stage 2 banner */}
       {innerTab === "roadmap" && services.length > 0 && services.length <= 3 && (
@@ -234,7 +235,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:".6rem" }}>
           {servicePRs.map((svc) => (
-            <ServiceRow key={svc.url} svc={svc} onExecute={onExecute}/>
+            <ServiceRow key={svc.url} svc={svc} onExecute={onExecute} onScheduleAutomatic={onScheduleAutomatic} execMode={execMode}/>
           ))}
         </div>
       </div>
@@ -252,7 +253,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:".75rem" }}>
             {locationPRs.map((loc) => (
-              <LocationCard key={loc.url} loc={loc} onExecute={onExecute}/>
+              <LocationCard key={loc.url} loc={loc} onExecute={onExecute} onScheduleAutomatic={onScheduleAutomatic} execMode={execMode}/>
             ))}
           </div>
         </div>
@@ -264,39 +265,72 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
 
       {/* Timeline Tab */}
       {innerTab === "timeline" && (
-        <Timeline orders={orders} companyData={companyData} servicePRs={servicePRs} locationPRs={locationPRs} onExecute={onExecute} onScheduleAutomatic={onScheduleAutomatic}/>
+        <Timeline orders={orders} companyData={companyData} servicePRs={servicePRs} locationPRs={locationPRs} onExecute={onExecute} onScheduleAutomatic={onScheduleAutomatic} execMode={execMode}/>
       )}
     </div>
   );
 }
 
 // ── Page Header ───────────────────────────────────────────────────────────────
-function PageHeader({ innerTab, setInnerTab }: { innerTab: "roadmap"|"timeline"; setInnerTab: (t: "roadmap"|"timeline") => void }) {
+function PageHeader({ innerTab, setInnerTab, execMode, setExecMode }: {
+  innerTab:"strategy"|"roadmap"; setInnerTab:(t:"strategy"|"roadmap")=>void;
+  execMode:"manual"|"auto"; setExecMode:(m:"manual"|"auto")=>void;
+}) {
   return (
-    <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:".75rem", marginBottom:".25rem" }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:".75rem" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:".75rem" }}>
         <div style={{ display:"flex", alignItems:"center", gap:".6rem" }}>
           <h2 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:0 }}>Authority Builder</h2>
           <span style={{ fontSize:".65rem", fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", color:"#8929bd", background:"#f5f3ff", padding:".15rem .55rem", borderRadius:"99px", border:"1px solid #ddd6fe" }}>Strategy Engine</span>
         </div>
-        {/* Inner tab switcher */}
         <div style={{ display:"flex", gap:".25rem", background:"white", borderRadius:".6rem", padding:".25rem", border:"1px solid #f1f5f9", boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}>
-          <button onClick={() => setInnerTab("roadmap")} style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".75rem", transition:"all .15s", background: innerTab==="roadmap" ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent", color: innerTab==="roadmap" ? "white" : "#64748b" }}>
-            🗺️ Roadmap
+          <button onClick={() => setInnerTab("strategy")} style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".75rem", transition:"all .15s", background: innerTab==="strategy" ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent", color: innerTab==="strategy" ? "white" : "#64748b" }}>
+            🗺️ Strategy
           </button>
-          <button onClick={() => setInnerTab("timeline")} style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".75rem", transition:"all .15s", background: innerTab==="timeline" ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent", color: innerTab==="timeline" ? "white" : "#64748b" }}>
-            📅 Timeline
+          <button onClick={() => setInnerTab("roadmap")} style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".75rem", transition:"all .15s", background: innerTab==="roadmap" ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent", color: innerTab==="roadmap" ? "white" : "#64748b" }}>
+            📍 Roadmap
           </button>
         </div>
       </div>
-      <p style={{ color:"#64748b", fontSize:".83rem", margin:0 }}>Your AI-powered PR roadmap — follow the 1:3:12 ratio to dominate search</p>
+      <p style={{ color:"#64748b", fontSize:".83rem", margin:"0 0 .25rem" }}>Your AI-powered PR roadmap — follow the 1:3:12 ratio to dominate search</p>
+      {/* Execution mode switch */}
+      <div style={{ display:"flex", alignItems:"center", gap:".85rem", background: execMode==="auto" ? "linear-gradient(135deg,#1e1b4b,#312e81)" : "#f8fafc", border:`1.5px solid ${execMode==="auto" ? "#4338ca" : "#e2e8f0"}`, borderRadius:".75rem", padding:".75rem 1rem", transition:"all .25s" }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:700, fontSize:".85rem", color: execMode==="auto" ? "white" : "#1e293b" }}>
+            {execMode==="manual" ? "✏️ Create Manually" : "🤖 Create Automatically"}
+          </div>
+          <div style={{ fontSize:".73rem", color: execMode==="auto" ? "rgba(255,255,255,.65)" : "#94a3b8", marginTop:".1rem" }}>
+            {execMode==="manual"
+              ? "Execute buttons open Media Creator — you write the PR yourself"
+              : "Execute buttons schedule AI to auto-generate & submit the PR"}
+          </div>
+        </div>
+        <button onClick={() => setExecMode(execMode==="manual" ? "auto" : "manual")}
+          style={{ position:"relative", width:52, height:28, borderRadius:99, border:"none", cursor:"pointer", padding:0, flexShrink:0, background: execMode==="auto" ? "#6366f1" : "#cbd5e1", transition:"background .2s" }}>
+          <div style={{ position:"absolute", top:3, left: execMode==="auto" ? 27 : 3, width:22, height:22, borderRadius:"50%", background:"white", transition:"left .2s", boxShadow:"0 1px 4px rgba(0,0,0,.25)" }}/>
+        </button>
+      </div>
     </div>
   );
 }
 
 // ── Service Row ───────────────────────────────────────────────────────────────
-function ServiceRow({ svc, onExecute }: { svc: ServicePage & { prs: number }; onExecute: (p: ExecutePayload) => void }) {
+function ServiceRow({ svc, onExecute, onScheduleAutomatic, execMode }: {
+  svc: ServicePage & { prs: number };
+  onExecute: (p: ExecutePayload) => void;
+  onScheduleAutomatic?: (pkg:string, seoFocus:string, scheduledDate:string, authorityFocus:Record<string,unknown>) => void;
+  execMode: "manual"|"auto";
+}) {
   const hasPR = svc.prs >= 1;
+  const kw = (svc.keywords||[])[0]||svc.name.toLowerCase();
+  const seoFocus = `service:${svc.url}:${kw}`;
+  const handleClick = () => {
+    if (execMode === "manual") {
+      onExecute({ mediaType:"authority", authorityFocus:{ type:"service", url:svc.url, name:svc.name, keyword:kw, seoFocus }, packageTier:"Standard", strategyMatch:true });
+    } else {
+      onScheduleAutomatic?.("Standard", seoFocus, new Date().toISOString().split("T")[0], { type:"service", url:svc.url, name:svc.name, keyword:kw, seoFocus });
+    }
+  };
   return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:".75rem 1rem", background: hasPR ? "#f0fdf4" : "#f8fafc", border:`1px solid ${hasPR ? "#bbf7d0" : "#e2e8f0"}`, borderRadius:".6rem", gap:".75rem", flexWrap:"wrap" }}>
       <div style={{ minWidth:0 }}>
@@ -306,9 +340,9 @@ function ServiceRow({ svc, onExecute }: { svc: ServicePage & { prs: number }; on
       <div style={{ display:"flex", alignItems:"center", gap:".6rem", flexShrink:0 }}>
         {hasPR
           ? <span style={{ fontSize:".75rem", fontWeight:700, color:"#16a34a", display:"flex", alignItems:"center", gap:".3rem" }}>✓ {svc.prs} PR{svc.prs>1?"s":""}</span>
-          : <button onClick={() => onExecute({ mediaType:"authority", authorityFocus:{ type:"service", url:svc.url, name:svc.name, keyword:(svc.keywords||[])[0]||svc.name.toLowerCase(), seoFocus:`service:${svc.url}:${(svc.keywords||[])[0]||svc.name.toLowerCase()}` }, packageTier:"Standard", strategyMatch:true })}
-              style={{ background:"#6366f1", color:"white", border:"none", borderRadius:".4rem", padding:".35rem .75rem", fontWeight:700, fontSize:".75rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-              ✏️ Create Manually
+          : <button onClick={handleClick}
+              style={{ background: execMode==="auto" ? "linear-gradient(135deg,#6366f1,#8929bd)" : "#6366f1", color:"white", border:"none", borderRadius:".4rem", padding:".35rem .75rem", fontWeight:700, fontSize:".75rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+              {execMode==="manual" ? "✏️ Create Manually" : "🤖 Auto-Generate"}
             </button>
         }
       </div>
@@ -319,9 +353,28 @@ function ServiceRow({ svc, onExecute }: { svc: ServicePage & { prs: number }; on
 // ── Location Card ─────────────────────────────────────────────────────────────
 const DOMINANCE_STEPS = ["Presence", "Authority", "Dominance"];
 
-function LocationCard({ loc, onExecute }: { loc: LocationPage & { prs: number }; onExecute: (p: ExecutePayload) => void }) {
+function LocationCard({ loc, onExecute, onScheduleAutomatic, execMode }: {
+  loc: LocationPage & { prs: number };
+  onExecute: (p: ExecutePayload) => void;
+  onScheduleAutomatic?: (pkg:string, seoFocus:string, scheduledDate:string, authorityFocus:Record<string,unknown>) => void;
+  execMode: "manual"|"auto";
+}) {
   const step = Math.min(loc.prs, 3);
   const isDominant = step >= 3;
+  const kw = (loc.keywords||[])[0]||loc.name.toLowerCase();
+  const seoFocus = `location:${loc.url}:${kw}`;
+
+  const handleClick = () => {
+    if (execMode === "manual") {
+      onExecute({ mediaType:"authority", authorityFocus:{ type:"location", url:loc.url, name:loc.name, keyword:kw, seoFocus }, packageTier:"Starter", strategyMatch:true });
+    } else {
+      onScheduleAutomatic?.("Starter", seoFocus, new Date().toISOString().split("T")[0], { type:"location", url:loc.url, name:loc.name, keyword:kw, seoFocus });
+    }
+  };
+
+  const btnLabel = execMode==="auto"
+    ? "🤖 Auto-Generate"
+    : step === 0 ? "✏️ Activate" : step === 1 ? "✏️ Build Authority" : "✏️ Achieve Dominance";
 
   return (
     <div style={{ border:`1.5px solid ${isDominant ? GOLD : "#e2e8f0"}`, borderRadius:".75rem", padding:"1rem", background: isDominant ? "linear-gradient(135deg,#fffbeb,#fef9ec)" : "white", position:"relative", overflow:"hidden", transition:"all .3s" }}>
@@ -338,9 +391,9 @@ function LocationCard({ loc, onExecute }: { loc: LocationPage & { prs: number };
       <div style={{ fontSize:".68rem", color:"#94a3b8", marginBottom:".75rem" }}>{loc.prs} PR{loc.prs !== 1 ? "s" : ""} launched</div>
       <ProgressBar steps={DOMINANCE_STEPS} current={step}/>
       {step < 3 && (
-        <button onClick={() => onExecute({ mediaType:"authority", authorityFocus:{ type:"location", url:loc.url, name:loc.name, keyword:(loc.keywords||[])[0]||loc.name.toLowerCase(), seoFocus:`location:${loc.url}:${(loc.keywords||[])[0]||loc.name.toLowerCase()}` }, packageTier:"Starter", strategyMatch:true })}
-          style={{ width:"100%", marginTop:".75rem", padding:".45rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#6366f1", fontWeight:700, fontSize:".75rem", cursor:"pointer" }}>
-          {step === 0 ? "Activate →" : step === 1 ? "Build Authority →" : "Achieve Dominance →"}
+        <button onClick={handleClick}
+          style={{ width:"100%", marginTop:".75rem", padding:".45rem", borderRadius:".45rem", border: execMode==="auto" ? "none" : "1px solid #e2e8f0", background: execMode==="auto" ? "linear-gradient(135deg,#6366f1,#8929bd)" : "white", color: execMode==="auto" ? "white" : "#6366f1", fontWeight:700, fontSize:".75rem", cursor:"pointer" }}>
+          {btnLabel}
         </button>
       )}
     </div>
@@ -392,11 +445,12 @@ function BlindspotDetector({ servicePRs, locationPRs, orders }: { servicePRs: (S
 }
 
 // ── Timeline Component ────────────────────────────────────────────────────────
-function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onScheduleAutomatic }: {
+function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onScheduleAutomatic, execMode }: {
   orders: Order[]; companyData: CompanyData;
   servicePRs: (ServicePage & {prs:number})[]; locationPRs: (LocationPage & {prs:number})[];
   onExecute: (p: ExecutePayload) => void;
   onScheduleAutomatic?: (pkg:string, seoFocus:string, scheduledDate:string, authorityFocus:Record<string,unknown>) => void;
+  execMode: "manual"|"auto";
 }) {
   const websiteUrl = companyData.websiteUrl || "";
 
@@ -531,12 +585,15 @@ function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onS
                   </div>
                   {node.type === "projected" && (
                     <button onClick={() => {
-                      if (onScheduleAutomatic) {
-                        onScheduleAutomatic(node.tier, `${node.seoType}:${node.url}:${node.keyword}`, formatDateInput(node.date), { type:node.seoType, url:node.url, name:node.label, keyword:node.keyword, seoFocus:`${node.seoType}:${node.url}:${node.keyword}` });
+                      const focus = { type:node.seoType, url:node.url, name:node.label, keyword:node.keyword, seoFocus:`${node.seoType}:${node.url}:${node.keyword}` };
+                      if (execMode === "manual") {
+                        onExecute({ mediaType:"authority", authorityFocus: focus, packageTier:node.tier, strategyMatch:true });
+                      } else {
+                        onScheduleAutomatic?.(node.tier, focus.seoFocus, formatDateInput(node.date), focus as unknown as Record<string,unknown>);
                       }
                     }}
-                      style={{ flexShrink:0, padding:".35rem .75rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:700, fontSize:".72rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                      🤖 Auto-Generate
+                      style={{ flexShrink:0, padding:".35rem .75rem", borderRadius:".4rem", border:"none", background: execMode==="auto" ? "linear-gradient(135deg,#6366f1,#8929bd)" : "#f1f5f9", color: execMode==="auto" ? "white" : "#6366f1", fontWeight:700, fontSize:".72rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                      {execMode==="manual" ? "✏️ Create Manually" : "🤖 Auto-Generate"}
                     </button>
                   )}
                 </div>
