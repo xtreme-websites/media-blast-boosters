@@ -8,6 +8,7 @@ interface Props {
   locationId: string;
   onLoadDraft?: (order: Order) => void;
   onDeleteDraft?: (order: Order) => void;
+  onApproveAndSubmit?: (order: Order) => void;
   preOpenDraftId?: string | null;
 }
 
@@ -57,7 +58,7 @@ function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
   );
 }
 
-export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, preOpenDraftId }: Props) {
+export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onApproveAndSubmit, preOpenDraftId }: Props) {
   const [activeTab, setActiveTab] = useState<"published"|"drafts">("published");
   const [articleModal, setArticleModal] = useState<Order | null>(null);
 
@@ -158,7 +159,8 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, pre
                   <th style={thStyle}>PR Title</th>
                   <th style={thStyle}>Status</th>
                   <th style={thStyle}>Scheduled Date</th>
-                  <th style={thLast}>Last Edited</th>
+                  <th style={thStyle}>Last Edited</th>
+                  <th style={thLast}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,15 +177,27 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, pre
                       <td style={c()}><span style={{ fontWeight:600, fontSize:".83rem", color:"#1e293b" }}>{order.prTitle || "(Untitled Draft)"}</span></td>
                       <td style={c()}><span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .55rem", borderRadius:"99px" }}>{sc.label}</span></td>
                       <td style={c()}><span style={{ fontSize:".72rem", color:"#94a3b8" }}>{scheduledDt ? scheduledDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}</span></td>
-                      <td style={cl()}>
-                      <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
-                        <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{isNaN(editedDt.getTime()) ? "—" : editedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
-                        {(order.status === "draft" || order.status === "scheduled" || order.status === "draft_pending_review") && (
-                          <button onClick={e => { e.stopPropagation(); if (confirm("Delete this draft? Credits reserved for this PR will be returned.")) onDeleteDraft?.(order); }}
-                            style={{ marginLeft:"auto", fontSize:".65rem", color:"#dc2626", background:"#fff1f2", border:"1px solid #fecdd3", borderRadius:".35rem", padding:".15rem .45rem", cursor:"pointer", flexShrink:0 }}>
-                            Delete
-                          </button>
-                        )}
+                      <td style={c()}>
+                      <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{isNaN(editedDt.getTime()) ? "—" : editedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                    </td>
+                    <td style={cl()} onClick={e => e.stopPropagation()}>
+                      <div style={{ display:"flex", gap:".5rem", alignItems:"center" }}>
+                        {/* Edit icon */}
+                        <button title="Edit instructions" onClick={() => onLoadDraft?.(order)}
+                          style={{ background:"#eef2ff", border:"none", borderRadius:".35rem", padding:".3rem .4rem", cursor:"pointer", display:"flex", alignItems:"center" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        {/* Delete icon */}
+                        <button title="Delete draft" onClick={() => { if (confirm("Delete this draft? Credits reserved for this PR will be returned.")) onDeleteDraft?.(order); }}
+                          style={{ background:"#fff1f2", border:"none", borderRadius:".35rem", padding:".3rem .4rem", cursor:"pointer", display:"flex", alignItems:"center" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                          </svg>
+                        </button>
                       </div>
                     </td>
                     </tr>
@@ -225,7 +239,8 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, pre
                   <div style={{ fontSize:".75rem", color:"#78350f" }}>Your review and approval are required. You have until the scheduled date to approve or edit. After that, it will be automatically submitted for distribution.</div>
                 </div>
                 <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
-                  <button style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
+                  <button onClick={() => { onApproveAndSubmit?.(articleModal!); setArticleModal(null); }}
+                    style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
                     ✅ Approve & Submit
                   </button>
                 </div>

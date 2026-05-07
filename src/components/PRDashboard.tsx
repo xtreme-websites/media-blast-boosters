@@ -392,7 +392,7 @@ export default function PRDashboard() {
 
       {/* ══ MAIN CONTENT ══════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <main style={{ flex: 1, overflowY: "auto", padding: "1.5rem", maxWidth: "940px", width: "100%", margin: "0 auto" }}>
+        <main style={{ flex: 1, overflowY: "auto", padding: "1.5rem", maxWidth: "1128px", width: "100%", margin: "0 auto" }}>
           {!hasCompanyData && dataLoaded && (
             <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)",border:"1px solid #4338ca",borderRadius:".875rem",padding:"1rem 1.5rem",marginBottom:"1.25rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap" }}>
               <div style={{ display:"flex",alignItems:"center",gap:".75rem" }}>
@@ -410,26 +410,41 @@ export default function PRDashboard() {
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
           {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV}/>}
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }} onDeleteDraft={async (o) => {
-            // Release credit if it was reserved (draft_pending_review or scheduled from authority builder)
-            if (o.status === "draft_pending_review" || (o.status === "scheduled" && (o as any).source === "authority_builder")) {
+          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}
+            onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}
+            onApproveAndSubmit={async (o) => {
               try {
                 await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
                   method:"POST", headers:{"Content-Type":"application/json"},
-                  body: JSON.stringify({ table:"profiles", operation:"release_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`Credit released — ${o.prTitle||"PR"} deleted` })
+                  body: JSON.stringify({ table:"orders", operation:"update", eq:{id:o.id}, data:{ status:"submitted", submitted_at:new Date().toISOString() } })
+                });
+                await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                  method:"POST", headers:{"Content-Type":"application/json"},
+                  body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`PR Approved — ${o.prTitle||"PR"}` })
                 });
               } catch {}
-            }
-            // Delete from DB
-            try {
-              await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
-                method:"POST", headers:{"Content-Type":"application/json"},
-                body: JSON.stringify({ table:"orders", operation:"delete", eq:{ id: o.id } })
-              });
-            } catch {}
-            setOrders(prev => prev.filter(x => x.id !== o.id));
-            showToast("Draft deleted — credit returned");
-          }} preOpenDraftId={autoGenState.result?.id || null}/>}
+              setOrders(prev => prev.map(x => x.id===o.id ? {...x, status:"submitted" as any, submittedAt:new Date().toISOString()} : x));
+              showToast("✅ PR approved and submitted for distribution!");
+            }}
+            onDeleteDraft={async (o) => {
+              if (o.status === "draft_pending_review" || (o.status === "scheduled" && (o as any).source === "authority_builder")) {
+                try {
+                  await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                    method:"POST", headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify({ table:"profiles", operation:"release_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`Credit released — ${o.prTitle||"PR"} deleted` })
+                  });
+                } catch {}
+              }
+              try {
+                await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                  method:"POST", headers:{"Content-Type":"application/json"},
+                  body: JSON.stringify({ table:"orders", operation:"delete", eq:{ id: o.id } })
+                });
+              } catch {}
+              setOrders(prev => prev.filter(x => x.id !== o.id));
+              showToast("Draft deleted — credit returned");
+            }}
+            preOpenDraftId={autoGenState.result?.id || null}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
           {activeTab === "authority"  && !dataLoaded && (
             <div style={{ display:"flex", flexDirection:"column", gap:"1rem", padding:".5rem 0" }}>
@@ -543,9 +558,9 @@ function AutoGenerateModal({ step, result, packageType, seoFocus, scheduledDate,
         {done && result && (
           <>
             <div style={{ background:"rgba(251,191,36,.12)", border:"1px solid rgba(251,191,36,.35)", borderRadius:".75rem", padding:".85rem 1rem", marginBottom:"1.25rem" }}>
-              <div style={{ fontSize:".75rem", fontWeight:800, color:"#fde68a", marginBottom:".25rem" }}>⏰ 48-Hour Review Window</div>
+              <div style={{ fontSize:".75rem", fontWeight:800, color:"#fde68a", marginBottom:".25rem" }}>⏰ Review Required</div>
               <div style={{ fontSize:".78rem", color:"rgba(255,255,255,.7)", lineHeight:1.5 }}>
-                If no action is taken, this PR will be <strong style={{color:"white"}}>automatically submitted</strong> for distribution after 48 hours.
+                Your review and approval are required. You have until the <strong style={{color:"white"}}>scheduled date</strong> to approve or edit — after that it auto-submits.
               </div>
             </div>
             <button onClick={onNavigate}
