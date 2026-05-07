@@ -22,6 +22,8 @@ export interface Topic {
   selectedIdea?: string;
 }
 
+export type OrderStatus = "draft" | "scheduled" | "submitted" | "pending_review" | "published";
+
 export interface Order {
   id: string;
   prTitle: string;
@@ -29,10 +31,16 @@ export interface Order {
   price: string;
   date: string;
   prContent: string;
-  seoFocus?: string;    // format: "home:kw" | "service:url:kw" | "location:url:kw" | "own:kw"
+  seoFocus?: string;
   serviceUrl?: string;
   locationUrl?: string;
-  status?: string;
+  status?: OrderStatus;
+  scheduledDate?: string;
+  submittedAt?: string;
+  publishedDate?: string;
+  reportLink?: string;
+  lastEditedAt?: string;
+  formData?: Record<string, unknown>;
 }
 
 // ─── Company Data Default ─────────────────────────────────────────────────────

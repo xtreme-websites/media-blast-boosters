@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { callClaude } from "../../lib/ai";
 import { scanForProhibitedContent } from "../../lib/prohibitedContent";
 import type { ProhibitedMatch } from "../../lib/prohibitedContent";
+import { getRecommendedDate, formatDate, formatDateInput } from "../../lib/velocityScheduler";
 import { CompanyData, Topic, PR_PACKAGES, FOCUS_OPTIONS, THEME_OPTIONS } from "../../lib/constants";
 import { SparklesIcon, LoaderIcon, BackIcon, ClipboardIcon, CopyIcon, CheckIcon, XIcon, UploadIcon, BriefIcon } from "../icons";
 
@@ -204,6 +205,11 @@ interface PRCreatorProps {
   onOpenHelp?: () => void;
   onNavigateToAuthorityBuilder?: () => void;
   authorityPayload?: import("./AuthorityBuilder").ExecutePayload | null;
+  draftToLoad?: import("../../lib/constants").Order | null;
+  onDraftLoaded?: () => void;
+  onSaveDraft?: (pkg:string,title:string,content:string,seoFocus:string,formData:Record<string,unknown>,existingId?:string) => Promise<string>;
+  onScheduleOrder?: (pkg:string,title:string,content:string,seoFocus:string,scheduledDate:string,formData:Record<string,unknown>,existingId?:string) => void;
+  orders?: import("../../lib/constants").Order[];
   locationId: string;
   showToast: (msg: string, type?: "success" | "error") => void;
 }
@@ -219,7 +225,7 @@ type PRTier = keyof typeof TIER_CONFIG;
 export default function PRCreator({
   companyData, customPRPrompt,
   selectedTopic, onClearTopic, onNavigateToTopics,
-  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, locationId, showToast,
+  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, draftToLoad, onDraftLoaded, onSaveDraft, onScheduleOrder, orders: propOrders, locationId, showToast,
 }: PRCreatorProps) {
   const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "authority" });
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
@@ -227,9 +233,80 @@ export default function PRCreator({
   const [agreedToTerms,        setAgreedToTerms]        = useState(false);
   const [prohibitedMatches,    setProhibitedMatches]    = useState<ProhibitedMatch[]>([]);
   const [showEditorialPanel,   setShowEditorialPanel]   = useState(false);
+  const [currentDraftId,       setCurrentDraftId]       = useState<string | null>(null);
+  const [showScheduleModal,    setShowScheduleModal]    = useState(false);
+  const [scheduleDate,         setScheduleDate]         = useState("");
   const [authorityFocus,       setAuthorityFocus]       = useState<import("./AuthorityBuilder").AuthorityFocus | null>(null);
   const [strategyMatchTier,    setStrategyMatchTier]    = useState<PRTier | null>(null);
   const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
+
+  // Load draft data when coming from Drafts tab
+  useEffect(() => {
+    if (!draftToLoad) return;
+    const fd = draftToLoad.formData as Record<string,any> || {};
+    setPrFormData(p => ({
+      ...p,
+      about:              fd.about            || "",
+      quote:              fd.quote            || "",
+      keywords:           fd.keywords         || [],
+      wordCount:          fd.wordCount        || "500",
+      mainFocus:          fd.mainFocus        || "Company News",
+      theme:              fd.theme            || "thought-provoking",
+      videoUrl:           fd.videoUrl         || "",
+      mapsEmbed:          fd.mapsEmbed        || "",
+      includePartnerQuote: fd.includePartnerQuote || "no",
+      partnerQuote:       fd.partnerQuote     || "",
+      partnerAttribution: fd.partnerAttribution || "",
+      mediaType:          fd.mediaType        || "authority",
+    }));
+    if (draftToLoad.prContent) { setGeneratedPR(draftToLoad.prContent); setShowGeneratedView(true); }
+    if (draftToLoad.status === "scheduled" && draftToLoad.scheduledDate) setScheduleDate(draftToLoad.scheduledDate.split("T")[0]);
+    setCurrentDraftId(draftToLoad.id);
+    setSelectedTier((draftToLoad.productName as PRTier) || "Standard");
+    onDraftLoaded?.();
+  }, [draftToLoad]);
+
+  const getPRTitle = () => {
+    const h1 = generatedPR.match(/<h1[^>]*>(.*?)<\/h1>/i);
+    return h1 ? h1[1].replace(/<[^>]*>/g,"") : prFormData.about.slice(0,80) || "Press Release";
+  };
+
+  const getSeoFocus = () => {
+    if (authorityFocus) return authorityFocus.seoFocus;
+    if (prFormData.keywords.length > 0) return `own:${prFormData.keywords.join(",")}`;
+    return "";
+  };
+
+  const getFormData = (): Record<string,unknown> => ({
+    about: prFormData.about, quote: prFormData.quote, keywords: prFormData.keywords,
+    wordCount: prFormData.wordCount, mainFocus: prFormData.mainFocus, theme: prFormData.theme,
+    videoUrl: prFormData.videoUrl, mapsEmbed: prFormData.mapsEmbed,
+    includePartnerQuote: prFormData.includePartnerQuote, partnerQuote: prFormData.partnerQuote,
+    partnerAttribution: prFormData.partnerAttribution, mediaType: prFormData.mediaType,
+  });
+
+  const handleSaveDraft = async () => {
+    const title   = getPRTitle();
+    const newId = await onSaveDraft?.(selectedTier, title, generatedPR, getSeoFocus(), getFormData(), currentDraftId || undefined);
+    if (newId && !currentDraftId) setCurrentDraftId(newId);
+  };
+
+  const handleOpenSchedule = () => {
+    const recommended = getRecommendedDate(propOrders || []);
+    setScheduleDate(formatDateInput(recommended));
+    setShowScheduleModal(true);
+  };
+
+  const handleConfirmSchedule = () => {
+    if (!scheduleDate) return;
+    const title = getPRTitle();
+    onScheduleOrder?.(selectedTier, title, generatedPR, getSeoFocus(), scheduleDate, getFormData(), currentDraftId || undefined);
+    setShowScheduleModal(false);
+    showToast("PR scheduled for " + new Date(scheduleDate + "T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}));
+  };
+    if (!authorityPayload) return;
+  const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
+  const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
 
   // Apply authority payload when coming from AuthorityBuilder "Execute Now"
   useEffect(() => {
@@ -240,8 +317,6 @@ export default function PRCreator({
     setStrategyMatchTier(authorityPayload.packageTier as PRTier);
     setShowGeneratedView(false);
   }, [authorityPayload]);
-  const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
-  const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
 
   // Fetch credits on mount
   useEffect(() => {
@@ -472,10 +547,11 @@ RULES:
                   }
                   .cta-pulse { animation: pulse-ring 1.5s ease-out infinite !important; }
                 `}</style>
-                <div style={{ position:"sticky", bottom:0, background:`linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, border:`2px solid ${cfg.color}40`, borderRadius:"1rem", padding:"1rem 1.5rem", backdropFilter:"blur(8px)", zIndex:10 }} className={ctaPulse ? "cta-pulse" : ""}>
+                  <div style={{ position:"sticky", bottom:0, background:"white", borderTop:"1px solid #f1f5f9", padding:"1rem 1.5rem", zIndex:10, display:"flex", flexDirection:"column", gap:".75rem" }}>
                   <style>{`@keyframes pulse-ring { 0%{box-shadow:0 0 0 0 ${cfg.color}60} 70%{box-shadow:0 0 0 12px ${cfg.color}00} 100%{box-shadow:0 0 0 0 ${cfg.color}00} } .cta-pulse{animation:pulse-ring 1.5s ease-out infinite!important}`}</style>
+
                   {/* Agree checkbox */}
-                  <label style={{ display:"flex", alignItems:"center", gap:".6rem", marginBottom:".75rem", cursor:"pointer", fontSize:".82rem", color:"#374151" }}>
+                  <label style={{ display:"flex", alignItems:"center", gap:".6rem", cursor:"pointer", fontSize:".82rem", color:"#374151" }}>
                     <input type="checkbox" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)}
                       style={{ width:16, height:16, accentColor:cfg.color, cursor:"pointer", flexShrink:0 }}/>
                     I agree to the&nbsp;
@@ -483,22 +559,37 @@ RULES:
                       Editorial Standards
                     </button>
                   </label>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1.25rem", flexWrap:"wrap" }}>
+
+                  {/* Main CTA row */}
+                  <div className={ctaPulse ? "cta-pulse" : ""} style={{ background:`linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, border:`2px solid ${cfg.color}40`, borderRadius:"1rem", padding:"1rem 1.25rem", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1rem", flexWrap:"wrap" }}>
                     <div>
                       <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".2rem" }}>Ready to Publish?</div>
                       <div style={{ fontSize:".82rem", color:"#64748b" }}>
-                        <span style={{ fontWeight:700, color:cfg.color }}>{selectedTier} Package</span> · {bal > 0 ? <span style={{ color:"#16a34a", fontWeight:600 }}>{bal} credit{bal>1?"s":""} available</span> : <span style={{ color:"#ef4444", fontWeight:600 }}>No credits available</span>}
+                        <span style={{ fontWeight:700, color:cfg.color }}>{selectedTier} Package</span> · {bal > 0 ? <span style={{ color:"#16a34a", fontWeight:600 }}>{bal} credit{bal>1?"s":""} available</span> : <span style={{ color:"#ef4444", fontWeight:600 }}>No credits</span>}
+                        {currentDraftId && <span style={{ marginLeft:".5rem", fontSize:".72rem", color:"#6366f1", background:"#eef2ff", padding:".1rem .45rem", borderRadius:"99px" }}>Draft</span>}
                       </div>
                     </div>
-                    {bal > 0
-                      ? <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first", "error"); return; } handlePlaceOrder(); }}
-                          style={{ background: agreedToTerms ? `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` : "#e2e8f0", color: agreedToTerms ? "white" : "#94a3b8", border:"none", borderRadius:".6rem", padding:".75rem 1.5rem", fontWeight:800, fontSize:".95rem", cursor: agreedToTerms ? "pointer" : "not-allowed", whiteSpace:"nowrap", boxShadow: agreedToTerms ? `0 4px 14px ${cfg.color}40` : "none", transition:"all .2s" }}>
-                          🚀 Order & Launch
-                        </button>
-                      : <button onClick={onOpenCredits} style={{ background:"#ef4444", color:"white", border:"none", borderRadius:".6rem", padding:".75rem 1.5rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                          Buy {selectedTier} Credits →
-                        </button>
-                    }
+                    <div style={{ display:"flex", gap:".6rem", flexWrap:"wrap", alignItems:"center" }}>
+                      {/* Save Draft */}
+                      <button onClick={handleSaveDraft} style={{ padding:".6rem 1rem", borderRadius:".6rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".82rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem" }}>
+                        💾 Save Draft
+                      </button>
+                      {/* Schedule */}
+                      <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first","error"); return; } handleOpenSchedule(); }}
+                        style={{ padding:".6rem 1rem", borderRadius:".6rem", border:`1px solid ${cfg.color}`, background:"white", color:cfg.color, fontWeight:700, fontSize:".82rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem" }}>
+                        📅 Schedule
+                      </button>
+                      {/* Order & Launch */}
+                      {bal > 0
+                        ? <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first","error"); return; } handlePlaceOrder(); }}
+                            style={{ background: agreedToTerms ? `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` : "#e2e8f0", color: agreedToTerms ? "white" : "#94a3b8", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor: agreedToTerms ? "pointer" : "not-allowed", whiteSpace:"nowrap", boxShadow: agreedToTerms ? `0 4px 14px ${cfg.color}40` : "none", transition:"all .2s" }}>
+                            🚀 Order & Launch
+                          </button>
+                        : <button onClick={onOpenCredits} style={{ background:"#ef4444", color:"white", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                            Buy {selectedTier} Credits →
+                          </button>
+                      }
+                    </div>
                   </div>
                 </div>
               </>
@@ -890,6 +981,41 @@ RULES:
             </div>{/* end disabled wrapper */}
           </div>
         </div>
+      )}
+
+      {/* Schedule PR Modal */}
+      {showScheduleModal && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)" }}>
+          <div style={{ background:"white", borderRadius:"1.25rem", width:"100%", maxWidth:440, padding:"2rem", margin:"1rem", boxShadow:"0 32px 80px rgba(0,0,0,.3)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:".75rem", marginBottom:"1.25rem" }}>
+              <div style={{ width:44, height:44, borderRadius:"50%", background:"#eef2ff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.3rem", flexShrink:0 }}>📅</div>
+              <div>
+                <h3 style={{ fontWeight:800, fontSize:"1.05rem", color:"#1e293b", margin:0 }}>Schedule Your PR</h3>
+                <p style={{ color:"#64748b", fontSize:".78rem", margin:0, marginTop:".15rem" }}>Select the date for auto-submission</p>
+              </div>
+            </div>
+
+            <label style={{ display:"block", fontWeight:600, fontSize:".82rem", color:"#374151", marginBottom:".4rem" }}>Publication Date</label>
+            <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+              style={{ width:"100%", padding:".65rem .85rem", border:"1.5px solid #e2e8f0", borderRadius:".6rem", fontSize:".9rem", outline:"none", marginBottom:".75rem", boxSizing:"border-box" }}/>
+
+            <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:".6rem", padding:".65rem .85rem", marginBottom:"1.25rem" }}>
+              <div style={{ fontSize:".7rem", fontWeight:700, color:"#0369a1", marginBottom:".2rem" }}>⚡ SEO Velocity Engine</div>
+              <div style={{ fontSize:".78rem", color:"#0369a1" }}>Strategically timed for optimal SEO velocity and entity verification.</div>
+            </div>
+
+            <div style={{ display:"flex", gap:".6rem" }}>
+              <button onClick={handleConfirmSchedule} disabled={!scheduleDate} style={{ flex:1, padding:".7rem", borderRadius:".6rem", border:"none", background:"linear-gradient(135deg,#8929bd,#4338ca)", color:"white", fontWeight:700, cursor: scheduleDate ? "pointer" : "not-allowed", opacity: scheduleDate ? 1 : .5 }}>
+                Confirm Schedule
+              </button>
+              <button onClick={() => setShowScheduleModal(false)} style={{ padding:".7rem 1rem", borderRadius:".6rem", border:"1px solid #e2e8f0", background:"white", color:"#64748b", fontWeight:600, cursor:"pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Editorial Standards Side Panel */}

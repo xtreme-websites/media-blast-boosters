@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CompanyData, Order, ServicePage, LocationPage } from "../../lib/constants";
+import { getRecommendedDate, getProjectedDates, formatDate } from "../../lib/velocityScheduler";
 
 interface Props {
   companyData: CompanyData;
@@ -56,6 +57,7 @@ const ProgressBar = ({ steps, current }: { steps: string[]; current: number }) =
 );
 
 export default function AuthorityBuilder({ companyData, orders, onExecute, onNavigateToCompanyProfile }: Props) {
+  const [innerTab, setInnerTab] = useState<"roadmap"|"timeline">("roadmap");
   const services  = companyData.servicePages  || [];
   const locations = companyData.locationPages || [];
   const websiteUrl = companyData.websiteUrl || "";
@@ -67,7 +69,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
   // ── Stage gates ──────────────────────────────────────────────────────────────
   if (services.length === 0) return (
     <div>
-      <PageHeader/>
+      <PageHeader innerTab={innerTab} setInnerTab={setInnerTab}/>
       <div className="card" style={{ padding:"3rem", textAlign:"center" }}>
         <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>🏗️</div>
         <h3 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:"0 0 .5rem" }}>Foundation Missing</h3>
@@ -113,10 +115,10 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"1.5rem" }}>
-      <PageHeader/>
+      <PageHeader innerTab={innerTab} setInnerTab={setInnerTab}/>
 
       {/* Stage 2 banner */}
-      {services.length > 0 && services.length <= 3 && (
+      {innerTab === "roadmap" && services.length > 0 && services.length <= 3 && (
         <div style={{ background:"linear-gradient(135deg,#fffbeb,#fef3c7)", border:"1px solid #f59e0b", borderRadius:".75rem", padding:"1rem 1.25rem", display:"flex", gap:".75rem", alignItems:"flex-start" }}>
           <span style={{ fontSize:"1.3rem" }}>📈</span>
           <div>
@@ -128,6 +130,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
         </div>
       )}
 
+      {innerTab === "roadmap" && <>
       {/* 1:3:12 Ratio tracker */}
       <div className="card" style={{ padding:"1.25rem" }}>
         <div style={{ display:"flex", alignItems:"center", gap:".75rem", marginBottom:"1rem" }}>
@@ -256,17 +259,34 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onNav
 
       {/* Media Blindspot Detector */}
       <BlindspotDetector servicePRs={servicePRs} locationPRs={locationPRs} orders={orders}/>
+      </>}
+
+      {/* Timeline Tab */}
+      {innerTab === "timeline" && (
+        <Timeline orders={orders} companyData={companyData} servicePRs={servicePRs} locationPRs={locationPRs} onExecute={onExecute}/>
+      )}
     </div>
   );
 }
 
 // ── Page Header ───────────────────────────────────────────────────────────────
-function PageHeader() {
+function PageHeader({ innerTab, setInnerTab }: { innerTab: "roadmap"|"timeline"; setInnerTab: (t: "roadmap"|"timeline") => void }) {
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", gap:".6rem", marginBottom:".25rem" }}>
-        <h2 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:0 }}>Authority Builder</h2>
-        <span style={{ fontSize:".65rem", fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", color:"#8929bd", background:"#f5f3ff", padding:".15rem .55rem", borderRadius:"99px", border:"1px solid #ddd6fe" }}>Strategy Engine</span>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:".75rem", marginBottom:".25rem" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:".6rem" }}>
+          <h2 style={{ fontWeight:800, fontSize:"1.2rem", color:"#1e293b", margin:0 }}>Authority Builder</h2>
+          <span style={{ fontSize:".65rem", fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", color:"#8929bd", background:"#f5f3ff", padding:".15rem .55rem", borderRadius:"99px", border:"1px solid #ddd6fe" }}>Strategy Engine</span>
+        </div>
+        {/* Inner tab switcher */}
+        <div style={{ display:"flex", gap:".25rem", background:"white", borderRadius:".6rem", padding:".25rem", border:"1px solid #f1f5f9", boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}>
+          <button onClick={() => setInnerTab("roadmap")} style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".75rem", transition:"all .15s", background: innerTab==="roadmap" ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent", color: innerTab==="roadmap" ? "white" : "#64748b" }}>
+            🗺️ Roadmap
+          </button>
+          <button onClick={() => setInnerTab("timeline")} style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".75rem", transition:"all .15s", background: innerTab==="timeline" ? "linear-gradient(135deg,#8929bd,#4338ca)" : "transparent", color: innerTab==="timeline" ? "white" : "#64748b" }}>
+            📅 Timeline
+          </button>
+        </div>
       </div>
       <p style={{ color:"#64748b", fontSize:".83rem", margin:0 }}>Your AI-powered PR roadmap — follow the 1:3:12 ratio to dominate search</p>
     </div>
@@ -365,6 +385,159 @@ function BlindspotDetector({ servicePRs, locationPRs, orders }: { servicePRs: (S
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Timeline Component ────────────────────────────────────────────────────────
+function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute }: {
+  orders: Order[]; companyData: CompanyData;
+  servicePRs: (ServicePage & {prs:number})[]; locationPRs: (LocationPage & {prs:number})[];
+  onExecute: (p: ExecutePayload) => void;
+}) {
+  const websiteUrl = companyData.websiteUrl || "";
+
+  // Count total remaining credits (rough estimate from props)
+  const publishedOrders = orders.filter(o => !o.status || o.status==="submitted" || o.status==="pending_review" || o.status==="published");
+  const scheduledOrders = orders.filter(o => o.status === "scheduled");
+  const draftOrders     = orders.filter(o => o.status === "draft");
+
+  // Build timeline nodes
+  type NodeType = "live"|"scheduled"|"projected";
+  interface TNode {
+    id: string; label: string; type: NodeType; date: Date;
+    tier: string; seoType: "home"|"service"|"location";
+    url: string; keyword: string; prs?: number;
+  }
+
+  const nodes = useMemo((): TNode[] => {
+    const result: TNode[] = [];
+
+    // 1. Live nodes — published orders
+    for (const o of publishedOrders) {
+      const sf = (o as any).seo_focus || o.seoFocus || "";
+      const seoType = sf.startsWith("service") ? "service" : sf.startsWith("location") ? "location" : "home";
+      result.push({
+        id: o.id, label: o.prTitle || "Press Release", type: "live",
+        date: new Date((o as any).submitted_at || o.date),
+        tier: o.productName, seoType, url: o.serviceUrl||"", keyword: "",
+      });
+    }
+
+    // 2. Scheduled nodes
+    for (const o of scheduledOrders) {
+      const sf = (o as any).seo_focus || o.seoFocus || "";
+      const seoType = sf.startsWith("service") ? "service" : sf.startsWith("location") ? "location" : "home";
+      result.push({
+        id: o.id, label: o.prTitle || "Scheduled PR", type: "scheduled",
+        date: new Date((o as any).scheduled_date || o.scheduledDate || o.date),
+        tier: o.productName, seoType, url: o.serviceUrl||"", keyword: "",
+      });
+    }
+
+    // 3. Projected nodes — fill in remaining strategy
+    const existingCount = publishedOrders.length + scheduledOrders.length;
+    const strategy: Array<{label:string;tier:string;seoType:"home"|"service"|"location";url:string;keyword:string}> = [];
+
+    // Homepage first if not covered
+    if (!publishedOrders.find(o => (((o as any).seo_focus||o.seoFocus||"").startsWith("home"))) &&
+        !scheduledOrders.find(o => (((o as any).seo_focus||o.seoFocus||"").startsWith("home")))) {
+      strategy.push({ label:`${companyData.name || "Brand"} — Homepage Authority`, tier:"Premium", seoType:"home", url:websiteUrl, keyword:companyData.name?.toLowerCase()||"brand" });
+    }
+    // Uncovered services
+    for (const s of servicePRs) {
+      if (s.prs === 0) strategy.push({ label:`${s.name} — Service Authority`, tier:"Standard", seoType:"service", url:s.url, keyword:(s.keywords||[])[0]||s.name.toLowerCase() });
+    }
+    // Uncovered locations
+    for (const l of locationPRs) {
+      if (l.prs === 0) strategy.push({ label:`${l.name} — Local SEO`, tier:"Starter", seoType:"location", url:l.url, keyword:(l.keywords||[])[0]||l.name.toLowerCase() });
+    }
+
+    const projectedDates = getProjectedDates(publishedOrders, strategy.length);
+    strategy.slice(0, projectedDates.length).forEach((s, i) => {
+      result.push({
+        id: `proj-${i}`, label: s.label, type: "projected",
+        date: projectedDates[i], tier: s.tier, seoType: s.seoType, url: s.url, keyword: s.keyword,
+      });
+    });
+
+    return result.sort((a,b) => a.date.getTime() - b.date.getTime());
+  }, [publishedOrders, scheduledOrders, servicePRs, locationPRs, companyData]);
+
+  if (nodes.length === 0) return (
+    <div className="card" style={{ padding:"3rem", textAlign:"center", color:"#94a3b8" }}>
+      <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>📅</div>
+      <div style={{ fontWeight:600, color:"#1e293b", marginBottom:".35rem" }}>Timeline is empty</div>
+      <div style={{ fontSize:".83rem" }}>Add Company Profile data and purchase credits to see your projected roadmap</div>
+    </div>
+  );
+
+  const NODE_STYLES = {
+    live:      { dot:"#c9a84c", dotBorder:"#f0c040", glow:true,    opacity:1,   dash:false, badge:"✓ Live",      badgeColor:"#c9a84c", badgeBg:"#fffbeb" },
+    scheduled: { dot:"#6366f1", dotBorder:"#8b5cf6", glow:true,    opacity:1,   dash:false, badge:"⏰ Scheduled", badgeColor:"#4338ca", badgeBg:"#eef2ff" },
+    projected: { dot:"#cbd5e1", dotBorder:"#94a3b8", glow:false,   opacity:0.55, dash:true,  badge:"◦ Projected", badgeColor:"#64748b", badgeBg:"#f8fafc" },
+  };
+
+  const tierColors: Record<string,string> = { Premium:"#d97706", Standard:"#8929bd", Starter:"#6366f1" };
+
+  return (
+    <div className="card" style={{ padding:"1.5rem", overflow:"hidden" }}>
+      <style>{`
+        @keyframes nodePulse { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,.5)} 50%{box-shadow:0 0 0 8px rgba(99,102,241,0)} }
+        @keyframes goldPulse { 0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,.5)} 50%{box-shadow:0 0 0 8px rgba(201,168,76,0)} }
+        .node-glow-gold { animation: goldPulse 2s ease-in-out infinite; }
+        .node-glow-indigo { animation: nodePulse 2s ease-in-out infinite; }
+      `}</style>
+
+      <div style={{ display:"flex", alignItems:"center", gap:".6rem", marginBottom:"1.5rem" }}>
+        <h3 style={{ fontWeight:800, fontSize:".95rem", color:"#1e293b", margin:0 }}>12-Month Authority Timeline</h3>
+        <span style={{ fontSize:".65rem", fontWeight:700, color:"#c9a84c", background:"#fffbeb", padding:".15rem .55rem", borderRadius:"99px", border:"1px solid #fde68a" }}>
+          {nodes.filter(n=>n.type==="live").length} live · {nodes.filter(n=>n.type==="scheduled").length} scheduled · {nodes.filter(n=>n.type==="projected").length} projected
+        </span>
+      </div>
+
+      <div style={{ position:"relative", paddingLeft:"2rem" }}>
+        {/* Vertical gold line */}
+        <div style={{ position:"absolute", left:"0.55rem", top:0, bottom:0, width:2, background:"linear-gradient(to bottom, #c9a84c, rgba(201,168,76,.15))" }}/>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
+          {nodes.map((node, i) => {
+            const ns = NODE_STYLES[node.type];
+            const isLast = i === nodes.length - 1;
+            return (
+              <div key={node.id} style={{ position:"relative", opacity: ns.opacity }}>
+                {/* Node dot */}
+                <div className={ns.glow ? (node.type==="live" ? "node-glow-gold" : "node-glow-indigo") : ""}
+                  style={{ position:"absolute", left:"-2.05rem", top:"50%", transform:"translateY(-50%)", width:14, height:14, borderRadius:"50%", background:ns.dot, border:`2px solid ${ns.dotBorder}`, zIndex:1, flexShrink:0 }}/>
+
+                {/* Node card */}
+                <div style={{
+                  border: ns.dash ? "1.5px dashed #e2e8f0" : `1.5px solid ${ns.dotBorder}40`,
+                  borderRadius:".65rem", padding:".75rem 1rem",
+                  background: node.type==="live" ? "#fffdf0" : node.type==="scheduled" ? "#f8f7ff" : "white",
+                  display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1rem", flexWrap:"wrap"
+                }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".2rem" }}>
+                      <span style={{ fontSize:".65rem", fontWeight:800, color:ns.badgeColor, background:ns.badgeBg, padding:".1rem .45rem", borderRadius:"99px" }}>{ns.badge}</span>
+                      <span style={{ fontSize:".65rem", fontWeight:700, color:tierColors[node.tier]||"#64748b", background:"white", padding:".1rem .4rem", borderRadius:"99px", border:`1px solid ${tierColors[node.tier]||"#e2e8f0"}40` }}>{node.tier}</span>
+                      <span style={{ fontSize:".65rem", color:"#94a3b8" }}>{node.seoType==="home" ? "🌐" : node.seoType==="service" ? "🔧" : "📍"}</span>
+                    </div>
+                    <div style={{ fontWeight:600, fontSize:".85rem", color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{node.label}</div>
+                    <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".15rem" }}>{formatDate(node.date)}</div>
+                  </div>
+                  {node.type === "projected" && (
+                    <button onClick={() => onExecute({ mediaType:"authority", authorityFocus:{ type:node.seoType, url:node.url, name:node.label, keyword:node.keyword, seoFocus:`${node.seoType}:${node.url}:${node.keyword}` }, packageTier:node.tier, strategyMatch:true })}
+                      style={{ flexShrink:0, padding:".35rem .75rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", color:"#6366f1", fontWeight:700, fontSize:".72rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                      Execute →
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

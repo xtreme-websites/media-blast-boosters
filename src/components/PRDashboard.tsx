@@ -62,7 +62,7 @@ const TABS = [
   { id: "authority",   icon: <i className="fa-solid fa-trophy" style={{fontSize:15}}/>,               label: "Authority Builder"   },
   { id: "widgets",    icon: <MedalIcon size={15}/>,                                                label: "Trust Widgets"       },
   { id: "orders",     icon: <StarMenuIcon size={15}/>,                                             label: "Media Credits"       },
-  { id: "pr",         icon: <ArticleEditIcon size={15}/>,                                          label: "Media Content"       },
+  { id: "pr",         icon: <ArticleEditIcon size={15}/>,                                          label: "Media Creator"       },
   { id: "press",      icon: <MegaphoneIcon size={15}/>,                                            label: "Published Press"     },
 ];
 
@@ -90,6 +90,7 @@ export default function PRDashboard() {
   const [toast,           setToast]           = useState<{ message: string; type: string } | null>(null);
   const [checkoutPackage,  setCheckoutPackage]  = useState<{type:string;title:string;content:string}|null>(null);
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
+  const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
 
   const locationId = useMemo(() => {
     try {
@@ -145,7 +146,48 @@ export default function PRDashboard() {
   };
 
   // ── Place order (called from PRCreator) ───────────────────────────────────
-  const placeOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus = "") => {
+  const saveDraft = async (packageType: string, prTitle: string, prContent: string, seoFocus = "", formData?: Record<string,unknown>, existingId?: string): Promise<string> => {
+    const newId = existingId || crypto.randomUUID();
+    const draft: Order = { id: newId, prTitle, productName: packageType, price: PR_PACKAGES[packageType]?.price || "$0", date: new Date().toLocaleDateString("en-US"), prContent, seoFocus, status: "draft", lastEditedAt: new Date().toISOString(), formData };
+    setOrders(prev => existingId ? prev.map(o => o.id===existingId ? {...o,...draft} : o) : [draft,...prev]);
+    try {
+      if (existingId) {
+        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ table:"orders", operation:"update", eq:{id:existingId}, data:{ pr_title:prTitle, product_name:packageType, package_type:packageType, price:parseFloat(PR_PACKAGES[packageType]?.price?.replace("$","")||"0"), pr_content:prContent, seo_focus:seoFocus, status:"draft", last_edited_at:new Date().toISOString(), form_data:formData||{} } })
+        });
+      } else {
+        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ table:"orders", operation:"insert", data:{ id:newId, location_id:locationId, pr_title:prTitle, product_name:packageType, package_type:packageType, price:parseFloat(PR_PACKAGES[packageType]?.price?.replace("$","")||"0"), pr_content:prContent, seo_focus:seoFocus, status:"draft", last_edited_at:new Date().toISOString(), form_data:formData||{} } })
+        });
+      }
+    } catch {}
+    showToast("Draft saved!");
+    return newId;
+  };
+
+  const scheduleOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus: string, scheduledDate: string, formData?: Record<string,unknown>, existingId?: string) => {
+    const newId = existingId || crypto.randomUUID();
+    const order: Order = { id: newId, prTitle, productName: packageType, price: PR_PACKAGES[packageType]?.price || "$0", date: new Date().toLocaleDateString("en-US"), prContent, seoFocus, status: "scheduled", scheduledDate, lastEditedAt: new Date().toISOString(), formData };
+    setOrders(prev => existingId ? prev.map(o => o.id===existingId ? {...o,...order} : o) : [order,...prev]);
+    try {
+      if (existingId) {
+        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ table:"orders", operation:"update", eq:{id:existingId}, data:{ pr_title:prTitle, product_name:packageType, package_type:packageType, price:parseFloat(PR_PACKAGES[packageType]?.price?.replace("$","")||"0"), pr_content:prContent, seo_focus:seoFocus, status:"scheduled", scheduled_date:scheduledDate, last_edited_at:new Date().toISOString(), form_data:formData||{} } })
+        });
+      } else {
+        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ table:"orders", operation:"insert", data:{ id:newId, location_id:locationId, pr_title:prTitle, product_name:packageType, package_type:packageType, price:parseFloat(PR_PACKAGES[packageType]?.price?.replace("$","")||"0"), pr_content:prContent, seo_focus:seoFocus, status:"scheduled", scheduled_date:scheduledDate, last_edited_at:new Date().toISOString(), form_data:formData||{} } })
+        });
+      }
+    } catch {}
+    showToast("PR scheduled!");
+  };
+
+  const placeOrder = async (packageType: string, prTitle: string, prContent: string, seoFocus = "", orderId?: string, status: string = "pending_review", scheduledDate?: string, formData?: Record<string,unknown>) => {
     const pkg      = PR_PACKAGES[packageType];
     const newOrder: Order = { id: crypto.randomUUID(), prTitle, productName: packageType, price: pkg.price, date: new Date().toLocaleDateString("en-US"), prContent };
     setOrders(prev => [newOrder, ...prev]);
@@ -158,7 +200,17 @@ export default function PRDashboard() {
       });
     } catch {}
     if (locationId !== "preview-mode") {
-      try { await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$", "")), pr_content: prContent, seo_focus: seoFocus }); } catch {}
+      try {
+        if (orderId) {
+          // Update existing draft/scheduled
+          await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: orderId }, data:{ pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="pending_review" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} } })
+          });
+        } else {
+          await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="pending_review" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} });
+        }
+      } catch {}
     }
     if (webhookUrl) {
       try { await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "order.placed", location_id: locationId, order_id: newOrder.id, pr_title: prTitle, package: packageType, price: pkg.price, pr_content: prContent, company_name: companyData.name, industry: companyData.industry, timestamp: new Date().toISOString() }) }); } catch {}
@@ -289,8 +341,8 @@ export default function PRDashboard() {
           {activeTab === "topics"     && <TrendingTopics companyData={companyData} showToast={showToast} onTopicSelect={handleTopicSelect}/>}
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
           {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV}/>}
-          {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}/>}
+          {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
+          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
           {activeTab === "authority"  && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
