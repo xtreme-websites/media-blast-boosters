@@ -57,9 +57,9 @@ const GlobalStyles = () => (
 );
 
 const TABS = [
+  { id: "authority",   icon: <i className="fa-solid fa-trophy" style={{fontSize:15}}/>,               label: "Authority Builder"   },
   { id: "topics",     icon: <i className="fa-solid fa-fire-flame-curved" style={{fontSize:15}}/>, label: "Trending Topics"     },
   { id: "competitor", icon: <i className="fa-solid fa-chart-bar" style={{fontSize:15}}/>,          label: "Competitor Analysis" },
-  { id: "authority",   icon: <i className="fa-solid fa-trophy" style={{fontSize:15}}/>,               label: "Authority Builder"   },
   { id: "widgets",    icon: <MedalIcon size={15}/>,                                                label: "Trust Widgets"       },
   { id: "orders",     icon: <StarMenuIcon size={15}/>,                                             label: "Media Credits"       },
   { id: "pr",         icon: <ArticleEditIcon size={15}/>,                                          label: "Media Creator"       },
@@ -127,7 +127,7 @@ export default function PRDashboard() {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?location_id=eq.${locationId}&order=created_at.desc`, { headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` } });
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content })));
+        if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content, status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date, submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, lastEditedAt: o.last_edited_at, formData: o.form_data })));
       } catch {}
       setDataLoaded(true);
     })();
@@ -292,7 +292,12 @@ export default function PRDashboard() {
                 onMouseOut={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; } }}
               >
                 <span style={{ opacity: active ? 1 : .75 }}>{t.icon}</span>
-                {t.label}{(t as any).id==="press" && orders.filter(o=>o.status==="draft_pending_review").length > 0 ? <span style={{marginLeft:".3rem",background:"#ef4444",color:"white",fontSize:".6rem",fontWeight:800,padding:".05rem .35rem",borderRadius:"99px",minWidth:14,display:"inline-block",textAlign:"center"}}>{orders.filter(o=>o.status==="draft_pending_review").length}</span> : null}
+                {t.label}
+                {t.id === "press" && orders.filter(o => o.status === "draft_pending_review").length > 0 && (
+                  <span style={{ marginLeft:"auto", background:"#ef4444", color:"white", fontSize:".6rem", fontWeight:800, padding:".05rem .35rem", borderRadius:"99px", minWidth:14, textAlign:"center" }}>
+                    {orders.filter(o => o.status === "draft_pending_review").length}
+                  </span>
+                )}
               </button>
             );
           })}

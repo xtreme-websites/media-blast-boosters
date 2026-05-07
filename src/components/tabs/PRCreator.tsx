@@ -239,6 +239,8 @@ export default function PRCreator({
   const [authorityFocus,       setAuthorityFocus]       = useState<import("./AuthorityBuilder").AuthorityFocus | null>(null);
   const [strategyMatchTier,    setStrategyMatchTier]    = useState<PRTier | null>(null);
   const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
+  const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
+  const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
 
   // Load draft data when coming from Drafts tab
   useEffect(() => {
@@ -304,9 +306,6 @@ export default function PRCreator({
     setShowScheduleModal(false);
     showToast("PR scheduled for " + new Date(scheduleDate + "T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}));
   };
-    if (!authorityPayload) return;
-  const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
-  const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
 
   // Apply authority payload when coming from AuthorityBuilder "Execute Now"
   useEffect(() => {

@@ -120,7 +120,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
       <PageHeader innerTab={innerTab} setInnerTab={setInnerTab} execMode={execMode} setExecMode={setExecMode}/>
 
       {/* Stage 2 banner */}
-      {innerTab === "roadmap" && services.length > 0 && services.length <= 3 && (
+      {innerTab === "strategy" && services.length > 0 && services.length <= 3 && (
         <div style={{ background:"linear-gradient(135deg,#fffbeb,#fef3c7)", border:"1px solid #f59e0b", borderRadius:".75rem", padding:"1rem 1.25rem", display:"flex", gap:".75rem", alignItems:"flex-start" }}>
           <span style={{ fontSize:"1.3rem" }}>📈</span>
           <div>
@@ -132,7 +132,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
         </div>
       )}
 
-      {innerTab === "roadmap" && <>
+      {innerTab === "strategy" && <>
       {/* 1:3:12 Ratio tracker */}
       <div className="card" style={{ padding:"1.25rem" }}>
         <div style={{ display:"flex", alignItems:"center", gap:".75rem", marginBottom:"1rem" }}>
@@ -264,7 +264,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
       </>}
 
       {/* Timeline Tab */}
-      {innerTab === "timeline" && (
+      {innerTab === "roadmap" && (
         <Timeline orders={orders} companyData={companyData} servicePRs={servicePRs} locationPRs={locationPRs} onExecute={onExecute} onScheduleAutomatic={onScheduleAutomatic} execMode={execMode}/>
       )}
     </div>
