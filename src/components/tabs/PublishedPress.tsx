@@ -186,6 +186,7 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
       {articleModal && createPortal(
         <div style={{ position:"fixed", inset:0, zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", padding:"1.5rem" }}>
           <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:760, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.3)" }}>
+
             {/* Header */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.25rem", borderBottom:"1px solid #f1f5f9", flexShrink:0 }}>
               <div style={{ flex:1, minWidth:0 }}>
@@ -193,8 +194,8 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
                 <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".15rem" }}>{articleModal.productName} · {articleModal.date}</div>
               </div>
               <div style={{ display:"flex", gap:".5rem", alignItems:"center", flexShrink:0, marginLeft:".75rem" }}>
-                {/* Edit Instructions only for manually-created PRs */}
-                {articleModal.status !== "draft_pending_review" && (
+                {/* Edit Instructions: only for draft / scheduled (manually created) — NOT for submitted or draft_pending_review */}
+                {(articleModal.status === "draft" || articleModal.status === "scheduled") && (
                   <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); }}
                     style={{ padding:".4rem .85rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontSize:".78rem", fontWeight:600, cursor:"pointer" }}>
                     ✏️ Edit Instructions
@@ -203,7 +204,8 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
                 <button onClick={() => setArticleModal(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", padding:".25rem", fontSize:"1.4rem", lineHeight:1 }}>×</button>
               </div>
             </div>
-            {/* Review Required banner for auto-generated pending review */}
+
+            {/* Review Required banner — only for draft_pending_review (auto-generated) */}
             {articleModal.status === "draft_pending_review" && (
               <div style={{ background:"linear-gradient(135deg,#fffbeb,#fef3c7)", borderBottom:"1px solid #fde68a", padding:".75rem 1.25rem", display:"flex", alignItems:"center", gap:".75rem", flexShrink:0 }}>
                 <span style={{ fontSize:"1.1rem", flexShrink:0 }}>⏰</span>
@@ -218,24 +220,41 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
                 </div>
               </div>
             )}
-            {/* Inline-editable PR content with proper HTML formatting */}
-            <div
-              contentEditable
-              suppressContentEditableWarning
-              style={{ overflowY:"auto", padding:"2rem 2.25rem", flex:1, outline:"none" }}
-              dangerouslySetInnerHTML={{ __html: articleModal.prContent ?? "<p>Content not available.</p>" }}
-            />
-            <style>{`
-              [contenteditable] h1 { font-size:1.5rem; font-weight:800; color:#1e293b; margin:0 0 1rem; line-height:1.25; }
-              [contenteditable] h2 { font-size:1.05rem; font-weight:700; color:#1e293b; margin:1.25rem 0 .4rem; }
-              [contenteditable] p  { font-size:.88rem; line-height:1.75; color:#374151; margin:0 0 .85rem; }
-              [contenteditable] em { font-style:italic; }
-              [contenteditable] strong { font-weight:700; }
-              [contenteditable] a  { color:#6366f1; text-decoration:underline; }
-            `}</style>
-            <div style={{ padding:".65rem 1.25rem", borderTop:"1px solid #f1f5f9", fontSize:".72rem", color:"#94a3b8", flexShrink:0 }}>
-              💡 Click anywhere in the text to edit inline — changes here are for review only.
-            </div>
+
+            {/* Submitted lock banner */}
+            {articleModal.status === "submitted" && (
+              <div style={{ background:"#f8fafc", borderBottom:"1px solid #e2e8f0", padding:".6rem 1.25rem", display:"flex", alignItems:"center", gap:".5rem", flexShrink:0 }}>
+                <span>🔒</span>
+                <span style={{ fontSize:".78rem", color:"#64748b" }}>This PR has been submitted for distribution and cannot be edited.</span>
+              </div>
+            )}
+
+            {/* PR content — editable for draft/scheduled/draft_pending_review, read-only for submitted */}
+            {(() => {
+              const isReadOnly = articleModal.status === "submitted" || !articleModal.status || articleModal.status === "pending_review" || articleModal.status === "published";
+              return (
+                <>
+                  <div
+                    contentEditable={!isReadOnly}
+                    suppressContentEditableWarning
+                    style={{ overflowY:"auto", padding:"2rem 2.25rem", flex:1, outline:"none", cursor: isReadOnly ? "default" : "text",
+                      background: isReadOnly ? "#fafafa" : "white" }}
+                    dangerouslySetInnerHTML={{ __html: articleModal.prContent ?? "<p>Content not available.</p>" }}
+                  />
+                  <style>{`
+                    [contenteditable] h1 { font-size:1.45rem; font-weight:800; color:#0f172a; margin:0 0 1rem; line-height:1.25; }
+                    [contenteditable] h2 { font-size:1rem; font-weight:700; color:#1e293b; margin:1.25rem 0 .35rem; }
+                    [contenteditable] p  { font-size:.875rem; line-height:1.75; color:#374151; margin:0 0 .85rem; }
+                    [contenteditable] em { font-style:italic; }
+                    [contenteditable] strong { font-weight:700; }
+                    [contenteditable] a  { color:#6366f1; text-decoration:underline; }
+                  `}</style>
+                  <div style={{ padding:".65rem 1.25rem", borderTop:"1px solid #f1f5f9", fontSize:".72rem", color:"#94a3b8", flexShrink:0 }}>
+                    {isReadOnly ? "👁 Read-only view" : "💡 Click anywhere in the text to edit inline — changes here are for review only."}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>,
         document.body
