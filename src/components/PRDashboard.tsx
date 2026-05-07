@@ -401,7 +401,13 @@ export default function PRDashboard() {
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }} preOpenDraftId={autoGenState.result?.id || null}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
-          {activeTab === "authority"  && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
+          {activeTab === "authority"  && !dataLoaded && (
+            <div style={{ display:"flex", flexDirection:"column", gap:"1rem", padding:".5rem 0" }}>
+              <div style={{ height:32, background:"#f1f5f9", borderRadius:".5rem", width:"60%" }}/>
+              {[1,2,3].map(i => <div key={i} style={{ height:96, background:"#f8fafc", borderRadius:".75rem", border:"1px solid #f1f5f9" }}/>)}
+            </div>
+          )}
+          {activeTab === "authority"  && dataLoaded && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
           {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")}/>}
         </main>
