@@ -182,40 +182,60 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
             </TableCard>
       )}
 
-      {/* Article Modal */}
+      {/* Article / Draft Preview Modal */}
       {articleModal && createPortal(
         <div style={{ position:"fixed", inset:0, zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", padding:"1.5rem" }}>
-          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:720, maxHeight:"85vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.3)" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:760, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.3)" }}>
+            {/* Header */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.25rem", borderBottom:"1px solid #f1f5f9", flexShrink:0 }}>
-              <div>
-                <div style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b" }}>{articleModal.prTitle}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{articleModal.prTitle}</div>
                 <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".15rem" }}>{articleModal.productName} · {articleModal.date}</div>
               </div>
-              <button onClick={() => setArticleModal(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", padding:".25rem", display:"flex" }}>
-                <XIcon size={18}/>
-              </button>
+              <div style={{ display:"flex", gap:".5rem", alignItems:"center", flexShrink:0, marginLeft:".75rem" }}>
+                {/* Edit Instructions only for manually-created PRs */}
+                {articleModal.status !== "draft_pending_review" && (
+                  <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); }}
+                    style={{ padding:".4rem .85rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontSize:".78rem", fontWeight:600, cursor:"pointer" }}>
+                    ✏️ Edit Instructions
+                  </button>
+                )}
+                <button onClick={() => setArticleModal(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", padding:".25rem", fontSize:"1.4rem", lineHeight:1 }}>×</button>
+              </div>
             </div>
-            {/* 48hr banner for pending review drafts */}
+            {/* Review Required banner for auto-generated pending review */}
             {articleModal.status === "draft_pending_review" && (
               <div style={{ background:"linear-gradient(135deg,#fffbeb,#fef3c7)", borderBottom:"1px solid #fde68a", padding:".75rem 1.25rem", display:"flex", alignItems:"center", gap:".75rem", flexShrink:0 }}>
-                <span style={{ fontSize:"1.1rem" }}>⏰</span>
+                <span style={{ fontSize:"1.1rem", flexShrink:0 }}>⏰</span>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:700, fontSize:".82rem", color:"#92400e" }}>Auto-Submit Pending</div>
-                  <div style={{ fontSize:".75rem", color:"#78350f" }}>If no action is taken, this PR auto-submits for distribution after 48 hours.</div>
+                  <div style={{ fontWeight:700, fontSize:".82rem", color:"#92400e" }}>Review Required</div>
+                  <div style={{ fontSize:".75rem", color:"#78350f" }}>Your review and approval are required. If no action is taken, this PR will be automatically submitted for distribution on the scheduled date.</div>
                 </div>
                 <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
-                  <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); }}
-                    style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontSize:".78rem", fontWeight:600, cursor:"pointer" }}>
-                    ✏️ Edit
-                  </button>
                   <button style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
                     ✅ Approve & Submit
                   </button>
                 </div>
               </div>
             )}
-            <div className="prose" style={{ overflowY:"auto", padding:"1.5rem", maxWidth:"none" }}
-              dangerouslySetInnerHTML={{ __html: articleModal.prContent ?? "<p>Content not available.</p>" }}/>
+            {/* Inline-editable PR content with proper HTML formatting */}
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              style={{ overflowY:"auto", padding:"2rem 2.25rem", flex:1, outline:"none" }}
+              dangerouslySetInnerHTML={{ __html: articleModal.prContent ?? "<p>Content not available.</p>" }}
+            />
+            <style>{`
+              [contenteditable] h1 { font-size:1.5rem; font-weight:800; color:#1e293b; margin:0 0 1rem; line-height:1.25; }
+              [contenteditable] h2 { font-size:1.05rem; font-weight:700; color:#1e293b; margin:1.25rem 0 .4rem; }
+              [contenteditable] p  { font-size:.88rem; line-height:1.75; color:#374151; margin:0 0 .85rem; }
+              [contenteditable] em { font-style:italic; }
+              [contenteditable] strong { font-weight:700; }
+              [contenteditable] a  { color:#6366f1; text-decoration:underline; }
+            `}</style>
+            <div style={{ padding:".65rem 1.25rem", borderTop:"1px solid #f1f5f9", fontSize:".72rem", color:"#94a3b8", flexShrink:0 }}>
+              💡 Click anywhere in the text to edit inline — changes here are for review only.
+            </div>
           </div>
         </div>,
         document.body
