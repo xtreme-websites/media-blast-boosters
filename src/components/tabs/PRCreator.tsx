@@ -569,6 +569,39 @@ RULES:
           {(() => {
             const cfg = TIER_CONFIG[selectedTier];
             const bal = tierCredits(selectedTier);
+            const currentOrder = (propOrders || []).find(o => o.id === currentDraftId);
+            const isPendingReview = currentOrder?.status === "draft_pending_review";
+            const scheduledDateStr = currentOrder?.scheduledDate || (currentOrder as any)?.scheduled_date;
+            const scheduledDisplay = scheduledDateStr
+              ? new Date(scheduledDateStr).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"})
+              : null;
+
+            if (isPendingReview) return (
+              <>
+                <div style={{ position:"sticky", bottom:0, background:"white", borderTop:"1px solid #f1f5f9", padding:"1rem 1.5rem", zIndex:10, display:"flex", flexDirection:"column", gap:".65rem" }}>
+                  <div style={{ background:"linear-gradient(135deg,#fffbeb,#fef3c7)", border:"1px solid #fde68a", borderRadius:".65rem", padding:".65rem 1rem", display:"flex", alignItems:"center", gap:".6rem" }}>
+                    <span>⏰</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, fontSize:".82rem", color:"#92400e" }}>Review Required</div>
+                      <div style={{ fontSize:".74rem", color:"#78350f" }}>
+                        {scheduledDisplay ? `Scheduled for distribution on ${scheduledDisplay}` : "Scheduled for distribution — approve before the scheduled date"}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:".65rem" }}>
+                    <button onClick={() => { const d = scheduledDateStr ? scheduledDateStr.split("T")[0] : formatDateInput(getRecommendedDate(propOrders||[])); setScheduleDate(d); setShowScheduleModal(true); }}
+                      style={{ flex:1, padding:".65rem", borderRadius:".6rem", border:`1px solid ${cfg.color}`, background:"white", color:cfg.color, fontWeight:700, fontSize:".85rem", cursor:"pointer" }}>
+                      📅 Reschedule
+                    </button>
+                    <button onClick={() => handlePlaceOrder()}
+                      style={{ flex:2, padding:".65rem", borderRadius:".6rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(22,163,74,.3)" }}>
+                      ✅ Approve & Launch
+                    </button>
+                  </div>
+                </div>
+              </>
+            );
+
             return (
               <>
                 <style>{`

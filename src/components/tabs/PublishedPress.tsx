@@ -7,6 +7,7 @@ interface Props {
   orders: Order[];
   locationId: string;
   onLoadDraft?: (order: Order) => void;
+  onDeleteDraft?: (order: Order) => void;
   preOpenDraftId?: string | null;
 }
 
@@ -56,7 +57,7 @@ function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
   );
 }
 
-export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: Props) {
+export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, preOpenDraftId }: Props) {
   const [activeTab, setActiveTab] = useState<"published"|"drafts">("published");
   const [articleModal, setArticleModal] = useState<Order | null>(null);
 
@@ -174,7 +175,17 @@ export default function PublishedPress({ orders, onLoadDraft, preOpenDraftId }: 
                       <td style={c()}><span style={{ fontWeight:600, fontSize:".83rem", color:"#1e293b" }}>{order.prTitle || "(Untitled Draft)"}</span></td>
                       <td style={c()}><span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .55rem", borderRadius:"99px" }}>{sc.label}</span></td>
                       <td style={c()}><span style={{ fontSize:".72rem", color:"#94a3b8" }}>{scheduledDt ? scheduledDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}</span></td>
-                      <td style={cl()}><span style={{ fontSize:".72rem", color:"#94a3b8" }}>{isNaN(editedDt.getTime()) ? "—" : editedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span></td>
+                      <td style={cl()}>
+                      <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
+                        <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{isNaN(editedDt.getTime()) ? "—" : editedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                        {(order.status === "draft" || order.status === "scheduled" || order.status === "draft_pending_review") && (
+                          <button onClick={e => { e.stopPropagation(); if (confirm("Delete this draft? Credits reserved for this PR will be returned.")) onDeleteDraft?.(order); }}
+                            style={{ marginLeft:"auto", fontSize:".65rem", color:"#dc2626", background:"#fff1f2", border:"1px solid #fecdd3", borderRadius:".35rem", padding:".15rem .45rem", cursor:"pointer", flexShrink:0 }}>
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     </tr>
                   );
                 })}

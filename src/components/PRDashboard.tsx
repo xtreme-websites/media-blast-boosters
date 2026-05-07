@@ -174,7 +174,7 @@ export default function PRDashboard() {
     try {
       const creditRes = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ table:"profiles", operation:"decrement_credits", location_id:locationId, tier:packageType.toLowerCase(), reason:`Auto-Generate — ${String(authorityFocus.name||"Authority Builder")}` })
+        body: JSON.stringify({ table:"profiles", operation:"reserve_credit", location_id:locationId, tier:packageType.toLowerCase(), reason:`Credit reserved — ${String(authorityFocus.name||"Authority Builder")}` })
       });
       const cd = await creditRes.json();
       if (cd.insufficient) { showToast("Insufficient credits for auto-generation","error"); return; }
@@ -241,7 +241,17 @@ export default function PRDashboard() {
       });
     } catch {}
     if (locationId !== "preview-mode") {
-      try {
+      // Confirm pending credit if this was a reserved (auto-generated) order
+    try {
+      const submittingOrder = orders.find(o => o.id === orderId);
+      if (submittingOrder?.status === "draft_pending_review") {
+        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:packageType.toLowerCase(), reason:`PR Submitted — ${prTitle}` })
+        });
+      }
+    } catch {}
+    try {
         if (orderId) {
           // Update existing draft/scheduled
           await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
@@ -400,7 +410,26 @@ export default function PRDashboard() {
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
           {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV}/>}
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }} preOpenDraftId={autoGenState.result?.id || null}/>}
+          {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId} onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }} onDeleteDraft={async (o) => {
+            // Release credit if it was reserved (draft_pending_review or scheduled from authority builder)
+            if (o.status === "draft_pending_review" || (o.status === "scheduled" && (o as any).source === "authority_builder")) {
+              try {
+                await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                  method:"POST", headers:{"Content-Type":"application/json"},
+                  body: JSON.stringify({ table:"profiles", operation:"release_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`Credit released — ${o.prTitle||"PR"} deleted` })
+                });
+              } catch {}
+            }
+            // Delete from DB
+            try {
+              await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({ table:"orders", operation:"delete", eq:{ id: o.id } })
+              });
+            } catch {}
+            setOrders(prev => prev.filter(x => x.id !== o.id));
+            showToast("Draft deleted — credit returned");
+          }} preOpenDraftId={autoGenState.result?.id || null}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
           {activeTab === "authority"  && !dataLoaded && (
             <div style={{ display:"flex", flexDirection:"column", gap:"1rem", padding:".5rem 0" }}>

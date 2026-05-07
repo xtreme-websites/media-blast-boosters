@@ -85,7 +85,10 @@ const PACKS = [
   { qty:12, label:"12-Pack", discount:"10% Off",   discountColor:"#10b981" },
 ];
 
-interface Credits { starter_credits:number; standard_credits:number; premium_credits:number; }
+interface Credits {
+  starter_credits:number; standard_credits:number; premium_credits:number;
+  pending_starter_credits?:number; pending_standard_credits?:number; pending_premium_credits?:number;
+}
 interface Props { locationId:string; showToast:(msg:string, type?:"success"|"error")=>void; onNavigateToPR?:()=>void; }
 
 const PENDING_KEY = "mbb_pending_purchase";
@@ -292,7 +295,8 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:"1rem", marginBottom:"2rem" }}>
             {(Object.entries(TIERS) as [Tier, typeof TIERS[Tier]][]).map(([key, ti]) => {
-              const bal = credits[`${key}_credits`] ?? 0;
+              const bal     = credits[`${key}_credits`] ?? 0;
+              const pending = credits[`pending_${key}_credits`] ?? 0;
               const bullets: Record<Tier,string[]> = {
                 starter:  ["200 News Outlets","350 Words","2.2M Monthly Readers","Max Authority: 69"],
                 standard: ["300 News Outlets","500 Words","26.4M Monthly Readers","Max Authority: 88"],
@@ -305,7 +309,15 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
                   <div style={{ fontSize:"3rem", fontWeight:900, color:"#1e293b", lineHeight:1, marginBottom:".2rem" }}>
                     {loading ? <span style={{ fontSize:"1.5rem", color:"#94a3b8" }}>…</span> : bal}
                   </div>
-                  <div style={{ fontSize:".75rem", color:"#94a3b8", marginBottom:".85rem" }}>credits available</div>
+                  <div style={{ fontSize:".75rem", color:"#94a3b8", marginBottom: pending > 0 ? ".3rem" : ".85rem" }}>credits available</div>
+                  {pending > 0 && (
+                    <div style={{ display:"flex", alignItems:"center", gap:".35rem", marginBottom:".65rem" }}>
+                      <span style={{ fontSize:".7rem", fontWeight:700, color:"#92400e", background:"#fef3c7", border:"1px solid #fde68a", padding:".1rem .5rem", borderRadius:"99px" }}>
+                        ⏳ {pending} pending
+                      </span>
+                      <span style={{ fontSize:".68rem", color:"#94a3b8" }}>— reserved for scheduled PRs</span>
+                    </div>
+                  )}
                   <div style={{ marginBottom:"1rem" }}>
                     {bullets[key].map(b => (
                       <div key={b} style={{ display:"flex", alignItems:"center", gap:".4rem", fontSize:".75rem", color:"#475569", marginBottom:".3rem" }}>
