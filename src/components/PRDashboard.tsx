@@ -415,7 +415,7 @@ export default function PRDashboard() {
             onMouseOut={e => { if (activeTab !== "alerts") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; } }}
           >
             <i className="fa-solid fa-bell" style={{fontSize:14}}/>
-            Alerts
+            Activity Alerts
             {unreadAlerts > 0 && (
               <span style={{ marginLeft:"auto", background:"#ef4444", color:"white", fontSize:".6rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px", minWidth:16, textAlign:"center" }}>
                 {unreadAlerts}
