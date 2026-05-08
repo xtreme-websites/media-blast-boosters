@@ -198,7 +198,7 @@ interface PRCreatorProps {
   onClearTopic: () => void;
   onNavigateToTopics: () => void;
   onOpenCompanyData: () => void;
-  onPlaceOrder: (packageType: string, prTitle: string, prContent: string, seoFocus?: string) => void;
+  onPlaceOrder: (packageType: string, prTitle: string, prContent: string, seoFocus?: string, orderId?: string) => void;
   onOpenCheckout: (packageType: string, prTitle: string, prContent: string) => void;
   onOpenCredits: () => void;
   onNavigateToPublished?: () => void;
@@ -483,7 +483,7 @@ RULES:
     } else if (prFormData.keywords.length > 0) {
       seoFocus = `own:${prFormData.keywords.join(",")}`;
     }
-    onPlaceOrder(pkg, prTitle, generatedPR, seoFocus);
+    onPlaceOrder(pkg, prTitle, generatedPR, seoFocus, currentDraftId || undefined);
     setOrderConfirm({ tier: pkg as PRTier, title: prTitle });
   };
 

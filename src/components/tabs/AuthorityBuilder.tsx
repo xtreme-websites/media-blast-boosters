@@ -186,7 +186,7 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
               }
             }}
               style={{ background:`linear-gradient(135deg,${GOLD},${GOLD2})`, color:"#1e1b4b", border:"none", borderRadius:".6rem", padding:".7rem 1.5rem", fontWeight:800, fontSize:".88rem", cursor:"pointer", boxShadow:`0 4px 20px ${GOLD}40` }}>
-              {execMode === "manual" ? "✏️ Create Manually" : "🤖 Auto-Generate"}
+              {execMode === "manual" ? "✏️ Create Manually" : "🪄 Auto-Generate"}
             </button>
             <div style={{ display:"flex", alignItems:"center", gap:".4rem" }}>
               <span style={{ fontSize:".72rem", color:"rgba(255,255,255,.5)" }}>Recommended tier:</span>
@@ -326,7 +326,7 @@ function PageHeader({ innerTab, setInnerTab, execMode, setExecMode }: {
             ★ Recommended
           </div>
           <div style={{ fontWeight:800, fontSize:".85rem", color: execMode==="auto" ? "white" : "#64748b", marginBottom:".3rem" }}>
-            🤖 Create Automatically
+            🪄 Create Automatically
           </div>
           <div style={{ fontSize:".71rem", color: execMode==="auto" ? "rgba(255,255,255,.7)" : "#94a3b8", lineHeight:1.4 }}>
             AI generates & schedules your PR — hands-free on your chosen date
@@ -365,7 +365,7 @@ function ServiceRow({ svc, onExecute, onScheduleAutomatic, execMode }: {
           ? <span style={{ fontSize:".75rem", fontWeight:700, color:"#16a34a", display:"flex", alignItems:"center", gap:".3rem" }}>✓ {svc.prs} PR{svc.prs>1?"s":""}</span>
           : <button onClick={handleClick}
               style={{ background: execMode==="auto" ? "linear-gradient(135deg,#6366f1,#8929bd)" : "#6366f1", color:"white", border:"none", borderRadius:".4rem", padding:".35rem .75rem", fontWeight:700, fontSize:".75rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-              {execMode==="manual" ? "✏️ Create Manually" : "🤖 Auto-Generate"}
+              {execMode==="manual" ? "✏️ Create Manually" : "🪄 Auto-Generate"}
             </button>
         }
       </div>
@@ -396,7 +396,7 @@ function LocationCard({ loc, onExecute, onScheduleAutomatic, execMode }: {
   };
 
   const btnLabel = execMode==="auto"
-    ? "🤖 Auto-Generate"
+    ? "🪄 Auto-Generate"
     : step === 0 ? "✏️ Create Manually" : step === 1 ? "✏️ Build Authority" : "✏️ Achieve Dominance";
 
   return (
@@ -616,7 +616,7 @@ function Timeline({ orders, companyData, servicePRs, locationPRs, onExecute, onS
                       }
                     }}
                       style={{ flexShrink:0, padding:".35rem .75rem", borderRadius:".4rem", border:"none", background: execMode==="auto" ? "linear-gradient(135deg,#6366f1,#8929bd)" : "#f1f5f9", color: execMode==="auto" ? "white" : "#6366f1", fontWeight:700, fontSize:".72rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                      {execMode==="manual" ? "✏️ Create Manually" : "🤖 Auto-Generate"}
+                      {execMode==="manual" ? "✏️ Create Manually" : "🪄 Auto-Generate"}
                     </button>
                   )}
                 </div>

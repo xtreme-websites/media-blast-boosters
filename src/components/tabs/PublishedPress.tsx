@@ -19,7 +19,7 @@ const STATUS_CONFIG: Record<string, { label:string; color:string; bg:string }> =
   rejected:       { label:"Revision Needed", color:"#991b1b", bg:"#fee2e2" },
   submitted:      { label:"Submitted",       color:"#065f46", bg:"#d1fae5" },
   draft:                { label:"Draft",             color:"#475569", bg:"#f1f5f9" },
-  draft_pending_review: { label:"⏳ Pending Review",  color:"#92400e", bg:"#fef3c7" },
+  draft_pending_review: { label:"⏳ Pending Review",  color:"#92400e", bg:"#fef3c7", nowrap:true },
   scheduled:      { label:"Scheduled",       color:"#0369a1", bg:"#e0f2fe" },
 };
 
@@ -134,7 +134,7 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                       <td style={c()}><SeoFocusBadge seoFocus={(order as any).seo_focus || order.seoFocus || ""}/></td>
                       <td style={c()}><span style={{ fontSize:".72rem", color:"#94a3b8", whiteSpace:"nowrap" }}>{isNaN(submittedDt.getTime()) ? order.date : submittedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span></td>
                       <td style={c()}><span style={{ fontSize:".72rem", color:"#94a3b8", whiteSpace:"nowrap" }}>{publishedDt ? publishedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}</span></td>
-                      <td style={c()}><span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .55rem", borderRadius:"99px", whiteSpace:"nowrap" }}>{sc.label}</span></td>
+                      <td style={c()}><span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .55rem", borderRadius:"99px", whiteSpace:"nowrap", display:"inline-block" }}>{sc.label}</span></td>
                       <td style={cl()}>
                         {(order as any).report_link
                           ? <a href={(order as any).report_link} target="_blank" rel="noopener noreferrer" style={{ background:"#f0fdf4", color:"#16a34a", border:"1px solid #bbf7d0", borderRadius:".4rem", padding:".3rem .65rem", fontSize:".72rem", fontWeight:600, textDecoration:"none", display:"inline-block" }}>Report</a>
