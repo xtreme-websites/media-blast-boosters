@@ -178,9 +178,15 @@ export default function AuthorityBuilder({ companyData, orders, onExecute, onSch
           <h3 style={{ fontWeight:900, fontSize:"1.15rem", color:"white", margin:"0 0 .35rem" }}>{nextMove.label}</h3>
           <p style={{ color:"rgba(255,255,255,.7)", fontSize:".83rem", margin:"0 0 1.25rem", lineHeight:1.6 }}>{nextMove.detail}</p>
           <div style={{ display:"flex", alignItems:"center", gap:".75rem", flexWrap:"wrap" }}>
-            <button onClick={() => onExecute({ mediaType:"authority", authorityFocus: nextMove.focus, packageTier: nextMove.tier, strategyMatch: true })}
+            <button onClick={() => {
+              if (execMode === "manual") {
+                onExecute({ mediaType:"authority", authorityFocus: nextMove.focus, packageTier: nextMove.tier, strategyMatch: true });
+              } else {
+                onScheduleAutomatic?.(nextMove.tier, nextMove.focus.seoFocus, new Date().toISOString().split("T")[0], nextMove.focus as unknown as Record<string,unknown>);
+              }
+            }}
               style={{ background:`linear-gradient(135deg,${GOLD},${GOLD2})`, color:"#1e1b4b", border:"none", borderRadius:".6rem", padding:".7rem 1.5rem", fontWeight:800, fontSize:".88rem", cursor:"pointer", boxShadow:`0 4px 20px ${GOLD}40` }}>
-              ✏️ Create Manually
+              {execMode === "manual" ? "✏️ Create Manually" : "🤖 Auto-Generate"}
             </button>
             <div style={{ display:"flex", alignItems:"center", gap:".4rem" }}>
               <span style={{ fontSize:".72rem", color:"rgba(255,255,255,.5)" }}>Recommended tier:</span>
