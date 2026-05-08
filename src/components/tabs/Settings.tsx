@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { CompanyData } from "../../lib/constants";
-import { SUPABASE_URL, SUPABASE_ANON } from "../../lib/supabase";
 
 interface Props {
   locationId: string;
@@ -37,12 +36,13 @@ const DEFAULT: Prefs = {
 };
 
 const FREQ_OPTIONS = ["weekly","monthly","quarterly","off"];
-const dbHdr = { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}`, "Content-Type": "application/json", Prefer: "return=representation" };
+const PROXY = "https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy";
+const post = (body: object) => fetch(PROXY, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(r => r.json());
 
 export default function Settings({ locationId, companyData, showToast }: Props) {
-  const [prefs, setPrefs]       = useState<Prefs>(DEFAULT);
-  const [loading, setLoading]   = useState(true);
-  const [saving,  setSaving]    = useState(false);
+  const [prefs, setPrefs]     = useState<Prefs>(DEFAULT);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [emailInput, setEmailInput]         = useState("");
 
@@ -50,14 +50,12 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
 
   useEffect(() => {
     if (!locationId) return;
-    fetch(`${SUPABASE_URL}/rest/v1/notification_preferences?location_id=eq.${locationId}&limit=1`, { headers: dbHdr })
-      .then(r => r.json())
-      .then(rows => {
-        if (rows?.[0]) {
-          const saved = rows[0];
-          setPrefs(p => ({ ...p, ...saved }));
-          if (saved.notification_email) {
-            setEmailInput(saved.notification_email);
+    post({ table:"notification_preferences", operation:"select", eq:{ location_id: locationId } })
+      .then(d => {
+        if (d?.data) {
+          setPrefs(p => ({ ...p, ...d.data }));
+          if (d.data.notification_email) {
+            setEmailInput(d.data.notification_email);
             setEmailConfirmed(true);
           }
         }
@@ -70,12 +68,8 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
     setSaving(true);
     try {
       const payload = { ...prefs, notification_email: emailConfirmed ? emailInput : "", location_id: locationId, updated_at: new Date().toISOString() };
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/notification_preferences?on_conflict=location_id`, {
-        method: "POST",
-        headers: { ...dbHdr, Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Save failed");
+      const d = await post({ table:"notification_preferences", operation:"upsert", onConflict:"location_id", data: payload });
+      if (d?.error) throw new Error("Save failed");
       showToast("Notification preferences saved");
     } catch {
       showToast("Save failed — please try again", "error");
@@ -83,7 +77,7 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
     setSaving(false);
   };
 
-  const toggle = (key: keyof Prefs) => setPrefs(p => ({ ...p, [key]: !p[key] }));
+  const toggle  = (key: keyof Prefs) => setPrefs(p => ({ ...p, [key]: !p[key] }));
   const setFreq = (key: keyof Prefs, val: string) => setPrefs(p => ({ ...p, [key]: val }));
 
   const Toggle = ({ k }: { k: keyof Prefs }) => {
@@ -106,7 +100,7 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
     <div style={{ marginBottom:"1.5rem" }}>
       <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".65rem", paddingBottom:".5rem", borderBottom:"2px solid #f1f5f9" }}>
         <span style={{ fontSize:"1rem" }}>{icon}</span>
-        <h3 style={{ margin:0, fontWeight:800, fontSize:".88rem", color:"#1e293b", letterSpacing:".01em" }}>{title}</h3>
+        <h3 style={{ margin:0, fontWeight:800, fontSize:".88rem", color:"#1e293b" }}>{title}</h3>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:".35rem" }}>{children}</div>
     </div>
@@ -139,32 +133,30 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
   );
 
   if (loading) return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"1rem", paddingTop:"1rem" }}>
-      {[1,2,3].map(i => <div key={i} style={{ height:64, background:"#f8fafc", borderRadius:".65rem", border:"1px solid #f1f5f9" }}/>)}
+    <div style={{ display:"flex", flexDirection:"column", gap:"1rem", paddingTop:".5rem" }}>
+      {[1,2,3,4,5].map(i => <div key={i} style={{ height:60, background:"#f8fafc", borderRadius:".65rem", border:"1px solid #f1f5f9" }}/>)}
     </div>
   );
 
   return (
     <div>
-      {/* Header */}
       <div style={{ marginBottom:"1.75rem" }}>
         <h2 style={{ fontWeight:900, fontSize:"1.3rem", color:"#1e293b", margin:"0 0 .3rem" }}>Notification Settings</h2>
         <p style={{ color:"#64748b", fontSize:".84rem", margin:0 }}>Control how and when you receive updates from Media Blast Boosters™</p>
       </div>
 
-      {/* Email confirmation card */}
+      {/* Email section */}
       <div className="card" style={{ padding:"1.25rem 1.35rem", marginBottom:"2rem", border:"1.5px solid #e0e7ff", background:"linear-gradient(135deg,#fafaff,#f5f3ff)" }}>
         <div style={{ fontWeight:700, fontSize:".9rem", color:"#1e293b", marginBottom:".2rem" }}>📧 Email Notifications</div>
         <div style={{ fontSize:".78rem", color:"#64748b", marginBottom:"1rem" }}>
-          Choose where email alerts are sent. You can use your company profile email or a different one.
+          Choose where email alerts are sent. You can use your company profile email or enter a different one.
         </div>
 
         {!emailConfirmed ? (
           <div style={{ display:"flex", flexDirection:"column", gap:".65rem" }}>
-            {/* Option A: use profile email */}
             {profileEmail && (
               <button onClick={() => { setEmailInput(profileEmail); setEmailConfirmed(true); }}
-                style={{ display:"flex", alignItems:"center", gap:".75rem", padding:".75rem 1rem", borderRadius:".6rem", border:"2px solid #c7d2fe", background:"white", cursor:"pointer", textAlign:"left" }}>
+                style={{ display:"flex", alignItems:"center", gap:".75rem", padding:".75rem 1rem", borderRadius:".6rem", border:"2px solid #c7d2fe", background:"white", cursor:"pointer", textAlign:"left", width:"100%" }}>
                 <span style={{ fontSize:"1.1rem" }}>✅</span>
                 <div>
                   <div style={{ fontWeight:700, fontSize:".83rem", color:"#1e293b" }}>Use company profile email</div>
@@ -172,7 +164,6 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
                 </div>
               </button>
             )}
-            {/* Option B: use different email */}
             <div style={{ padding:".75rem 1rem", borderRadius:".6rem", border:"2px solid #e2e8f0", background:"white" }}>
               <div style={{ fontWeight:700, fontSize:".83rem", color:"#1e293b", marginBottom:".5rem" }}>
                 {profileEmail ? "Or use a different email" : "Enter your notification email"}
@@ -192,7 +183,7 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
           </div>
         ) : (
           <div style={{ display:"flex", alignItems:"center", gap:".75rem", padding:".7rem 1rem", borderRadius:".55rem", background:"#f0fdf4", border:"1.5px solid #bbf7d0" }}>
-            <span style={{ fontSize:"1rem" }}>✅</span>
+            <span>✅</span>
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:700, fontSize:".82rem", color:"#15803d" }}>Email confirmed</div>
               <div style={{ fontSize:".75rem", color:"#166534" }}>{emailInput}</div>
@@ -242,7 +233,6 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
         <Row label="Promotions & Offers" desc="Special deals and bonus credit opportunities" inappKey="credits_promotions_inapp" emailKey="credits_promotions_email"/>
       </Section>
 
-      {/* Save */}
       <div style={{ display:"flex", justifyContent:"flex-end", paddingTop:"1rem", borderTop:"1px solid #f1f5f9", marginTop:".5rem" }}>
         <button onClick={save} disabled={saving}
           style={{ padding:".75rem 2rem", borderRadius:".65rem", border:"none", background: saving ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: saving ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: saving ? "not-allowed" : "pointer", boxShadow: saving ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
