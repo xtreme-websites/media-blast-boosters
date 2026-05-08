@@ -315,9 +315,9 @@ function PageHeader({ innerTab, setInnerTab, execMode, setExecMode }: {
             background: execMode==="auto" ? "linear-gradient(135deg,#1e1b4b,#312e81)" : "#f1f5f9",
             border: execMode==="auto" ? "2px solid #6366f1" : "2px solid #e2e8f0",
             boxShadow: execMode==="auto" ? "0 4px 20px rgba(99,102,241,.3)" : "none" }}>
-          {/* Recommended ribbon */}
-          <div style={{ position:"absolute", top:9, right:-18, background:"linear-gradient(135deg,#c9a84c,#f0c040)", color:"#1e1b4b", fontSize:".58rem", fontWeight:900, letterSpacing:".06em", textTransform:"uppercase", padding:".2rem 1.6rem", transform:"rotate(35deg)", pointerEvents:"none" }}>
-            Recommended
+          {/* Recommended badge */}
+          <div style={{ position:"absolute", top:".5rem", right:".6rem", background:"linear-gradient(135deg,#c9a84c,#f0c040)", color:"#1e1b4b", fontSize:".58rem", fontWeight:900, letterSpacing:".07em", textTransform:"uppercase", padding:".2rem .5rem", borderRadius:"99px", pointerEvents:"none", whiteSpace:"nowrap" }}>
+            ★ Recommended
           </div>
           <div style={{ fontWeight:800, fontSize:".85rem", color: execMode==="auto" ? "white" : "#64748b", marginBottom:".3rem" }}>
             🤖 Create Automatically

@@ -392,7 +392,7 @@ export default function PRDashboard() {
 
       {/* ══ MAIN CONTENT ══════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <main style={{ flex: 1, overflowY: "auto", padding: "1.5rem", maxWidth: "1128px", width: "100%", margin: "0 auto" }}>
+        <main style={{ flex: 1, overflowY: "auto", padding: "1.5rem", maxWidth: activeTab === "press" ? "1128px" : "1000px", width: "100%", margin: "0 auto" }}>
           {!hasCompanyData && dataLoaded && (
             <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)",border:"1px solid #4338ca",borderRadius:".875rem",padding:"1rem 1.5rem",marginBottom:"1.25rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap" }}>
               <div style={{ display:"flex",alignItems:"center",gap:".75rem" }}>
