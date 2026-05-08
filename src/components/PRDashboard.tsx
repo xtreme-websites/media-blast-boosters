@@ -15,6 +15,8 @@ import AuthGuard from "./AuthGuard";
 import CreditWallet from "./tabs/CreditWallet";
 import PublishedPress from "./tabs/PublishedPress";
 import HelpGuidelines from "./tabs/HelpGuidelines";
+import SettingsPage from "./tabs/Settings";
+import AlertsTab from "./tabs/AlertsTab";
 import CompanyDataPage from "./tabs/CompanyDataPage";
 import AuthorityBuilder from "./tabs/AuthorityBuilder";
 import type { ExecutePayload } from "./tabs/AuthorityBuilder";
@@ -92,6 +94,8 @@ export default function PRDashboard() {
   const [checkoutPackage,  setCheckoutPackage]  = useState<{type:string;title:string;content:string}|null>(null);
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
+  const [unreadAlerts,     setUnreadAlerts]     = useState(0);
+  const [alertToast,       setAlertToast]       = useState<{title:string;message:string}|null>(null);
   const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string;pendingDate:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:'',pendingDate:''});
 
   const locationId = useMemo(() => {
@@ -183,6 +187,18 @@ export default function PRDashboard() {
     setAutoGenState({ show:true, step:0, orderId:null, result:null, pendingPkg:packageType, pendingSeo:seoFocus, pendingDate:_scheduledDate });
   };
 
+  const sendNotification = async (key: string, title: string, message: string, link?: string) => {
+    try {
+      await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/send-notification", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: locationId, key, title, message, link }),
+      });
+    } catch {}
+    // Show toast for 10 seconds
+    setAlertToast({ title, message });
+    setTimeout(() => setAlertToast(null), 10000);
+  };
+
   const runAutoGenerate = async (packageType: string, seoFocus: string, scheduledDate?: string) => {
     // step 1
     setAutoGenState(s => ({...s, step:1}));
@@ -205,6 +221,7 @@ export default function PRDashboard() {
       const newOrder: Order = { id: crypto.randomUUID(), prTitle: data.pr_title, productName: packageType, price: PR_PACKAGES[packageType]?.price||"$0", date: new Date().toLocaleDateString("en-US"), prContent: data.pr_content, seoFocus, status:"draft_pending_review" as any, lastEditedAt: new Date().toISOString() };
       setOrders(prev => [newOrder, ...prev]);
       setAutoGenState(s => ({ ...s, show:true, step:5, orderId:newOrder.id, result:newOrder }));
+      sendNotification('ab_approval', 'AI Draft Ready for Review', `Your press release "${newOrder.prTitle}" is ready. Review and approve before the scheduled date.`);
     } catch { showToast("Generation failed — please try again","error"); setAutoGenState(s => ({...s,show:false,step:0})); }
   };
 
@@ -281,7 +298,22 @@ export default function PRDashboard() {
     <div className="mbb-root" style={{ display:"flex", minHeight:"100vh", background:"#f1f5f9" }}>
       <GlobalStyles/>
 
-      {/* Auto-Generate Modal */}
+      {/* Notification alert toast (10s auto-close) */}
+      {alertToast && createPortal(
+        <div style={{ position:"fixed", bottom:"1.5rem", right:"1.5rem", zIndex:10001, maxWidth:360,
+          background:"linear-gradient(135deg,#1e1b4b,#312e81)", color:"white", borderRadius:".85rem",
+          padding:"1rem 1.25rem", boxShadow:"0 8px 32px rgba(0,0,0,.35)", display:"flex", gap:".75rem", alignItems:"flex-start",
+          animation:"slideInUp .3s ease" }}>
+          <span style={{ fontSize:"1.2rem", flexShrink:0 }}>🔔</span>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontWeight:800, fontSize:".85rem", marginBottom:".2rem" }}>{alertToast.title}</div>
+            <div style={{ fontSize:".75rem", color:"rgba(255,255,255,.7)", lineHeight:1.45 }}>{alertToast.message}</div>
+          </div>
+          <button onClick={() => setAlertToast(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,.5)", fontSize:"1.1rem", lineHeight:1, flexShrink:0, padding:0 }}>×</button>
+          <style>{`@keyframes slideInUp{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+        </div>,
+        document.body
+      )}
       {autoGenState.show && <AutoGenerateModal
         step={autoGenState.step}
         result={autoGenState.result}
@@ -372,14 +404,33 @@ export default function PRDashboard() {
             Help & Guidelines
           </button>
 
-          <button onClick={() => setShowSettings(true)} style={{
+          {/* 🔔 Alerts */}
+          <button onClick={() => setActiveTab("alerts")} style={{
             display: "flex", alignItems: "center", gap: ".6rem",
             padding: ".6rem .75rem", borderRadius: ".5rem", border: "none", cursor: "pointer",
-            background: "transparent", color: "rgba(255,255,255,.62)",
+            background: activeTab === "alerts" ? "rgba(255,255,255,.15)" : "transparent", color: activeTab === "alerts" ? "white" : "rgba(255,255,255,.62)",
             fontWeight: 500, fontSize: ".82rem", textAlign: "left", width: "100%", transition: "all .15s",
           }}
             onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,.1)"; e.currentTarget.style.color = "white"; }}
-            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; }}
+            onMouseOut={e => { if (activeTab !== "alerts") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; } }}
+          >
+            <i className="fa-solid fa-bell" style={{fontSize:14}}/>
+            Alerts
+            {unreadAlerts > 0 && (
+              <span style={{ marginLeft:"auto", background:"#ef4444", color:"white", fontSize:".6rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px", minWidth:16, textAlign:"center" }}>
+                {unreadAlerts}
+              </span>
+            )}
+          </button>
+
+          <button onClick={() => setActiveTab('settings')} style={{
+            display: "flex", alignItems: "center", gap: ".6rem",
+            padding: ".6rem .75rem", borderRadius: ".5rem", border: "none", cursor: "pointer",
+            background: activeTab === "settings" ? "rgba(255,255,255,.15)" : "transparent", color: activeTab === "settings" ? "white" : "rgba(255,255,255,.62)",
+            fontWeight: 500, fontSize: ".82rem", textAlign: "left", width: "100%", transition: "all .15s",
+          }}
+            onMouseOver={e => { if (activeTab !== "settings") { e.currentTarget.style.background = "rgba(255,255,255,.1)"; e.currentTarget.style.color = "white"; }}}
+            onMouseOut={e => { if (activeTab !== "settings") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.62)"; }}}
           >
             <SettingsIcon size={15}/>
             Settings
@@ -425,6 +476,7 @@ export default function PRDashboard() {
               } catch {}
               setOrders(prev => prev.map(x => x.id===o.id ? {...x, status:"submitted" as any, submittedAt:new Date().toISOString()} : x));
               showToast("✅ PR approved and submitted for distribution!");
+              sendNotification("mc_submitted", "PR Approved & Submitted", `"${o.prTitle || "Your PR"}" has been approved and submitted for distribution.`);
             }}
             onDeleteDraft={async (o) => {
               if (o.status === "draft_pending_review" || (o.status === "scheduled" && (o as any).source === "authority_builder")) {
@@ -445,6 +497,7 @@ export default function PRDashboard() {
               showToast("Draft deleted — credit returned");
             }}
             preOpenDraftId={autoGenState.result?.id || null}/>}
+          {activeTab === "alerts"     && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
           {activeTab === "authority"  && !dataLoaded && (
             <div style={{ display:"flex", flexDirection:"column", gap:"1rem", padding:".5rem 0" }}>
