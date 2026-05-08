@@ -482,11 +482,15 @@ function TransactionLog({ locationId }: { locationId: string }) {
 
   const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
   const getIcon = (reason: string) => {
+    if (reason.startsWith("🪄")) return "🪄";
     if (reason.toLowerCase().includes("purchased") || reason.toLowerCase().includes("stripe") || reason.toLowerCase().includes("bonus")) return "⭐";
-    if (reason.toLowerCase().includes("launch")) return "🚀";
+    if (reason.toLowerCase().includes("launch") || reason.toLowerCase().includes("submitted")) return "🚀";
     return "📝";
   };
-  const cleanReason = (reason: string) => reason.replace(/^PR Launch\s*[-–—]\s*/i, "");
+  const cleanReason = (reason: string) => reason
+    .replace(/^🪄\s*/u, "")
+    .replace(/^PR Launch\s*[-–—]\s*/i, "")
+    .replace(/^PR Submitted\s*[-–—]\s*/i, "");
 
   const thStyle: React.CSSProperties = { padding:".65rem 1rem", fontSize:".7rem", fontWeight:700, color:"white", textTransform:"uppercase", letterSpacing:".06em", textAlign:"left", background:"transparent", borderBottom:"none", borderRight:"1px solid rgba(255,255,255,.15)", whiteSpace:"nowrap" };
   const thLast: React.CSSProperties = { ...thStyle, borderRight:"none" };
@@ -519,8 +523,8 @@ function TransactionLog({ locationId }: { locationId: string }) {
               </tr>
             </thead>
             <tbody>
-              {logs.map((log, i) => {
-                const isLastRow = i === logs.length - 1;
+              {logs.filter(log => log.change_amount !== 0).map((log, i, arr) => {
+                const isLastRow = i === arr.length - 1;
                 return (
                   <tr key={i}>
                     <td style={tdBase(false, isLastRow)}>

@@ -247,7 +247,7 @@ export default function PRDashboard() {
       if (submittingOrder?.status === "draft_pending_review") {
         await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
           method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:packageType.toLowerCase(), reason:`PR Submitted — ${prTitle}` })
+          body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:packageType.toLowerCase(), reason:`🪄 ${prTitle}` })
         });
       }
     } catch {}
@@ -420,7 +420,7 @@ export default function PRDashboard() {
                 });
                 await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
                   method:"POST", headers:{"Content-Type":"application/json"},
-                  body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`PR Approved — ${o.prTitle||"PR"}` })
+                  body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`🪄 ${o.prTitle||"Press Release"}` })
                 });
               } catch {}
               setOrders(prev => prev.map(x => x.id===o.id ? {...x, status:"submitted" as any, submittedAt:new Date().toISOString()} : x));
@@ -431,7 +431,7 @@ export default function PRDashboard() {
                 try {
                   await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
                     method:"POST", headers:{"Content-Type":"application/json"},
-                    body: JSON.stringify({ table:"profiles", operation:"release_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`Credit released — ${o.prTitle||"PR"} deleted` })
+                    body: JSON.stringify({ table:"profiles", operation:"release_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`🪄 ${o.prTitle||"Press Release"}` })
                   });
                 } catch {}
               }
