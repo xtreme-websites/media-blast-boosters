@@ -293,22 +293,27 @@ function PageHeader({ innerTab, setInnerTab, execMode, setExecMode }: {
         </div>
       </div>
       <p style={{ color:"#64748b", fontSize:".83rem", margin:"0 0 .25rem" }}>Your AI-powered PR roadmap — follow the 1:3:12 ratio to dominate search</p>
-      {/* Execution mode switch */}
-      <div style={{ display:"flex", alignItems:"center", gap:".85rem", background: execMode==="auto" ? "linear-gradient(135deg,#1e1b4b,#312e81)" : "#f8fafc", border:`1.5px solid ${execMode==="auto" ? "#4338ca" : "#e2e8f0"}`, borderRadius:".75rem", padding:".75rem 1rem", transition:"all .25s" }}>
-        <div style={{ flex:1 }}>
-          <div style={{ fontWeight:700, fontSize:".85rem", color: execMode==="auto" ? "white" : "#1e293b" }}>
-            {execMode==="manual" ? "✏️ Create Manually" : "🤖 Create Automatically"}
-          </div>
-          <div style={{ fontSize:".73rem", color: execMode==="auto" ? "rgba(255,255,255,.65)" : "#94a3b8", marginTop:".1rem" }}>
-            {execMode==="manual"
-              ? "Execute buttons open Media Creator — you write the PR yourself"
-              : "Execute buttons schedule AI to auto-generate & submit the PR"}
-          </div>
-        </div>
-        <button onClick={() => setExecMode(execMode==="manual" ? "auto" : "manual")}
-          style={{ position:"relative", width:52, height:28, borderRadius:99, border:"none", cursor:"pointer", padding:0, flexShrink:0, background: execMode==="auto" ? "#6366f1" : "#cbd5e1", transition:"background .2s" }}>
-          <div style={{ position:"absolute", top:3, left: execMode==="auto" ? 27 : 3, width:22, height:22, borderRadius:"50%", background:"white", transition:"left .2s", boxShadow:"0 1px 4px rgba(0,0,0,.25)" }}/>
+      {/* Execution mode tabs */}
+      <div style={{ display:"flex", background:"#f1f5f9", borderRadius:".65rem", padding:".25rem", gap:".25rem" }}>
+        <button onClick={() => setExecMode("manual")}
+          style={{ flex:1, padding:".55rem 1rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", transition:"all .18s",
+            background: execMode==="manual" ? "white" : "transparent",
+            color: execMode==="manual" ? "#1e293b" : "#64748b",
+            boxShadow: execMode==="manual" ? "0 1px 4px rgba(0,0,0,.1)" : "none" }}>
+          ✏️ Create Manually
         </button>
+        <button onClick={() => setExecMode("auto")}
+          style={{ flex:1, padding:".55rem 1rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", transition:"all .18s",
+            background: execMode==="auto" ? "linear-gradient(135deg,#4338ca,#8929bd)" : "transparent",
+            color: execMode==="auto" ? "white" : "#64748b",
+            boxShadow: execMode==="auto" ? "0 2px 8px rgba(99,102,241,.35)" : "none" }}>
+          🤖 Create Automatically
+        </button>
+      </div>
+      <div style={{ fontSize:".73rem", color:"#94a3b8" }}>
+        {execMode==="manual"
+          ? "Execute buttons open Media Creator — you write the PR yourself"
+          : "Execute buttons schedule AI to auto-generate & submit the PR on the scheduled date"}
       </div>
     </div>
   );
