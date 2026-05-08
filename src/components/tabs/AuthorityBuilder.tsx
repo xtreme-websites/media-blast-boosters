@@ -294,26 +294,38 @@ function PageHeader({ innerTab, setInnerTab, execMode, setExecMode }: {
       </div>
       <p style={{ color:"#64748b", fontSize:".83rem", margin:"0 0 .25rem" }}>Your AI-powered PR roadmap — follow the 1:3:12 ratio to dominate search</p>
       {/* Execution mode tabs */}
-      <div style={{ display:"flex", background:"#f1f5f9", borderRadius:".65rem", padding:".25rem", gap:".25rem" }}>
+      <div style={{ display:"flex", gap:".65rem" }}>
+        {/* Manual tab */}
         <button onClick={() => setExecMode("manual")}
-          style={{ flex:1, padding:".55rem 1rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", transition:"all .18s",
-            background: execMode==="manual" ? "white" : "transparent",
-            color: execMode==="manual" ? "#1e293b" : "#64748b",
-            boxShadow: execMode==="manual" ? "0 1px 4px rgba(0,0,0,.1)" : "none" }}>
-          ✏️ Create Manually
+          style={{ flex:1, padding:".85rem 1rem", borderRadius:".65rem", cursor:"pointer", textAlign:"left", transition:"all .18s",
+            background: execMode==="manual" ? "white" : "#f1f5f9",
+            border: execMode==="manual" ? "2px solid #6366f1" : "2px solid #e2e8f0",
+            boxShadow: execMode==="manual" ? "0 2px 12px rgba(99,102,241,.15)" : "none" }}>
+          <div style={{ fontWeight:800, fontSize:".85rem", color: execMode==="manual" ? "#1e293b" : "#64748b", marginBottom:".3rem" }}>
+            ✏️ Create Manually
+          </div>
+          <div style={{ fontSize:".71rem", color: execMode==="manual" ? "#64748b" : "#94a3b8", lineHeight:1.4 }}>
+            Opens Media Creator — you write and control every PR yourself
+          </div>
         </button>
+
+        {/* Auto tab — with Recommended ribbon */}
         <button onClick={() => setExecMode("auto")}
-          style={{ flex:1, padding:".55rem 1rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", transition:"all .18s",
-            background: execMode==="auto" ? "linear-gradient(135deg,#4338ca,#8929bd)" : "transparent",
-            color: execMode==="auto" ? "white" : "#64748b",
-            boxShadow: execMode==="auto" ? "0 2px 8px rgba(99,102,241,.35)" : "none" }}>
-          🤖 Create Automatically
+          style={{ flex:1, padding:".85rem 1rem", borderRadius:".65rem", cursor:"pointer", textAlign:"left", transition:"all .18s", position:"relative", overflow:"hidden",
+            background: execMode==="auto" ? "linear-gradient(135deg,#1e1b4b,#312e81)" : "#f1f5f9",
+            border: execMode==="auto" ? "2px solid #6366f1" : "2px solid #e2e8f0",
+            boxShadow: execMode==="auto" ? "0 4px 20px rgba(99,102,241,.3)" : "none" }}>
+          {/* Recommended ribbon */}
+          <div style={{ position:"absolute", top:9, right:-18, background:"linear-gradient(135deg,#c9a84c,#f0c040)", color:"#1e1b4b", fontSize:".58rem", fontWeight:900, letterSpacing:".06em", textTransform:"uppercase", padding:".2rem 1.6rem", transform:"rotate(35deg)", pointerEvents:"none" }}>
+            Recommended
+          </div>
+          <div style={{ fontWeight:800, fontSize:".85rem", color: execMode==="auto" ? "white" : "#64748b", marginBottom:".3rem" }}>
+            🤖 Create Automatically
+          </div>
+          <div style={{ fontSize:".71rem", color: execMode==="auto" ? "rgba(255,255,255,.7)" : "#94a3b8", lineHeight:1.4 }}>
+            AI generates & schedules your PR — hands-free on your chosen date
+          </div>
         </button>
-      </div>
-      <div style={{ fontSize:".73rem", color:"#94a3b8" }}>
-        {execMode==="manual"
-          ? "Execute buttons open Media Creator — you write the PR yourself"
-          : "Execute buttons schedule AI to auto-generate & submit the PR on the scheduled date"}
       </div>
     </div>
   );
