@@ -506,6 +506,8 @@ export default function PRDashboard() {
             </div>
           )}
           {activeTab === "authority"  && dataLoaded && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
+          {(activeTab as string) === "alerts"       && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
+          {(activeTab as string) === "settings"    && <SettingsPage locationId={locationId} companyData={companyData} showToast={showToast}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
           {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")}/>}
         </main>
