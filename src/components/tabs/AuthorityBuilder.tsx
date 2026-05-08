@@ -397,7 +397,7 @@ function LocationCard({ loc, onExecute, onScheduleAutomatic, execMode }: {
 
   const btnLabel = execMode==="auto"
     ? "🪄 Auto-Generate"
-    : step === 0 ? "✏️ Create Manually" : step === 1 ? "✏️ Build Authority" : "✏️ Achieve Dominance";
+    : step === 0 ? "✏️ Create Manually" : step === 1 ? "✏️ Create Manually" : "✏️ Create Manually";
 
   return (
     <div style={{ border:`1.5px solid ${isDominant ? GOLD : "#e2e8f0"}`, borderRadius:".75rem", padding:"1rem", background: isDominant ? "linear-gradient(135deg,#fffbeb,#fef9ec)" : "white", position:"relative", overflow:"hidden", transition:"all .3s" }}>

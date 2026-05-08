@@ -484,7 +484,7 @@ function TransactionLog({ locationId }: { locationId: string }) {
   const getIcon = (reason: string) => {
     if (reason.startsWith("🪄")) return "🪄";
     if (reason.toLowerCase().includes("purchased") || reason.toLowerCase().includes("stripe") || reason.toLowerCase().includes("bonus")) return "⭐";
-    if (reason.toLowerCase().includes("launch") || reason.toLowerCase().includes("submitted")) return "🚀";
+    if (reason.toLowerCase().includes("launch") || reason.toLowerCase().includes("submitted")) return "✏️";
     return "📝";
   };
   const cleanReason = (reason: string) => reason
