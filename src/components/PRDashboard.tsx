@@ -98,7 +98,7 @@ export default function PRDashboard() {
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
   const [unreadAlerts,     setUnreadAlerts]     = useState(0);
   const [savedCard,        setSavedCard]        = useState<{last4:string;brand:string}|null>(null);
-  const billingEmail = new URLSearchParams(window.location.search).get("billing_email") || "";
+  const billingEmail = new URLSearchParams(window.location.search).get("xpemail") || "";
   const [alertToast,       setAlertToast]       = useState<{title:string;message:string}|null>(null);
   const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string;pendingDate:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:'',pendingDate:''});
 
@@ -530,7 +530,7 @@ export default function PRDashboard() {
           )}
           {activeTab === "authority"  && dataLoaded && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {(activeTab as string) === "alerts"       && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
-          {(activeTab as string) === "settings"    && <SettingsPage locationId={locationId} companyData={companyData} showToast={showToast}/>}
+          {(activeTab as string) === "settings"    && <SettingsPage locationId={locationId} companyData={companyData} showToast={showToast} isDev={IS_DEV}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
           {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")} savedCard={savedCard} onCardSaved={(c) => setSavedCard(c)}/>}
         </main>

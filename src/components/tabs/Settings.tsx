@@ -5,6 +5,7 @@ interface Props {
   locationId: string;
   companyData: CompanyData;
   showToast: (msg: string, type?: string) => void;
+  isDev?: boolean;
 }
 
 type Prefs = {
@@ -41,12 +42,15 @@ const FREQ_OPTIONS = ["weekly","monthly","quarterly","off"];
 const PROXY = "https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy";
 const post = (body: object) => fetch(PROXY, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(r => r.json());
 
-export default function Settings({ locationId, companyData, showToast }: Props) {
+export default function Settings({ locationId, companyData, showToast, isDev }: Props) {
   const [prefs, setPrefs]     = useState<Prefs>(DEFAULT);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [emailInput, setEmailInput]         = useState("");
+  // Dev-only billing fields
+  const [devBilling, setDevBilling] = useState({ billing_email:"", stripe_customer_id:"", stripe_pm_last4:"", stripe_pm_brand:"" });
+  const [savingDev, setSavingDev]   = useState(false);
 
   const profileEmail = (companyData as any).email || "";
 
@@ -64,6 +68,18 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    // Load dev billing fields
+    if (isDev) {
+      post({ table:"profiles", operation:"select", eq:{ location_id: locationId } })
+        .then(d => {
+          if (d?.data) setDevBilling({
+            billing_email:      d.data.billing_email      || "",
+            stripe_customer_id: d.data.stripe_customer_id || "",
+            stripe_pm_last4:    d.data.stripe_pm_last4    || "",
+            stripe_pm_brand:    d.data.stripe_pm_brand    || "",
+          });
+        }).catch(() => {});
+    }
   }, [locationId]);
 
   const save = async () => {
@@ -77,6 +93,16 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
       showToast("Save failed — please try again", "error");
     }
     setSaving(false);
+  };
+
+  const saveDevBilling = async () => {
+    setSavingDev(true);
+    try {
+      const d = await post({ table:"profiles", operation:"update", eq:{ location_id: locationId }, data: devBilling });
+      if (d?.error) throw new Error("Save failed");
+      showToast("Billing fields saved");
+    } catch { showToast("Save failed","error"); }
+    setSavingDev(false);
   };
 
   const toggle  = (key: keyof Prefs) => setPrefs(p => ({ ...p, [key]: !p[key] }));
@@ -235,6 +261,35 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
         <Row label="Low Credit Alert" desc="When any tier drops to 1 credit remaining" inappKey="credits_low_inapp" emailKey="credits_low_email"/>
         <Row label="Promotions & Offers" desc="Special deals and bonus credit opportunities" inappKey="credits_promotions_inapp" emailKey="credits_promotions_email"/>
       </Section>
+
+      {/* Developer billing section — only visible with dev_access */}
+      {isDev && (
+        <div style={{ marginTop:"2rem", padding:"1.25rem", borderRadius:".75rem", border:"2px dashed #e2e8f0", background:"#fafafa" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:"1rem" }}>
+            <span style={{ fontSize:".7rem", fontWeight:900, letterSpacing:".1em", textTransform:"uppercase", color:"#6366f1", background:"#eef2ff", padding:".2rem .55rem", borderRadius:"99px" }}>🛠 Dev Only</span>
+            <span style={{ fontSize:".78rem", color:"#64748b" }}>Billing integration fields — not visible to clients</span>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".75rem", marginBottom:"1rem" }}>
+            {([
+              ["billing_email",      "Billing Email (xpemail)",     "email"],
+              ["stripe_customer_id", "Stripe Customer ID",          "text"],
+              ["stripe_pm_last4",    "Card Last 4",                 "text"],
+              ["stripe_pm_brand",    "Card Brand",                  "text"],
+            ] as [keyof typeof devBilling, string, string][]).map(([key, label, type]) => (
+              <div key={key}>
+                <div style={{ fontSize:".72rem", fontWeight:700, color:"#64748b", marginBottom:".3rem" }}>{label}</div>
+                <input type={type} value={devBilling[key]} onChange={e => setDevBilling(p => ({...p, [key]: e.target.value}))}
+                  placeholder={key === "billing_email" ? "Passed via ?xpemail=" : "—"}
+                  style={{ width:"100%", padding:".45rem .7rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".82rem", fontFamily:"monospace", color:"#374151", boxSizing:"border-box" }}/>
+              </div>
+            ))}
+          </div>
+          <button onClick={saveDevBilling} disabled={savingDev}
+            style={{ padding:".55rem 1.25rem", borderRadius:".5rem", border:"none", background: savingDev ? "#e2e8f0" : "#6366f1", color: savingDev ? "#94a3b8" : "white", fontWeight:700, fontSize:".8rem", cursor: savingDev ? "not-allowed" : "pointer" }}>
+            {savingDev ? "Saving…" : "Save Billing Fields"}
+          </button>
+        </div>
+      )}
 
       <div style={{ display:"flex", justifyContent:"flex-end", paddingTop:"1rem", borderTop:"1px solid #f1f5f9", marginTop:".5rem" }}>
         <button onClick={save} disabled={saving}
