@@ -12,6 +12,7 @@ type Prefs = {
   mc_scheduled_inapp: boolean; mc_scheduled_email: boolean;
   mc_submitted_inapp: boolean; mc_submitted_email: boolean;
   mc_rejected_inapp: boolean;  mc_rejected_email: boolean;
+  mc_published_inapp: boolean; mc_published_email: boolean;
   ab_approval_inapp: boolean;  ab_approval_email: boolean;
   tt_frequency: string; tt_inapp: boolean; tt_email: boolean;
   ca_frequency: string; ca_inapp: boolean; ca_email: boolean;
@@ -26,6 +27,7 @@ const DEFAULT: Prefs = {
   mc_scheduled_inapp:true,  mc_scheduled_email:false,
   mc_submitted_inapp:true,  mc_submitted_email:true,
   mc_rejected_inapp:true,   mc_rejected_email:true,
+  mc_published_inapp:true,  mc_published_email:true,
   ab_approval_inapp:true,   ab_approval_email:true,
   tt_frequency:"weekly",    tt_inapp:true,  tt_email:false,
   ca_frequency:"monthly",   ca_inapp:true,  ca_email:false,
@@ -205,7 +207,8 @@ export default function Settings({ locationId, companyData, showToast }: Props) 
 
       <Section icon="✍️" title="Media Creator">
         <Row label="PR Scheduled" desc="When you schedule a press release for a future date" inappKey="mc_scheduled_inapp" emailKey="mc_scheduled_email"/>
-        <Row label="PR Submitted" desc="When a PR is submitted to the distribution network" inappKey="mc_submitted_inapp" emailKey="mc_submitted_email"/>
+        <Row label="PR Submitted" desc="When a PR is ordered and submitted for review" inappKey="mc_submitted_inapp" emailKey="mc_submitted_email"/>
+        <Row label="PR Published" desc="When your PR goes live — triggered once the admin adds the distribution report" inappKey="mc_published_inapp" emailKey="mc_published_email"/>
         <Row label="PR Rejected / Revision Needed" desc="When a submitted PR requires changes" inappKey="mc_rejected_inapp" emailKey="mc_rejected_email"/>
       </Section>
 

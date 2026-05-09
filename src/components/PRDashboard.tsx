@@ -199,6 +199,18 @@ export default function PRDashboard() {
     setTimeout(() => setAlertToast(null), 10000);
   };
 
+  const [notifiedPublished, setNotifiedPublished] = useState<Set<string>>(new Set());
+
+  // Detect orders newly transitioned to 'published' and notify
+  useEffect(() => {
+    orders.forEach(o => {
+      if (o.status === "published" && !notifiedPublished.has(o.id)) {
+        setNotifiedPublished(prev => { const s = new Set(prev); s.add(o.id); return s; });
+        sendNotification("mc_published", "PR Published!", `Your press release "${o.prTitle || "PR"}" is now live and distributed. Check the report for details.`);
+      }
+    });
+  }, [orders]);
+
   const runAutoGenerate = async (packageType: string, seoFocus: string, scheduledDate?: string) => {
     // step 1
     setAutoGenState(s => ({...s, step:1}));
