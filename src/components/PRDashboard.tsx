@@ -509,7 +509,6 @@ export default function PRDashboard() {
               showToast("Draft deleted — credit returned");
             }}
             preOpenDraftId={autoGenState.result?.id || null}/>}
-          {activeTab === "alerts"     && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
           {activeTab === "help"       && <HelpGuidelines onOpenHelp={() => {}}/>}
           {activeTab === "authority"  && !dataLoaded && (
             <div style={{ display:"flex", flexDirection:"column", gap:"1rem", padding:".5rem 0" }}>

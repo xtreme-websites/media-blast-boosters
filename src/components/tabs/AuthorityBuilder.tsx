@@ -59,7 +59,7 @@ const ProgressBar = ({ steps, current }: { steps: string[]; current: number }) =
 
 export default function AuthorityBuilder({ companyData, orders, onExecute, onScheduleAutomatic, onNavigateToCompanyProfile }: Props) {
   const [innerTab, setInnerTab] = useState<"strategy"|"roadmap">("strategy");
-  const [execMode, setExecMode] = useState<"manual"|"auto">("manual");
+  const [execMode, setExecMode] = useState<"manual"|"auto">("auto");
   const services  = companyData.servicePages  || [];
   const locations = companyData.locationPages || [];
   const websiteUrl = companyData.websiteUrl || "";
