@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { XIcon } from "../icons";
@@ -89,15 +90,17 @@ interface Credits {
   starter_credits:number; standard_credits:number; premium_credits:number;
   pending_starter_credits?:number; pending_standard_credits?:number; pending_premium_credits?:number;
 }
-interface Props { locationId:string; showToast:(msg:string, type?:"success"|"error")=>void; onNavigateToPR?:()=>void; }
+interface Props { locationId:string; showToast:(msg:string, type?:"success"|"error")=>void; onNavigateToPR?:()=>void; savedCard?:{last4:string;brand:string}|null; onCardSaved?:(card:{last4:string;brand:string})=>void; }
 
 const PENDING_KEY = "mbb_pending_purchase";
 
-export default function CreditWallet({ locationId, showToast, onNavigateToPR }: Props) {
+export default function CreditWallet({ locationId, showToast, onNavigateToPR, savedCard, onCardSaved }: Props) {
   const [activeTab,       setActiveTab]       = useState<"packages"|"credits"|"transactions">("credits");
   const [activeTier,      setActiveTier]      = useState<Tier>("starter");
   const [credits,         setCredits]         = useState<Credits>({ starter_credits:0, standard_credits:0, premium_credits:0 });
   const [loading,         setLoading]         = useState(true);
+  const [confirmCharge,   setConfirmCharge]   = useState<{tier:string;quantity:number;amount:number}|null>(null);
+  const [charging,        setCharging]        = useState(false);
   const [checkout,        setCheckout]        = useState<{ tier:Tier; qty:number }|null>(null);
   const [clientSecret,    setClientSecret]    = useState<string|null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -326,11 +329,28 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR }: 
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:`1.5px solid ${ti.color}`, cursor:"pointer", fontWeight:700, fontSize:".78rem", background:"transparent", color:ti.color, transition:"all .15s" }}
-                    onMouseOver={e=>{ e.currentTarget.style.background=ti.color; e.currentTarget.style.color="white"; }}
-                    onMouseOut={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=ti.color; }}>
-                    {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
-                  </button>
+                  {/* Card on file = primary; Checkout = secondary */}
+                  {savedCard ? (
+                    <div style={{ display:"flex", flexDirection:"column", gap:".4rem" }}>
+                      <button onClick={() => {
+                        const qty = 3;
+                        const amount = PACK_PRICES[key]?.[qty];
+                        if (amount) setConfirmCharge({ tier:key, quantity:qty, amount: amount * qty });
+                      }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:800, fontSize:".78rem", background:`linear-gradient(135deg,${ti.color},${ti.color}cc)`, color:"white" }}>
+                        💳 Buy with ••••{savedCard.last4}
+                      </button>
+                      <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }}
+                        style={{ width:"100%", padding:".4rem", borderRadius:".45rem", border:`1px solid ${ti.color}`, cursor:"pointer", fontWeight:600, fontSize:".73rem", background:"transparent", color:ti.color }}>
+                        {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:`1.5px solid ${ti.color}`, cursor:"pointer", fontWeight:700, fontSize:".78rem", background:"transparent", color:ti.color, transition:"all .15s" }}
+                      onMouseOver={e=>{ e.currentTarget.style.background=ti.color; e.currentTarget.style.color="white"; }}
+                      onMouseOut={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=ti.color; }}>
+                      {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -561,6 +581,40 @@ function TransactionLog({ locationId }: { locationId: string }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Card-on-file charge confirmation modal */}
+      {confirmCharge && savedCard && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:400, padding:"2rem", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+            <div style={{ textAlign:"center", marginBottom:"1.5rem" }}>
+              <div style={{ fontSize:"2.5rem", marginBottom:".5rem" }}>💳</div>
+              <h3 style={{ fontWeight:900, fontSize:"1.2rem", color:"#0f172a", margin:"0 0 .3rem" }}>Confirm Purchase</h3>
+              <p style={{ color:"#64748b", fontSize:".85rem", margin:0 }}>Charging your {savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} card on file</p>
+            </div>
+            <div style={{ background:"#f8fafc", borderRadius:".75rem", padding:"1rem", marginBottom:"1.5rem" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:".5rem" }}>
+                <span style={{ fontSize:".85rem", color:"#64748b" }}>{confirmCharge.quantity} {confirmCharge.tier.charAt(0).toUpperCase()+confirmCharge.tier.slice(1)} PR Credits</span>
+                <span style={{ fontWeight:700, color:"#1e293b" }}>${(confirmCharge.amount/100).toLocaleString("en-US",{minimumFractionDigits:2})}</span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:".5rem", paddingTop:".5rem", borderTop:"1px solid #e2e8f0" }}>
+                <span style={{ fontSize:"1.1rem" }}>💳</span>
+                <span style={{ fontSize:".85rem", fontWeight:600, color:"#374151" }}>{savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} ••••{savedCard.last4}</span>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:".75rem" }}>
+              <button onClick={() => setConfirmCharge(null)} disabled={charging}
+                style={{ flex:1, padding:".7rem", borderRadius:".55rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button onClick={handleChargeCard} disabled={charging}
+                style={{ flex:2, padding:".7rem", borderRadius:".55rem", border:"none", background: charging ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: charging ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: charging ? "not-allowed" : "pointer", boxShadow: charging ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
+                {charging ? "Processing…" : `Pay $${(confirmCharge.amount/100).toLocaleString("en-US",{minimumFractionDigits:2})}`}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

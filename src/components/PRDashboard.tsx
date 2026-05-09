@@ -97,6 +97,8 @@ export default function PRDashboard() {
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
   const [unreadAlerts,     setUnreadAlerts]     = useState(0);
+  const [savedCard,        setSavedCard]        = useState<{last4:string;brand:string}|null>(null);
+  const billingEmail = new URLSearchParams(window.location.search).get("billing_email") || "";
   const [alertToast,       setAlertToast]       = useState<{title:string;message:string}|null>(null);
   const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string;pendingDate:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:'',pendingDate:''});
 
@@ -138,6 +140,14 @@ export default function PRDashboard() {
         if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content, status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date, submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, lastEditedAt: o.last_edited_at, formData: o.form_data })));
       } catch {}
       setDataLoaded(true);
+      // Look up saved card via billing_email or company email
+      const lookupEmail = billingEmail || d?.email || "";
+      if (lookupEmail && locationId) {
+        fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/lookup-stripe-customer", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({ location_id:locationId, email:lookupEmail })
+        }).then(r=>r.json()).then(d=>{ if(d.found) setSavedCard({last4:d.last4,brand:d.brand}); }).catch(()=>{});
+      }
     })();
   }, [locationId]);
 
@@ -522,7 +532,7 @@ export default function PRDashboard() {
           {(activeTab as string) === "alerts"       && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
           {(activeTab as string) === "settings"    && <SettingsPage locationId={locationId} companyData={companyData} showToast={showToast}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
-          {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")}/>}
+          {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")} savedCard={savedCard} onCardSaved={(c) => setSavedCard(c)}/>}
         </main>
       </div>
 
