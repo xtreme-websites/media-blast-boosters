@@ -83,8 +83,10 @@ export default function PRDashboard() {
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [activeTab,       setActiveTab]       = useState<string>(() => {
-    // If returning from Stripe checkout, land on orders tab
-    if (new URLSearchParams(window.location.search).get("checkout") === "complete") return "orders";
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "complete") return "orders";
+    const tab = params.get("tab");
+    if (tab) return tab;
     return "authority";
   });
   const [selectedTopic,   setSelectedTopic]   = useState<(Topic & { selectedIdea?: string }) | null>(null);
