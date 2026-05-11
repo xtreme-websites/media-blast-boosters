@@ -509,7 +509,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
             <div style={{ background:"#f8fafc", borderRadius:".75rem", padding:"1rem", marginBottom:"1.5rem" }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:".5rem" }}>
                 <span style={{ fontSize:".85rem", color:"#64748b" }}>{confirmCharge.quantity} {confirmCharge.tier.charAt(0).toUpperCase()+confirmCharge.tier.slice(1)} PR Credits</span>
-                <span style={{ fontWeight:700, color:"#1e293b" }}>${(confirmCharge.amount/100).toLocaleString("en-US",{minimumFractionDigits:2})}</span>
+                <span style={{ fontWeight:700, color:"#1e293b" }}>${confirmCharge.amount.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:".5rem", paddingTop:".5rem", borderTop:"1px solid #e2e8f0" }}>
                 <span style={{ fontSize:"1.1rem" }}>💳</span>
@@ -523,7 +523,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
               </button>
               <button onClick={handleChargeCard} disabled={charging}
                 style={{ flex:2, padding:".7rem", borderRadius:".55rem", border:"none", background: charging ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: charging ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: charging ? "not-allowed" : "pointer", boxShadow: charging ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
-                {charging ? "Processing…" : `Pay $${(confirmCharge.amount/100).toLocaleString("en-US",{minimumFractionDigits:2})}`}
+                {charging ? "Processing…" : `Pay $${confirmCharge.amount.toLocaleString("en-US",{minimumFractionDigits:2})}`}
               </button>
             </div>
           </div>
