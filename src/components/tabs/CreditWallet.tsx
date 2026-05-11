@@ -173,6 +173,26 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
   const t = checkout ? TIERS[checkout.tier] : null;
   const stripePk = testMode ? STRIPE_PK_TEST : STRIPE_PK_LIVE;
 
+  const handleChargeCard = async () => {
+    if (!confirmCharge) return;
+    setCharging(true);
+    try {
+      const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/charge-credits", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: locationId, tier: confirmCharge.tier, quantity: confirmCharge.quantity }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showToast(data.error || "Payment failed", "error");
+      } else {
+        showToast(`✅ ${confirmCharge.quantity} ${confirmCharge.tier.charAt(0).toUpperCase() + confirmCharge.tier.slice(1)} credits added!`);
+        setConfirmCharge(null);
+        await loadCredits();
+      }
+    } catch { showToast("Payment failed — please try again", "error"); }
+    setCharging(false);
+  };
+
   return (
     <div>
       {/* Inner tabs */}
