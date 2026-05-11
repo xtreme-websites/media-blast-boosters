@@ -140,8 +140,10 @@ export default function PRDashboard() {
         if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content, status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date, submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, lastEditedAt: o.last_edited_at, formData: o.form_data })));
       } catch {}
       setDataLoaded(true);
-      // Look up saved card — priority: ?xpemail= URL param → DB billing_email → company email
-      const lookupEmail = billingEmail || "";
+      // Card-on-file lookup priority:
+      // 1. DB already has stripe_pm_last4 → use it directly (no lookup needed)
+      // 2. ?xpemail= in URL → lookup and save
+      // 3. DB has billing_email → lookup and save
       const doLookup = async (email: string) => {
         if (!email || !locationId) return;
         try {
@@ -153,22 +155,22 @@ export default function PRDashboard() {
           if (d.found) setSavedCard({ last4:d.last4, brand:d.brand });
         } catch {}
       };
-      if (lookupEmail) {
-        doLookup(lookupEmail);
-      } else {
-        // Check DB for saved billing_email or existing card
-        fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({ table:"profiles", operation:"select", eq:{ location_id: locationId } })
-        }).then(r=>r.json()).then(pd => {
-          if (pd?.data?.stripe_pm_last4) {
-            // Already have saved card in DB
-            setSavedCard({ last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" });
-          } else if (pd?.data?.billing_email) {
-            doLookup(pd.data.billing_email);
-          }
-        }).catch(()=>{});
-      }
+      // Always fetch profiles first to check what's already saved
+      fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ table:"profiles", operation:"select", eq:{ location_id: locationId } })
+      }).then(r=>r.json()).then(pd => {
+        if (pd?.data?.stripe_pm_last4) {
+          // Card already in DB — use it without a Stripe API call
+          setSavedCard({ last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" });
+        } else if (billingEmail) {
+          // New xpemail in URL — look up
+          doLookup(billingEmail);
+        } else if (pd?.data?.billing_email) {
+          // Email saved in DB — look up
+          doLookup(pd.data.billing_email);
+        }
+      }).catch(()=>{});
     })();
   }, [locationId]);
 
