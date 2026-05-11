@@ -1,11 +1,17 @@
 import { useState, useEffect, ReactNode } from "react";
 
-const VALIDATE_URL    = "https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/validate-embed-token";
-const SESSION_KEY     = "mbb_session";
-const ALLOWED_ORIGINS = ["https://app.xtremeautomator.com", "https://media-blast-boosters.vercel.app"];
+const SESSION_KEY = "mbb_session";
 
-// Dev mode: bypass iframe + token check
-// Works locally (vite dev) OR when ?dev_access=mbb2026 is in the URL
+// Trusted origins — HL installs + direct dev/preview access
+const ALLOWED_ORIGINS = [
+  "https://app.xtremeautomator.com",
+  "https://app.gohighlevel.com",
+  "https://app.leadconnectorhq.com",
+  "https://media-blast-boosters.vercel.app",
+  "https://mediablast.xlogic.app",
+];
+
+// Dev mode: bypass all checks in local dev OR when ?dev_access=mbb2026 is in URL
 const DEV_MODE = import.meta.env.DEV ||
   new URLSearchParams(window.location.search).get("dev_access") === "mbb2026";
 
@@ -26,52 +32,34 @@ export default function AuthGuard({ locationId, children }: Props) {
 
   useEffect(() => {
     const validate = async () => {
-      // DEV MODE: bypass all checks in local dev
+      // DEV MODE: bypass all checks
       if (DEV_MODE) { setStatus("ok"); return; }
 
-      // Already have a valid session for this location
+      // No location_id → always block
+      if (!locationId) { setStatus("blocked"); return; }
+
+      // Valid cached session for this location → skip re-validation
       const session = getSession();
-      if (session && session.location_id === locationId && locationId) {
+      if (session && session.location_id === locationId) {
         setStatus("ok"); return;
       }
 
-      // No location_id in URL → block
-      if (!locationId) { setStatus("blocked"); return; }
-
-      // Must be in an iframe
+      // Must be in an iframe (HL always embeds in iframe)
       const inFrame = window !== window.top;
       if (!inFrame) { setStatus("blocked"); return; }
 
-      // Check parent origin if accessible
-      try {
-        const parentOrigin = document.referrer ? new URL(document.referrer).origin : "";
-        if (parentOrigin && !ALLOWED_ORIGINS.includes(parentOrigin)) {
-          setStatus("blocked"); return;
-        }
-      } catch { /* referrer may be empty, continue */ }
+      // Check referrer origin against allowed HL origins
+      // If referrer is empty (some browsers omit it for cross-origin), allow if in iframe
+      const referrerOrigin = document.referrer ? (() => {
+        try { return new URL(document.referrer).origin; } catch { return ""; }
+      })() : "";
 
-      // Get token from URL
-      const params = new URLSearchParams(window.location.search);
-      const token  = params.get("token");
-      if (!token) { setStatus("blocked"); return; }
+      const originAllowed = !referrerOrigin || ALLOWED_ORIGINS.includes(referrerOrigin);
+      if (!originAllowed) { setStatus("blocked"); return; }
 
-      // Validate token with edge function
-      try {
-        const res  = await fetch(VALIDATE_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        const data = await res.json();
-        if (data.valid && data.location_id === locationId) {
-          setSession(locationId);
-          setStatus("ok");
-        } else {
-          setStatus("blocked");
-        }
-      } catch {
-        setStatus("blocked");
-      }
+      // Passed all checks — trust the location_id from HL's custom value
+      setSession(locationId);
+      setStatus("ok");
     };
     validate();
   }, [locationId]);
@@ -99,3 +87,4 @@ export default function AuthGuard({ locationId, children }: Props) {
 
   return <>{children}</>;
 }
+
