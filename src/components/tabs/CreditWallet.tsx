@@ -101,6 +101,11 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
   const [loading,         setLoading]         = useState(true);
   const [confirmCharge,   setConfirmCharge]   = useState<{tier:string;quantity:number;amount:number}|null>(null);
   const [charging,        setCharging]        = useState(false);
+  const [couponCode,      setCouponCode]      = useState("");
+  const [couponOpen,      setCouponOpen]      = useState(false);
+  const [couponApplied,   setCouponApplied]   = useState<{code:string;label:string;finalAmount:number}|null>(null);
+  const [couponError,     setCouponError]     = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [checkout,        setCheckout]        = useState<{ tier:Tier; qty:number }|null>(null);
   const [clientSecret,    setClientSecret]    = useState<string|null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -173,20 +178,47 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
   const t = checkout ? TIERS[checkout.tier] : null;
   const stripePk = testMode ? STRIPE_PK_TEST : STRIPE_PK_LIVE;
 
+  const closeConfirm = () => {
+    setConfirmCharge(null);
+    setCouponCode(""); setCouponOpen(false);
+    setCouponApplied(null); setCouponError("");
+  };
+
+  const validateCoupon = async () => {
+    if (!couponCode.trim() || !confirmCharge) return;
+    setValidatingCoupon(true); setCouponError("");
+    try {
+      // Validate by attempting a dry-run charge lookup — use Stripe promo code lookup
+      const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/validate-coupon", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ promo_code: couponCode.trim(), tier: confirmCharge.tier, quantity: confirmCharge.quantity })
+      });
+      const d = await res.json();
+      if (d.error) { setCouponError(d.error); }
+      else { setCouponApplied({ code: couponCode.trim(), label: d.label, finalAmount: d.final_amount }); }
+    } catch { setCouponError("Could not validate — please try again"); }
+    setValidatingCoupon(false);
+  };
+
   const handleChargeCard = async () => {
     if (!confirmCharge) return;
     setCharging(true);
     try {
       const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/charge-credits", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location_id: locationId, tier: confirmCharge.tier, quantity: confirmCharge.quantity }),
+        body: JSON.stringify({
+          location_id: locationId,
+          tier: confirmCharge.tier,
+          quantity: confirmCharge.quantity,
+          promo_code: couponApplied?.code || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
         showToast(data.error || "Payment failed", "error");
       } else {
         showToast(`✅ ${confirmCharge.quantity} ${confirmCharge.tier.charAt(0).toUpperCase() + confirmCharge.tier.slice(1)} credits added!`);
-        setConfirmCharge(null);
+        closeConfirm();
         await loadCredits();
       }
     } catch { showToast("Payment failed — please try again", "error"); }
@@ -506,24 +538,53 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
               <h3 style={{ fontWeight:900, fontSize:"1.2rem", color:"#0f172a", margin:"0 0 .3rem" }}>Confirm Purchase</h3>
               <p style={{ color:"#64748b", fontSize:".85rem", margin:0 }}>Charging your {savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} card on file</p>
             </div>
-            <div style={{ background:"#f8fafc", borderRadius:".75rem", padding:"1rem", marginBottom:"1.5rem" }}>
+            <div style={{ background:"#f8fafc", borderRadius:".75rem", padding:"1rem", marginBottom:".75rem" }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:".5rem" }}>
                 <span style={{ fontSize:".85rem", color:"#64748b" }}>{confirmCharge.quantity} {confirmCharge.tier.charAt(0).toUpperCase()+confirmCharge.tier.slice(1)} PR Credits</span>
-                <span style={{ fontWeight:700, color:"#1e293b" }}>${confirmCharge.amount.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
+                <span style={{ fontWeight:700, color: couponApplied ? "#94a3b8" : "#1e293b", textDecoration: couponApplied ? "line-through" : "none" }}>
+                  ${confirmCharge.amount.toLocaleString("en-US",{minimumFractionDigits:2})}
+                </span>
               </div>
+              {couponApplied && (
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:".5rem" }}>
+                  <span style={{ fontSize:".82rem", color:"#16a34a", fontWeight:600 }}>🏷️ {couponApplied.code} — {couponApplied.label}</span>
+                  <span style={{ fontWeight:800, color:"#16a34a" }}>${couponApplied.finalAmount.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
+                </div>
+              )}
               <div style={{ display:"flex", alignItems:"center", gap:".5rem", paddingTop:".5rem", borderTop:"1px solid #e2e8f0" }}>
                 <span style={{ fontSize:"1.1rem" }}>💳</span>
                 <span style={{ fontSize:".85rem", fontWeight:600, color:"#374151" }}>{savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} ••••{savedCard.last4}</span>
               </div>
             </div>
+            <div style={{ marginBottom:"1rem" }}>
+              {!couponApplied ? (
+                <>
+                  {!couponOpen ? (
+                    <button onClick={() => setCouponOpen(true)} style={{ background:"none", border:"none", color:"#94a3b8", fontSize:".75rem", cursor:"pointer", padding:0 }}>
+                      🏷️ Have a coupon code?
+                    </button>
+                  ) : (
+                    <div style={{ display:"flex", gap:".4rem" }}>
+                      <input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }} onKeyDown={e => e.key === "Enter" && validateCoupon()}
+                        placeholder="COUPON CODE" style={{ flex:1, padding:".4rem .65rem", borderRadius:".4rem", border:"1.5px solid " + (couponError ? "#fca5a5" : "#e2e8f0"), fontSize:".8rem", outline:"none", fontFamily:"monospace", letterSpacing:".05em" }}/>
+                      <button onClick={validateCoupon} disabled={validatingCoupon || !couponCode.trim()}
+                        style={{ padding:".4rem .8rem", borderRadius:".4rem", border:"none", background: couponCode.trim() ? "#6366f1" : "#e2e8f0", color: couponCode.trim() ? "white" : "#94a3b8", fontWeight:700, fontSize:".78rem", cursor: couponCode.trim() ? "pointer" : "not-allowed" }}>
+                        {validatingCoupon ? "…" : "Apply"}
+                      </button>
+                    </div>
+                  )}
+                  {couponError && <div style={{ fontSize:".72rem", color:"#dc2626", marginTop:".3rem" }}>{couponError}</div>}
+                </>
+              ) : (
+                <button onClick={() => { setCouponApplied(null); setCouponCode(""); }} style={{ background:"none", border:"none", color:"#94a3b8", fontSize:".72rem", cursor:"pointer", padding:0 }}>
+                  ✕ Remove coupon
+                </button>
+              )}
+            </div>
             <div style={{ display:"flex", gap:".75rem" }}>
-              <button onClick={() => setConfirmCharge(null)} disabled={charging}
-                style={{ flex:1, padding:".7rem", borderRadius:".55rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>
-                Cancel
-              </button>
-              <button onClick={handleChargeCard} disabled={charging}
-                style={{ flex:2, padding:".7rem", borderRadius:".55rem", border:"none", background: charging ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: charging ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: charging ? "not-allowed" : "pointer", boxShadow: charging ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
-                {charging ? "Processing…" : `Pay $${confirmCharge.amount.toLocaleString("en-US",{minimumFractionDigits:2})}`}
+              <button onClick={closeConfirm} disabled={charging} style={{ flex:1, padding:".7rem", borderRadius:".55rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>Cancel</button>
+              <button onClick={handleChargeCard} disabled={charging} style={{ flex:2, padding:".7rem", borderRadius:".55rem", border:"none", background: charging ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: charging ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: charging ? "not-allowed" : "pointer", boxShadow: charging ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
+                {charging ? "Processing…" : `Pay $${(couponApplied?.finalAmount ?? confirmCharge.amount).toLocaleString("en-US",{minimumFractionDigits:2})}`}
               </button>
             </div>
           </div>
