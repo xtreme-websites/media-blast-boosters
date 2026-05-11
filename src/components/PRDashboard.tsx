@@ -161,14 +161,22 @@ export default function PRDashboard() {
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ table:"profiles", operation:"select", eq:{ location_id: locationId } })
       }).then(r=>r.json()).then(pd => {
-        if (pd?.data?.stripe_pm_last4) {
-          // Cards already in DB — use them without a Stripe API call
-          const stored = pd.data.stripe_pm_cards ? JSON.parse(pd.data.stripe_pm_cards) : null;
-          if (stored && stored.length > 0) {
-            setSavedCards(stored);
-          } else {
-            setSavedCards([{ pm_id: pd.data.stripe_pm_id || '', last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" }]);
-          }
+        if (pd?.data?.stripe_pm_cards) {
+          // Full card array already in DB — use it directly
+          try {
+            const stored = JSON.parse(pd.data.stripe_pm_cards);
+            if (stored?.length > 0) { setSavedCards(stored); return; }
+          } catch {}
+        }
+        // No card array yet — do a fresh lookup (covers first visit AND post-multi-card-update)
+        if (billingEmail) {
+          doLookup(billingEmail);
+        } else if (pd?.data?.billing_email) {
+          doLookup(pd.data.billing_email);
+        } else if (pd?.data?.stripe_pm_last4) {
+          // Have a single card from webhook but no email — reconstruct minimal array
+          setSavedCards([{ pm_id: pd.data.stripe_pm_id || '', last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" }]);
+        }
         } else if (billingEmail) {
           // New xpemail in URL — look up
           doLookup(billingEmail);
