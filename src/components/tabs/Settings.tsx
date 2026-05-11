@@ -95,6 +95,29 @@ export default function Settings({ locationId, companyData, showToast, isDev }: 
     setSaving(false);
   };
 
+  const [lookupResult, setLookupResult] = useState<string>("");
+  const [lookingUp,    setLookingUp]    = useState(false);
+
+  const runLookup = async () => {
+    const email = devBilling.billing_email;
+    if (!email) { setLookupResult("❌ No billing email set"); return; }
+    setLookingUp(true); setLookupResult("Searching Stripe...");
+    try {
+      const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/lookup-stripe-customer", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ location_id:locationId, email })
+      });
+      const d = await res.json();
+      if (d.found) {
+        setLookupResult(`✅ Found! ${d.brand?.toUpperCase()} ••••${d.last4} (${d.customer_id}) ${d.test_mode ? "— TEST MODE" : ""}`);
+        setDevBilling(p => ({ ...p, stripe_customer_id:d.customer_id, stripe_pm_last4:d.last4, stripe_pm_brand:d.brand }));
+      } else {
+        setLookupResult(`❌ Not found in Stripe${d.test_mode ? " (test mode)" : ""}. Customers checked: ${d.customers_found ?? 0}`);
+      }
+    } catch (e: any) { setLookupResult(`❌ Error: ${e.message}`); }
+    setLookingUp(false);
+  };
+
   const saveDevBilling = async () => {
     setSavingDev(true);
     try {
@@ -284,10 +307,21 @@ export default function Settings({ locationId, companyData, showToast, isDev }: 
               </div>
             ))}
           </div>
-          <button onClick={saveDevBilling} disabled={savingDev}
-            style={{ padding:".55rem 1.25rem", borderRadius:".5rem", border:"none", background: savingDev ? "#e2e8f0" : "#6366f1", color: savingDev ? "#94a3b8" : "white", fontWeight:700, fontSize:".8rem", cursor: savingDev ? "not-allowed" : "pointer" }}>
-            {savingDev ? "Saving…" : "Save Billing Fields"}
-          </button>
+          <div style={{ display:"flex", gap:".5rem", alignItems:"center", flexWrap:"wrap" }}>
+            <button onClick={saveDevBilling} disabled={savingDev}
+              style={{ padding:".5rem 1rem", borderRadius:".5rem", border:"none", background: savingDev ? "#e2e8f0" : "#6366f1", color: savingDev ? "#94a3b8" : "white", fontWeight:700, fontSize:".8rem", cursor: savingDev ? "not-allowed" : "pointer" }}>
+              {savingDev ? "Saving…" : "💾 Save Billing Fields"}
+            </button>
+            <button onClick={runLookup} disabled={lookingUp}
+              style={{ padding:".5rem 1rem", borderRadius:".5rem", border:"1px solid #6366f1", background:"white", color:"#6366f1", fontWeight:700, fontSize:".8rem", cursor: lookingUp ? "not-allowed" : "pointer" }}>
+              {lookingUp ? "Searching…" : "🔍 Look Up Stripe Customer"}
+            </button>
+          </div>
+          {lookupResult && (
+            <div style={{ marginTop:".6rem", fontSize:".77rem", fontFamily:"monospace", color: lookupResult.startsWith("✅") ? "#15803d" : lookupResult.startsWith("❌") ? "#dc2626" : "#6366f1", background: lookupResult.startsWith("✅") ? "#f0fdf4" : lookupResult.startsWith("❌") ? "#fff1f2" : "#eef2ff", padding:".45rem .75rem", borderRadius:".4rem" }}>
+              {lookupResult}
+            </div>
+          )}
         </div>
       )}
 

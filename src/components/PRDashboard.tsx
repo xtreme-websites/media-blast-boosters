@@ -140,13 +140,34 @@ export default function PRDashboard() {
         if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content, status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date, submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, lastEditedAt: o.last_edited_at, formData: o.form_data })));
       } catch {}
       setDataLoaded(true);
-      // Look up saved card via billing_email or company email
-      const lookupEmail = billingEmail || d?.email || "";
-      if (lookupEmail && locationId) {
-        fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/lookup-stripe-customer", {
+      // Look up saved card — priority: ?xpemail= URL param → DB billing_email → company email
+      const lookupEmail = billingEmail || "";
+      const doLookup = async (email: string) => {
+        if (!email || !locationId) return;
+        try {
+          const r = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/lookup-stripe-customer", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({ location_id:locationId, email })
+          });
+          const d = await r.json();
+          if (d.found) setSavedCard({ last4:d.last4, brand:d.brand });
+        } catch {}
+      };
+      if (lookupEmail) {
+        doLookup(lookupEmail);
+      } else {
+        // Check DB for saved billing_email or existing card
+        fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
           method:"POST", headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({ location_id:locationId, email:lookupEmail })
-        }).then(r=>r.json()).then(d=>{ if(d.found) setSavedCard({last4:d.last4,brand:d.brand}); }).catch(()=>{});
+          body:JSON.stringify({ table:"profiles", operation:"select", eq:{ location_id: locationId } })
+        }).then(r=>r.json()).then(pd => {
+          if (pd?.data?.stripe_pm_last4) {
+            // Already have saved card in DB
+            setSavedCard({ last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" });
+          } else if (pd?.data?.billing_email) {
+            doLookup(pd.data.billing_email);
+          }
+        }).catch(()=>{});
       }
     })();
   }, [locationId]);
