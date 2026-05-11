@@ -90,11 +90,12 @@ interface Credits {
   starter_credits:number; standard_credits:number; premium_credits:number;
   pending_starter_credits?:number; pending_standard_credits?:number; pending_premium_credits?:number;
 }
-interface Props { locationId:string; showToast:(msg:string, type?:"success"|"error")=>void; onNavigateToPR?:()=>void; savedCard?:{last4:string;brand:string}|null; onCardSaved?:(card:{last4:string;brand:string})=>void; }
+interface Props { locationId:string; showToast:(msg:string, type?:"success"|"error")=>void; onNavigateToPR?:()=>void; savedCards?:{pm_id:string;last4:string;brand:string}[]; onCardSaved?:(cards:{pm_id:string;last4:string;brand:string}[])=>void; }
 
 const PENDING_KEY = "mbb_pending_purchase";
 
-export default function CreditWallet({ locationId, showToast, onNavigateToPR, savedCard, onCardSaved }: Props) {
+export default function CreditWallet({ locationId, showToast, onNavigateToPR, savedCards = [], onCardSaved }: Props) {
+  const savedCard = savedCards[0] ?? null;
   const [activeTab,       setActiveTab]       = useState<"packages"|"credits"|"transactions">("credits");
   const [activeTier,      setActiveTier]      = useState<Tier>("starter");
   const [credits,         setCredits]         = useState<Credits>({ starter_credits:0, standard_credits:0, premium_credits:0 });
@@ -106,6 +107,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
   const [couponApplied,   setCouponApplied]   = useState<{code:string;label:string;finalAmount:number}|null>(null);
   const [couponError,     setCouponError]     = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [selectedPmId,    setSelectedPmId]    = useState<string>("");
   const [checkout,        setCheckout]        = useState<{ tier:Tier; qty:number }|null>(null);
   const [clientSecret,    setClientSecret]    = useState<string|null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -182,6 +184,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
     setConfirmCharge(null);
     setCouponCode(""); setCouponOpen(false);
     setCouponApplied(null); setCouponError("");
+    setSelectedPmId("");
   };
 
   const validateCoupon = async () => {
@@ -211,6 +214,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
           tier: confirmCharge.tier,
           quantity: confirmCharge.quantity,
           promo_code: couponApplied?.code || undefined,
+          selected_pm_id: selectedPmId || undefined,
         }),
       });
       const data = await res.json();
@@ -532,58 +536,96 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
       {/* Card-on-file charge confirmation modal */}
       {confirmCharge && savedCard && createPortal(
         <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
-          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:400, padding:"2rem", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
-            <div style={{ textAlign:"center", marginBottom:"1.5rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:420, padding:"2rem", boxShadow:"0 24px 64px rgba(0,0,0,.3)" }}>
+            <div style={{ textAlign:"center", marginBottom:"1.25rem" }}>
               <div style={{ fontSize:"2.5rem", marginBottom:".5rem" }}>💳</div>
-              <h3 style={{ fontWeight:900, fontSize:"1.2rem", color:"#0f172a", margin:"0 0 .3rem" }}>Confirm Purchase</h3>
-              <p style={{ color:"#64748b", fontSize:".85rem", margin:0 }}>Charging your {savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} card on file</p>
+              <h3 style={{ fontWeight:900, fontSize:"1.2rem", color:"#0f172a", margin:"0 0 .25rem" }}>Confirm Purchase</h3>
+              <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>{confirmCharge.quantity} {confirmCharge.tier.charAt(0).toUpperCase()+confirmCharge.tier.slice(1)} PR Credits</p>
             </div>
-            <div style={{ background:"#f8fafc", borderRadius:".75rem", padding:"1rem", marginBottom:".75rem" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:".5rem" }}>
-                <span style={{ fontSize:".85rem", color:"#64748b" }}>{confirmCharge.quantity} {confirmCharge.tier.charAt(0).toUpperCase()+confirmCharge.tier.slice(1)} PR Credits</span>
+
+            {/* Card selector */}
+            {savedCards.length > 1 && (
+              <div style={{ marginBottom:"1rem" }}>
+                <div style={{ fontSize:".72rem", fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:".06em", marginBottom:".4rem" }}>Pay with</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:".35rem" }}>
+                  {savedCards.map((card, i) => {
+                    const isSelected = (selectedPmId || savedCards[0].pm_id) === card.pm_id;
+                    return (
+                      <button key={card.pm_id} onClick={() => setSelectedPmId(card.pm_id)}
+                        style={{ display:"flex", alignItems:"center", gap:".65rem", padding:".6rem .85rem", borderRadius:".55rem", border:`2px solid ${isSelected ? "#6366f1" : "#e2e8f0"}`, background: isSelected ? "#eef2ff" : "white", cursor:"pointer", textAlign:"left", transition:"all .15s" }}>
+                        <span style={{ fontSize:"1rem" }}>💳</span>
+                        <span style={{ fontSize:".85rem", fontWeight:600, color:"#374151", flex:1 }}>{card.brand.charAt(0).toUpperCase()+card.brand.slice(1)} ••••{card.last4}</span>
+                        {isSelected && <span style={{ fontSize:".65rem", fontWeight:800, color:"#6366f1", background:"#e0e7ff", padding:".15rem .45rem", borderRadius:"99px" }}>Selected</span>}
+                        {i === 0 && !isSelected && <span style={{ fontSize:".65rem", color:"#94a3b8" }}>Default</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Price summary */}
+            <div style={{ background:"#f8fafc", borderRadius:".65rem", padding:".85rem 1rem", marginBottom:".75rem" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: couponApplied ? ".4rem" : 0 }}>
+                <span style={{ fontSize:".84rem", color:"#64748b" }}>Total</span>
                 <span style={{ fontWeight:700, color: couponApplied ? "#94a3b8" : "#1e293b", textDecoration: couponApplied ? "line-through" : "none" }}>
                   ${confirmCharge.amount.toLocaleString("en-US",{minimumFractionDigits:2})}
                 </span>
               </div>
               {couponApplied && (
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:".5rem" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <span style={{ fontSize:".82rem", color:"#16a34a", fontWeight:600 }}>🏷️ {couponApplied.code} — {couponApplied.label}</span>
-                  <span style={{ fontWeight:800, color:"#16a34a" }}>${couponApplied.finalAmount.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
+                  <span style={{ fontWeight:800, color:"#16a34a", fontSize:".95rem" }}>${couponApplied.finalAmount.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
                 </div>
               )}
-              <div style={{ display:"flex", alignItems:"center", gap:".5rem", paddingTop:".5rem", borderTop:"1px solid #e2e8f0" }}>
-                <span style={{ fontSize:"1.1rem" }}>💳</span>
-                <span style={{ fontSize:".85rem", fontWeight:600, color:"#374151" }}>{savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} ••••{savedCard.last4}</span>
-              </div>
+              {savedCards.length === 1 && (
+                <div style={{ display:"flex", alignItems:"center", gap:".5rem", paddingTop:".5rem", marginTop:".5rem", borderTop:"1px solid #e2e8f0" }}>
+                  <span style={{ fontSize:"1rem" }}>💳</span>
+                  <span style={{ fontSize:".82rem", fontWeight:600, color:"#374151" }}>{savedCard.brand.charAt(0).toUpperCase()+savedCard.brand.slice(1)} ••••{savedCard.last4}</span>
+                </div>
+              )}
             </div>
+
+            {/* Coupon — more visible */}
             <div style={{ marginBottom:"1rem" }}>
               {!couponApplied ? (
                 <>
                   {!couponOpen ? (
-                    <button onClick={() => setCouponOpen(true)} style={{ background:"none", border:"none", color:"#94a3b8", fontSize:".75rem", cursor:"pointer", padding:0 }}>
+                    <button onClick={() => setCouponOpen(true)}
+                      style={{ background:"none", border:"none", color:"#6366f1", fontSize:".78rem", fontWeight:600, cursor:"pointer", padding:0, display:"flex", alignItems:"center", gap:".3rem" }}>
                       🏷️ Have a coupon code?
                     </button>
                   ) : (
-                    <div style={{ display:"flex", gap:".4rem" }}>
-                      <input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }} onKeyDown={e => e.key === "Enter" && validateCoupon()}
-                        placeholder="COUPON CODE" style={{ flex:1, padding:".4rem .65rem", borderRadius:".4rem", border:"1.5px solid " + (couponError ? "#fca5a5" : "#e2e8f0"), fontSize:".8rem", outline:"none", fontFamily:"monospace", letterSpacing:".05em" }}/>
-                      <button onClick={validateCoupon} disabled={validatingCoupon || !couponCode.trim()}
-                        style={{ padding:".4rem .8rem", borderRadius:".4rem", border:"none", background: couponCode.trim() ? "#6366f1" : "#e2e8f0", color: couponCode.trim() ? "white" : "#94a3b8", fontWeight:700, fontSize:".78rem", cursor: couponCode.trim() ? "pointer" : "not-allowed" }}>
-                        {validatingCoupon ? "…" : "Apply"}
-                      </button>
+                    <div>
+                      <div style={{ display:"flex", gap:".4rem" }}>
+                        <input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
+                          onKeyDown={e => e.key === "Enter" && validateCoupon()}
+                          placeholder="ENTER CODE"
+                          style={{ flex:1, padding:".45rem .7rem", borderRadius:".4rem", border:"1.5px solid " + (couponError ? "#fca5a5" : "#c7d2fe"), fontSize:".82rem", outline:"none", fontFamily:"monospace", letterSpacing:".05em" }}/>
+                        <button onClick={validateCoupon} disabled={validatingCoupon || !couponCode.trim()}
+                          style={{ padding:".45rem .9rem", borderRadius:".4rem", border:"none", background: couponCode.trim() ? "#6366f1" : "#e2e8f0", color: couponCode.trim() ? "white" : "#94a3b8", fontWeight:700, fontSize:".8rem", cursor: couponCode.trim() ? "pointer" : "not-allowed" }}>
+                          {validatingCoupon ? "…" : "Apply"}
+                        </button>
+                      </div>
+                      {couponError && <div style={{ fontSize:".72rem", color:"#dc2626", marginTop:".3rem" }}>{couponError}</div>}
                     </div>
                   )}
-                  {couponError && <div style={{ fontSize:".72rem", color:"#dc2626", marginTop:".3rem" }}>{couponError}</div>}
                 </>
               ) : (
-                <button onClick={() => { setCouponApplied(null); setCouponCode(""); }} style={{ background:"none", border:"none", color:"#94a3b8", fontSize:".72rem", cursor:"pointer", padding:0 }}>
+                <button onClick={() => { setCouponApplied(null); setCouponCode(""); }}
+                  style={{ background:"none", border:"none", color:"#94a3b8", fontSize:".73rem", cursor:"pointer", padding:0 }}>
                   ✕ Remove coupon
                 </button>
               )}
             </div>
+
             <div style={{ display:"flex", gap:".75rem" }}>
-              <button onClick={closeConfirm} disabled={charging} style={{ flex:1, padding:".7rem", borderRadius:".55rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>Cancel</button>
-              <button onClick={handleChargeCard} disabled={charging} style={{ flex:2, padding:".7rem", borderRadius:".55rem", border:"none", background: charging ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: charging ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: charging ? "not-allowed" : "pointer", boxShadow: charging ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
+              <button onClick={closeConfirm} disabled={charging}
+                style={{ flex:1, padding:".7rem", borderRadius:".55rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button onClick={handleChargeCard} disabled={charging}
+                style={{ flex:2, padding:".7rem", borderRadius:".55rem", border:"none", background: charging ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: charging ? "#94a3b8" : "white", fontWeight:800, fontSize:".9rem", cursor: charging ? "not-allowed" : "pointer", boxShadow: charging ? "none" : "0 4px 14px rgba(99,102,241,.3)" }}>
                 {charging ? "Processing…" : `Pay $${(couponApplied?.finalAmount ?? confirmCharge.amount).toLocaleString("en-US",{minimumFractionDigits:2})}`}
               </button>
             </div>

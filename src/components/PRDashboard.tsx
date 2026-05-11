@@ -97,7 +97,8 @@ export default function PRDashboard() {
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
   const [unreadAlerts,     setUnreadAlerts]     = useState(0);
-  const [savedCard,        setSavedCard]        = useState<{last4:string;brand:string}|null>(null);
+  const [savedCards,       setSavedCards]       = useState<{pm_id:string;last4:string;brand:string}[]>([]);
+  const savedCard = savedCards[0] ?? null;
   const billingEmail = new URLSearchParams(window.location.search).get("xpemail") || "";
   const [alertToast,       setAlertToast]       = useState<{title:string;message:string}|null>(null);
   const [autoGenState,     setAutoGenState]     = useState<{show:boolean;step:number;orderId:string|null;result:Order|null;pendingPkg:string;pendingSeo:string;pendingDate:string}>({show:false,step:0,orderId:null,result:null,pendingPkg:'',pendingSeo:'',pendingDate:''});
@@ -152,7 +153,7 @@ export default function PRDashboard() {
             body:JSON.stringify({ location_id:locationId, email })
           });
           const d = await r.json();
-          if (d.found) setSavedCard({ last4:d.last4, brand:d.brand });
+          if (d.found && d.cards) setSavedCards(d.cards);
         } catch {}
       };
       // Always fetch profiles first to check what's already saved
@@ -161,8 +162,13 @@ export default function PRDashboard() {
         body:JSON.stringify({ table:"profiles", operation:"select", eq:{ location_id: locationId } })
       }).then(r=>r.json()).then(pd => {
         if (pd?.data?.stripe_pm_last4) {
-          // Card already in DB — use it without a Stripe API call
-          setSavedCard({ last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" });
+          // Cards already in DB — use them without a Stripe API call
+          const stored = pd.data.stripe_pm_cards ? JSON.parse(pd.data.stripe_pm_cards) : null;
+          if (stored && stored.length > 0) {
+            setSavedCards(stored);
+          } else {
+            setSavedCards([{ pm_id: pd.data.stripe_pm_id || '', last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" }]);
+          }
         } else if (billingEmail) {
           // New xpemail in URL — look up
           doLookup(billingEmail);
@@ -555,7 +561,7 @@ export default function PRDashboard() {
           {(activeTab as string) === "alerts"       && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
           {(activeTab as string) === "settings"    && <SettingsPage locationId={locationId} companyData={companyData} showToast={showToast} isDev={IS_DEV}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}
-          {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")} savedCard={savedCard} onCardSaved={(c) => setSavedCard(c)}/>}
+          {activeTab === "orders"     && <CreditWallet locationId={locationId} showToast={showToast} onNavigateToPR={() => setActiveTab("pr")} savedCards={savedCards} onCardSaved={(cards) => setSavedCards(cards)}/>}
         </main>
       </div>
 
