@@ -177,13 +177,6 @@ export default function PRDashboard() {
           // Have a single card from webhook but no email — reconstruct minimal array
           setSavedCards([{ pm_id: pd.data.stripe_pm_id || '', last4: pd.data.stripe_pm_last4, brand: pd.data.stripe_pm_brand || "card" }]);
         }
-        } else if (billingEmail) {
-          // New xpemail in URL — look up
-          doLookup(billingEmail);
-        } else if (pd?.data?.billing_email) {
-          // Email saved in DB — look up
-          doLookup(pd.data.billing_email);
-        }
       }).catch(()=>{});
     })();
   }, [locationId]);
