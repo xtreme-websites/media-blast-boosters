@@ -249,9 +249,7 @@ export default function TrendingTopics({ companyData, showToast, onTopicSelect }
               <AlertIcon size={16}/>{error}
             </div>
           )}
-          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,#4f46e5,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <NewsIcon size={36}/>
-          </div>
+          <div style={{ fontSize:"3.5rem", lineHeight:1 }}>🔥</div>
           <div style={{ textAlign: "center" }}>
             <p className="font-display" style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", marginBottom: ".5rem" }}>Discover What's Trending</p>
             <p style={{ color: "#64748b", fontSize: ".875rem", maxWidth: "360px" }}>
