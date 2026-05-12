@@ -70,11 +70,26 @@ interface PromotionsTabProps {
 function PromotionsTab({ promotions, locationsList, session, showToast, onRefresh }: PromotionsTabProps) {
   const [creating, setCreating] = useState(false);
   const [saving,   setSaving]   = useState(false);
+  const [locSearch, setLocSearch] = useState("");
   const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", expires_at:"" };
   const [form, setForm] = useState(EMPTY_FORM);
   const ALL_PKGS = ["starter","standard","premium"];
   const togglePkg = (p: string) => setForm(f=>({...f, packages: f.packages.includes(p) ? f.packages.filter(x=>x!==p) : [...f.packages, p]}));
-  const toggleLoc = (id: string) => setForm(f=>({...f, location_ids: f.location_ids.includes(id) ? f.location_ids.filter(x=>x!==id) : [...f.location_ids, id]}));
+
+  // Autocomplete: filter by search, exclude already selected
+  const locSuggestions = locSearch.trim().length > 0
+    ? locationsList.filter(l =>
+        !form.location_ids.includes(l.location_id) &&
+        l.company_name?.toLowerCase().includes(locSearch.toLowerCase())
+      ).slice(0, 6)
+    : [];
+
+  const addLocation = (loc: any) => {
+    setForm(f => ({ ...f, location_ids: [...f.location_ids, loc.location_id] }));
+    setLocSearch("");
+  };
+  const removeLocation = (id: string) => setForm(f => ({ ...f, location_ids: f.location_ids.filter(x => x !== id) }));
+  const getLocName = (id: string) => locationsList.find(l => l.location_id === id)?.company_name || id;
 
   const createPromo = async () => {
     if (!form.code || !form.discount_value || !session) return;
@@ -215,16 +230,43 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                 </div>
               </div>
               <div>
-                <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".5rem" }}>Audience <span style={{ color:"#94a3b8", fontWeight:400 }}>(unchecked = all locations)</span></label>
-                <div style={{ maxHeight:140, overflowY:"auto", border:"1px solid #e2e8f0", borderRadius:".45rem", padding:".5rem" }}>
-                  {locationsList.length===0
-                    ? <div style={{ color:"#94a3b8", fontSize:".8rem", textAlign:"center", padding:".5rem" }}>No locations loaded</div>
-                    : locationsList.map(loc=>(
-                      <label key={loc.location_id} style={{ display:"flex", alignItems:"center", gap:".5rem", padding:".3rem .5rem", cursor:"pointer", borderRadius:".35rem" }}>
-                        <input type="checkbox" checked={form.location_ids.includes(loc.location_id)} onChange={()=>toggleLoc(loc.location_id)} style={{ cursor:"pointer" }}/>
-                        <span style={{ fontSize:".81rem", color:"#374151" }}>{loc.company_name}</span>
-                      </label>
+                <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".5rem" }}>Audience <span style={{ color:"#94a3b8", fontWeight:400 }}>(leave empty = all locations)</span></label>
+                {/* Selected pills */}
+                {form.location_ids.length > 0 && (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:".35rem", marginBottom:".5rem" }}>
+                    {form.location_ids.map(id => (
+                      <span key={id} style={{ display:"inline-flex", alignItems:"center", gap:".3rem", background:"#eef2ff", color:"#6366f1", fontSize:".75rem", fontWeight:600, padding:".25rem .6rem", borderRadius:"99px" }}>
+                        {getLocName(id)}
+                        <button onClick={() => removeLocation(id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#6366f1", padding:0, fontSize:".75rem", lineHeight:1, display:"flex", alignItems:"center" }}>✕</button>
+                      </span>
                     ))}
+                  </div>
+                )}
+                {/* Search input */}
+                <div style={{ position:"relative" }}>
+                  <input
+                    value={locSearch}
+                    onChange={e => setLocSearch(e.target.value)}
+                    placeholder={form.location_ids.length ? "Add another location…" : "Search locations…"}
+                    style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" as const }}
+                  />
+                  {locSuggestions.length > 0 && (
+                    <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"white", border:"1px solid #e2e8f0", borderRadius:".45rem", boxShadow:"0 4px 16px rgba(0,0,0,.1)", zIndex:100, marginTop:".2rem", overflow:"hidden" }}>
+                      {locSuggestions.map(loc => (
+                        <button key={loc.location_id} onMouseDown={() => addLocation(loc)}
+                          style={{ width:"100%", padding:".55rem .85rem", border:"none", background:"white", textAlign:"left", cursor:"pointer", fontSize:".82rem", color:"#374151" }}
+                          onMouseOver={e => (e.currentTarget.style.background = "#f1f5f9")}
+                          onMouseOut={e => (e.currentTarget.style.background = "white")}>
+                          {loc.company_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {locSearch.trim().length > 0 && locSuggestions.length === 0 && (
+                    <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"white", border:"1px solid #e2e8f0", borderRadius:".45rem", padding:".65rem .85rem", fontSize:".8rem", color:"#94a3b8", marginTop:".2rem" }}>
+                      No matches
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".75rem" }}>

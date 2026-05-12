@@ -350,13 +350,6 @@ export default function PRDashboard() {
 
   return (
     <AuthGuard locationId={locationId}>
-      {isImpersonating && (
-        <div style={{ background:"#dc2626", color:"white", padding:".6rem 1.25rem", display:"flex", alignItems:"center", justifyContent:"center", gap:".75rem", fontSize:".82rem", fontWeight:700, position:"sticky", top:0, zIndex:999 }}>
-          <span>🔴 ADMIN MODE</span>
-          <span style={{ fontWeight:400, opacity:.85 }}>You are viewing this dashboard as the client. Actions taken here are real.</span>
-          <button onClick={()=>window.close()} style={{ marginLeft:"auto", background:"rgba(255,255,255,.2)", border:"none", color:"white", borderRadius:".35rem", padding:".25rem .7rem", cursor:"pointer", fontWeight:700, fontSize:".78rem" }}>✕ Close</button>
-        </div>
-      )}
     <div className="mbb-root" style={{ display:"flex", minHeight:"100vh", background:"#f1f5f9" }}>
       <GlobalStyles/>
 
@@ -505,6 +498,13 @@ export default function PRDashboard() {
 
       {/* ══ MAIN CONTENT ══════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {isImpersonating && (
+          <div style={{ background:"#dc2626", color:"white", padding:".55rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"center", gap:".75rem", fontSize:".8rem", fontWeight:700, position:"sticky", top:0, zIndex:50, textAlign:"center" }}>
+            <span>🔴 ADMIN MODE</span>
+            <span style={{ fontWeight:400, opacity:.9 }}>You are viewing this dashboard as the client. Actions taken here are real.</span>
+            <button onClick={()=>window.close()} style={{ background:"rgba(255,255,255,.2)", border:"none", color:"white", borderRadius:".35rem", padding:".2rem .65rem", cursor:"pointer", fontWeight:700, fontSize:".75rem", flexShrink:0 }}>✕ Close</button>
+          </div>
+        )}
         <main style={{ flex: 1, overflowY: "auto", padding: "1.5rem", maxWidth: activeTab === "press" ? "1128px" : "1000px", width: "100%", margin: "0 auto" }}>
           {!hasCompanyData && dataLoaded && (
             <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)",border:"1px solid #4338ca",borderRadius:".875rem",padding:"1rem 1.5rem",marginBottom:"1.25rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap" }}>
