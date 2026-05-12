@@ -547,7 +547,7 @@ export default function AdminDashboard() {
             <div style={{ marginTop:"2rem", paddingTop:"2rem", borderTop:"1px solid #f1f5f9" }}>
               <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .35rem" }}>👤 Add Admin User</h3>
               <p style={{ fontSize:".8rem", color:"#64748b", margin:"0 0 1rem", lineHeight:1.5 }}>
-                Create a new admin account. After creating, copy the SQL shown in the toast and run it in Supabase SQL Editor to grant admin access.
+                Create a new admin account with full dashboard access. The account is created and activated instantly — no extra steps required.
               </p>
               <div style={{ display:"flex", flexDirection:"column", gap:".65rem" }}>
                 <input value={inviteName} onChange={e=>setInviteName(e.target.value)} placeholder="Full name"
