@@ -44,6 +44,37 @@ export default function AuthGuard({ locationId, children }: Props) {
         setStatus("ok"); return;
       }
 
+      // Allow admin impersonation (token validated server-side)
+      const impToken = new URLSearchParams(window.location.search).get("impersonate");
+      if (impToken) {
+        try {
+          const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/admin-proxy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json",
+              // Public validation — uses a dummy auth header, proxy validates token internally
+              Authorization: "Bearer validate-impersonate" },
+            body: JSON.stringify({ operation: "validate_impersonation_token", token: impToken }),
+          });
+          // admin-proxy returns 401 for the dummy token, so we use supabase-proxy instead
+          const res2 = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ table: "impersonation_tokens", operation: "select", eq: { token: impToken } }),
+          });
+          const d = await res2.json();
+          const t = d.data;
+          if (t && !t.used && new Date(t.expires_at) > new Date() && t.location_id === locationId) {
+            // Mark token used
+            await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ table: "impersonation_tokens", operation: "update", eq: { token: impToken }, data: { used: true } }),
+            });
+            setSession(locationId);
+            setStatus("ok"); return;
+          }
+        } catch {}
+        setStatus("blocked"); return;
+      }
+
       // Must be in an iframe (HL always embeds in iframe)
       const inFrame = window !== window.top;
       if (!inFrame) { setStatus("blocked"); return; }

@@ -1,0 +1,592 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/supabase-admin";
+import type { Session } from "@supabase/supabase-js";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type Tab = "overview" | "revenue" | "locations" | "queue" | "settings";
+interface Location { location_id: string; company_name?: string; email?: string;
+  starter_credits: number; standard_credits: number; premium_credits: number;
+  orders: { product_name: string; status: string }[]; }
+interface Order { id: string; location_id: string; pr_title: string; product_name: string;
+  status: string; created_at: string; pr_content?: string; company_name?: string; }
+interface RevenueData { gross: number; payout: number; margin: number; count: number;
+  by_month: Record<string,{gross:number;payout:number;count:number}>; test_mode: boolean; }
+interface AdminSettings { review_mode_global: boolean; review_mode_overrides: Record<string,boolean>; }
+
+const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail] = useState("");
+  const [pass,  setPass]  = useState("");
+  const [err,   setErr]   = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const login = async () => {
+    setLoading(true); setErr("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) { setErr(error.message); setLoading(false); return; }
+    onLogin();
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0f0a1e,#1e1b4b)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"system-ui,sans-serif" }}>
+      <div style={{ background:"white", borderRadius:"1rem", padding:"2.5rem", width:"100%", maxWidth:380, boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
+        <div style={{ textAlign:"center", marginBottom:"2rem" }}>
+          <div style={{ fontSize:"2.5rem", marginBottom:".5rem" }}>⚡</div>
+          <h1 style={{ fontWeight:900, fontSize:"1.3rem", color:"#1e293b", margin:"0 0 .25rem" }}>Admin Command Center</h1>
+          <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Media Blast Boosters™</p>
+        </div>
+        {err && <div style={{ background:"#fff1f2", border:"1px solid #fecdd3", borderRadius:".5rem", padding:".65rem .9rem", color:"#be123c", fontSize:".82rem", marginBottom:"1rem" }}>{err}</div>}
+        <div style={{ display:"flex", flexDirection:"column", gap:".75rem" }}>
+          <input type="email" placeholder="Admin email" value={email} onChange={e=>setEmail(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&login()}
+            style={{ padding:".65rem .9rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", fontSize:".88rem", outline:"none" }}/>
+          <input type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&login()}
+            style={{ padding:".65rem .9rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", fontSize:".88rem", outline:"none" }}/>
+          <button onClick={login} disabled={loading || !email || !pass}
+            style={{ padding:".75rem", borderRadius:".55rem", border:"none", background: loading?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color: loading?"#94a3b8":"white", fontWeight:800, fontSize:".9rem", cursor: loading?"not-allowed":"pointer" }}>
+            {loading ? "Signing in…" : "Sign In"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard ─────────────────────────────────────────────────────────────
+export default function AdminDashboard() {
+  const [session,   setSession]   = useState<Session|null>(null);
+  const [isAdmin,   setIsAdmin]   = useState(false);
+  const [authCheck, setAuthCheck] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+
+  // Data state
+  const [locations,   setLocations]   = useState<Location[]>([]);
+  const [queue,       setQueue]       = useState<Order[]>([]);
+  const [revenue,     setRevenue]     = useState<RevenueData|null>(null);
+  const [settings,    setSettings]    = useState<AdminSettings>({ review_mode_global:false, review_mode_overrides:{} });
+  const [loading,     setLoading]     = useState(false);
+  const [toast,       setToast]       = useState<{msg:string;type:"success"|"error"}|null>(null);
+
+  // Override modal
+  const [overrideTarget, setOverrideTarget] = useState<Location|null>(null);
+  const [overrideAmt,    setOverrideAmt]    = useState("");
+  const [overrideTier,   setOverrideTier]   = useState("starter");
+  const [overrideNote,   setOverrideNote]   = useState("");
+  const [overriding,     setOverriding]     = useState(false);
+
+  // PR preview modal
+  const [previewOrder, setPreviewOrder] = useState<Order|null>(null);
+
+  const showToast = (msg: string, type: "success"|"error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  // Auth check
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) checkAdmin(session);
+      else setAuthCheck(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      if (s) checkAdmin(s); else { setIsAdmin(false); setAuthCheck(false); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAdmin = async (s: Session) => {
+    try {
+      const d = await adminPost("get_settings", {}, s.access_token);
+      setIsAdmin(!d.error);
+      if (!d.error) setSettings(d.settings || settings);
+    } catch { setIsAdmin(false); }
+    setAuthCheck(false);
+  };
+
+  const load = useCallback(async (tab: Tab) => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      if (tab === "overview" || tab === "locations") {
+        const d = await adminPost("get_locations", {}, session.access_token);
+        if (!d.error) {
+          const lids = [...new Set([...d.profiles.map((p:any)=>p.location_id)])];
+          const merged: Location[] = (d.profiles as any[]).map((p: any) => {
+            const co = (d.companies as any[]).find((c:any)=>c.location_id===p.location_id);
+            const ords = (d.orders as any[]).filter((o:any)=>o.location_id===p.location_id);
+            return { location_id: p.location_id, company_name: co?.company_name, email: co?.email,
+              starter_credits: p.starter_credits||0, standard_credits: p.standard_credits||0, premium_credits: p.premium_credits||0, orders: ords };
+          });
+          setLocations(merged);
+        }
+      }
+      if (tab === "queue") {
+        const d = await adminPost("get_approval_queue", {}, session.access_token);
+        if (!d.error) {
+          const enriched = (d.orders as any[]).map((o:any) => ({
+            ...o, company_name: (d.companies as any[]).find((c:any)=>c.location_id===o.location_id)?.company_name
+          }));
+          setQueue(enriched);
+        }
+      }
+      if (tab === "revenue") {
+        const res = await fetch(ADMIN_REVENUE, { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const d = await res.json();
+        if (!d.error) setRevenue(d);
+      }
+      if (tab === "settings") {
+        const d = await adminPost("get_settings", {}, session.access_token);
+        if (!d.error) setSettings(d.settings);
+      }
+    } catch {}
+    setLoading(false);
+  }, [session]);
+
+  useEffect(() => { if (isAdmin) load(activeTab); }, [isAdmin, activeTab]);
+
+  const impersonate = async (location_id: string) => {
+    if (!session) return;
+    const d = await adminPost("create_impersonation_token", { location_id }, session.access_token);
+    if (d.token) {
+      window.open(`https://mediablast.xlogic.app/?location_id=${location_id}&impersonate=${d.token}`, "_blank");
+    } else showToast("Failed to create impersonation token", "error");
+  };
+
+  const approveOrder = async (order_id: string) => {
+    if (!session) return;
+    const d = await adminPost("approve_order", { order_id }, session.access_token);
+    if (!d.error) { showToast("PR approved ✓"); load("queue"); }
+    else showToast(d.error, "error");
+  };
+
+  const rejectOrder = async (order_id: string) => {
+    const reason = window.prompt("Rejection reason (shown to client):");
+    if (!reason || !session) return;
+    const d = await adminPost("reject_order", { order_id, reason }, session.access_token);
+    if (!d.error) { showToast("PR rejected"); load("queue"); }
+    else showToast(d.error, "error");
+  };
+
+  const submitOverride = async () => {
+    if (!overrideTarget || !session || !overrideNote.trim() || !overrideAmt) return;
+    setOverriding(true);
+    const amount = parseInt(overrideAmt);
+    if (isNaN(amount) || amount === 0) { showToast("Enter a non-zero amount", "error"); setOverriding(false); return; }
+    try {
+      const res = await fetch(ADMIN_CREDITS, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ location_id: overrideTarget.location_id, amount, tier: overrideTier, reason: overrideNote }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        showToast(`${amount > 0 ? "Added" : "Removed"} ${Math.abs(amount)} ${overrideTier} credit${Math.abs(amount)!==1?"s":""}`);
+        setOverrideTarget(null); setOverrideAmt(""); setOverrideNote("");
+        load("locations");
+      } else showToast(d.error || "Override failed", "error");
+    } catch { showToast("Override failed", "error"); }
+    setOverriding(false);
+  };
+
+  const saveSettings = async () => {
+    if (!session) return;
+    const d = await adminPost("save_settings", { review_mode_global: settings.review_mode_global, review_mode_overrides: settings.review_mode_overrides }, session.access_token);
+    if (!d.error) showToast("Settings saved");
+    else showToast(d.error, "error");
+  };
+
+  const totalOrders = (loc: Location) => loc.orders?.length || 0;
+  const ordersByTier = (loc: Location, tier: string) => loc.orders?.filter(o => o.product_name?.toLowerCase() === tier).length || 0;
+
+  // ── States ──────────────────────────────────────────────────────────────────
+  if (authCheck) return (
+    <div style={{ minHeight:"100vh", background:"#0f0a1e", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ width:32, height:32, border:"3px solid rgba(255,255,255,.1)", borderTopColor:"#8929bd", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  if (!session || !isAdmin) return <AdminLogin onLogin={() => {}} />;
+
+  const TABS: { id: Tab; label: string; icon: string }[] = [
+    { id:"overview",  label:"Overview",        icon:"📊" },
+    { id:"revenue",   label:"Revenue",         icon:"💰" },
+    { id:"locations", label:"Locations",       icon:"🏢" },
+    { id:"queue",     label:"Approval Queue",  icon:"📋" },
+    { id:"settings",  label:"Settings",        icon:"⚙️" },
+  ];
+
+  const queueBadge = queue.length;
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
+      {/* Top bar */}
+      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)", padding:".75rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:".75rem" }}>
+          <span style={{ fontSize:"1.3rem" }}>⚡</span>
+          <div>
+            <div style={{ color:"white", fontWeight:900, fontSize:".95rem", letterSpacing:"-.01em" }}>Media Blast Boosters™</div>
+            <div style={{ color:"rgba(255,255,255,.5)", fontSize:".68rem", letterSpacing:".08em", textTransform:"uppercase" }}>Admin Command Center</div>
+          </div>
+        </div>
+        <button onClick={() => supabase.auth.signOut()}
+          style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .85rem", fontSize:".78rem", cursor:"pointer" }}>
+          Sign out
+        </button>
+      </div>
+
+      {/* Tab nav */}
+      <div style={{ background:"white", borderBottom:"1px solid #e2e8f0", padding:"0 1.5rem", display:"flex", gap:"0" }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            style={{ padding:".85rem 1.1rem", border:"none", borderBottom: activeTab===t.id ? "2.5px solid #6366f1" : "2.5px solid transparent", background:"transparent", color: activeTab===t.id ? "#6366f1" : "#64748b", fontWeight: activeTab===t.id ? 700 : 500, fontSize:".84rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem", whiteSpace:"nowrap" }}>
+            {t.icon} {t.label}
+            {t.id==="queue" && queueBadge > 0 && (
+              <span style={{ background:"#ef4444", color:"white", fontSize:".6rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px" }}>{queueBadge}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>
+        {loading && <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}>Loading…</div>}
+
+        {/* OVERVIEW */}
+        {!loading && activeTab==="overview" && (
+          <div>
+            <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 1.25rem" }}>Overview</h2>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:"1rem", marginBottom:"1.5rem" }}>
+              {[
+                { label:"Total Locations", value: locations.length, icon:"🏢", color:"#6366f1" },
+                { label:"Total PRs Ordered", value: locations.reduce((s,l)=>s+totalOrders(l),0), icon:"📰", color:"#8929bd" },
+                { label:"Pending Queue", value: queueBadge, icon:"📋", color:"#ef4444" },
+                { label:"Review Mode", value: settings.review_mode_global ? "ON" : "OFF", icon:"🔒", color: settings.review_mode_global?"#ef4444":"#10b981" },
+              ].map(card => (
+                <div key={card.label} style={{ background:"white", borderRadius:".75rem", padding:"1.25rem", border:"1px solid #f1f5f9", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".5rem" }}>
+                    <span style={{ fontSize:"1.2rem" }}>{card.icon}</span>
+                    <span style={{ fontSize:".75rem", fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".05em" }}>{card.label}</span>
+                  </div>
+                  <div style={{ fontSize:"1.75rem", fontWeight:900, color: card.color }}>{card.value}</div>
+                </div>
+              ))}
+            </div>
+            {/* Quick locations preview */}
+            <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"hidden" }}>
+              <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid #f1f5f9", fontWeight:700, fontSize:".88rem", color:"#1e293b" }}>Recent Locations</div>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
+                <thead><tr style={{ background:"#f8fafc" }}>
+                  {["Company","Location ID","Credits (S/M/P)","Total PRs","Actions"].map(h=>(
+                    <th key={h} style={{ padding:".65rem 1rem", textAlign:"left", fontWeight:700, color:"#64748b", fontSize:".72rem", textTransform:"uppercase", letterSpacing:".04em" }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {locations.slice(0,5).map((loc,i) => (
+                    <tr key={loc.location_id} style={{ borderTop:"1px solid #f8fafc" }}>
+                      <td style={{ padding:".7rem 1rem", fontWeight:600, color:"#1e293b" }}>{loc.company_name||"—"}</td>
+                      <td style={{ padding:".7rem 1rem", fontFamily:"monospace", fontSize:".78rem", color:"#6366f1" }}>{loc.location_id.slice(0,12)}…</td>
+                      <td style={{ padding:".7rem 1rem" }}>
+                        <span style={{ color:TIER_COLORS.starter, fontWeight:700 }}>{loc.starter_credits}</span>
+                        {" / "}
+                        <span style={{ color:TIER_COLORS.standard, fontWeight:700 }}>{loc.standard_credits}</span>
+                        {" / "}
+                        <span style={{ color:TIER_COLORS.premium, fontWeight:700 }}>{loc.premium_credits}</span>
+                      </td>
+                      <td style={{ padding:".7rem 1rem", fontWeight:700 }}>{totalOrders(loc)}</td>
+                      <td style={{ padding:".7rem 1rem" }}>
+                        <button onClick={()=>impersonate(loc.location_id)}
+                          style={{ fontSize:".73rem", padding:".3rem .65rem", borderRadius:".35rem", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", color:"#374151" }}>
+                          👁 View as Client
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* REVENUE */}
+        {!loading && activeTab==="revenue" && (
+          <div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.25rem" }}>
+              <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:0 }}>Revenue Intelligence</h2>
+              {revenue?.test_mode && <span style={{ background:"#fef3c7", color:"#92400e", fontSize:".72rem", fontWeight:800, padding:".2rem .6rem", borderRadius:"99px" }}>⚠️ TEST MODE</span>}
+            </div>
+            {revenue ? (
+              <>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:"1rem", marginBottom:"1.5rem" }}>
+                  {[
+                    { label:"Gross Revenue", value:`$${revenue.gross.toLocaleString("en-US",{minimumFractionDigits:2})}`, icon:"💰", color:"#10b981" },
+                    { label:"Partner Payouts", value:`$${revenue.payout.toLocaleString("en-US",{minimumFractionDigits:2})}`, icon:"🤝", color:"#ef4444" },
+                    { label:"Net Margin", value:`$${revenue.margin.toLocaleString("en-US",{minimumFractionDigits:2})}`, icon:"📈", color:"#6366f1" },
+                    { label:"Total Transactions", value:revenue.count, icon:"🧾", color:"#8929bd" },
+                  ].map(card=>(
+                    <div key={card.label} style={{ background:"white", borderRadius:".75rem", padding:"1.25rem", border:"1px solid #f1f5f9" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:".4rem", marginBottom:".5rem" }}>
+                        <span>{card.icon}</span>
+                        <span style={{ fontSize:".72rem", fontWeight:600, color:"#94a3b8", textTransform:"uppercase" }}>{card.label}</span>
+                      </div>
+                      <div style={{ fontSize:"1.6rem", fontWeight:900, color:card.color }}>{card.value}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Monthly table */}
+                <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"hidden" }}>
+                  <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid #f1f5f9", fontWeight:700, fontSize:".88rem" }}>Monthly Breakdown</div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".83rem" }}>
+                    <thead><tr style={{ background:"#f8fafc" }}>
+                      {["Month","Revenue","Payouts","Margin","Transactions"].map(h=>(
+                        <th key={h} style={{ padding:".65rem 1rem", textAlign:"left", fontWeight:700, color:"#64748b", fontSize:".72rem", textTransform:"uppercase" }}>{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {Object.entries(revenue.by_month).sort(([a],[b])=>b.localeCompare(a)).map(([month,data])=>(
+                        <tr key={month} style={{ borderTop:"1px solid #f8fafc" }}>
+                          <td style={{ padding:".7rem 1rem", fontWeight:600 }}>{month}</td>
+                          <td style={{ padding:".7rem 1rem", color:"#10b981", fontWeight:700 }}>${data.gross.toLocaleString("en-US",{minimumFractionDigits:2})}</td>
+                          <td style={{ padding:".7rem 1rem", color:"#ef4444" }}>${data.payout.toLocaleString("en-US",{minimumFractionDigits:2})}</td>
+                          <td style={{ padding:".7rem 1rem", color:"#6366f1", fontWeight:700 }}>${(data.gross-data.payout).toLocaleString("en-US",{minimumFractionDigits:2})}</td>
+                          <td style={{ padding:".7rem 1rem" }}>{data.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : <div style={{ padding:"3rem", textAlign:"center", color:"#94a3b8" }}>No revenue data</div>}
+          </div>
+        )}
+
+        {/* LOCATIONS */}
+        {!loading && activeTab==="locations" && (
+          <div>
+            <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 1.25rem" }}>Location Master Table</h2>
+            <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
+                <thead><tr style={{ background:"#1e1b4b" }}>
+                  {["Company","Location ID","Email","Starter PRs","Standard PRs","Premium PRs","Credits (S/M/P)","Review Mode","Actions"].map(h=>(
+                    <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {locations.map(loc => {
+                    const override = settings.review_mode_overrides[loc.location_id];
+                    const reviewOn = override !== undefined ? override : settings.review_mode_global;
+                    return (
+                      <tr key={loc.location_id} style={{ borderTop:"1px solid #f8fafc" }}
+                        onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                        onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                        <td style={{ padding:".8rem 1rem", fontWeight:700, color:"#1e293b" }}>{loc.company_name||"—"}</td>
+                        <td style={{ padding:".8rem 1rem", fontFamily:"monospace", fontSize:".75rem", color:"#6366f1" }}>{loc.location_id}</td>
+                        <td style={{ padding:".8rem 1rem", color:"#64748b", fontSize:".78rem" }}>{loc.email||"—"}</td>
+                        <td style={{ padding:".8rem 1rem", textAlign:"center", fontWeight:700, color:TIER_COLORS.starter }}>{ordersByTier(loc,"starter")}</td>
+                        <td style={{ padding:".8rem 1rem", textAlign:"center", fontWeight:700, color:TIER_COLORS.standard }}>{ordersByTier(loc,"standard")}</td>
+                        <td style={{ padding:".8rem 1rem", textAlign:"center", fontWeight:700, color:TIER_COLORS.premium }}>{ordersByTier(loc,"premium")}</td>
+                        <td style={{ padding:".8rem 1rem", fontWeight:700 }}>
+                          <span style={{ color:TIER_COLORS.starter }}>{loc.starter_credits}</span>
+                          {" / "}
+                          <span style={{ color:TIER_COLORS.standard }}>{loc.standard_credits}</span>
+                          {" / "}
+                          <span style={{ color:TIER_COLORS.premium }}>{loc.premium_credits}</span>
+                        </td>
+                        <td style={{ padding:".8rem 1rem" }}>
+                          <button onClick={()=>{
+                            const newVal = !(override !== undefined ? override : settings.review_mode_global);
+                            setSettings(s=>({...s,review_mode_overrides:{...s.review_mode_overrides,[loc.location_id]:newVal}}));
+                          }} style={{ fontSize:".7rem", padding:".25rem .6rem", borderRadius:"99px", border:"none", background: reviewOn?"#fee2e2":"#dcfce7", color: reviewOn?"#991b1b":"#166534", fontWeight:700, cursor:"pointer" }}>
+                            {reviewOn?"🔒 Review ON":"✅ Direct"}
+                          </button>
+                        </td>
+                        <td style={{ padding:".8rem 1rem" }}>
+                          <div style={{ display:"flex", gap:".4rem" }}>
+                            <button onClick={()=>{ setOverrideTarget(loc); setOverrideTier("starter"); setOverrideAmt(""); setOverrideNote(""); }}
+                              style={{ fontSize:".72rem", padding:".3rem .65rem", borderRadius:".35rem", border:"1px solid #e2e8f0", background:"white", cursor:"pointer" }}>
+                              💳 Credits
+                            </button>
+                            <button onClick={()=>impersonate(loc.location_id)}
+                              style={{ fontSize:".72rem", padding:".3rem .65rem", borderRadius:".35rem", border:"1px solid #e2e8f0", background:"white", cursor:"pointer" }}>
+                              👁 View
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {locations.length===0 && <div style={{ padding:"3rem", textAlign:"center", color:"#94a3b8" }}>No locations yet</div>}
+            </div>
+          </div>
+        )}
+
+        {/* APPROVAL QUEUE */}
+        {!loading && activeTab==="queue" && (
+          <div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.25rem" }}>
+              <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:0 }}>
+                Approval Queue
+                {queue.length>0 && <span style={{ marginLeft:".5rem", background:"#ef4444", color:"white", fontSize:".65rem", fontWeight:900, padding:".15rem .5rem", borderRadius:"99px" }}>{queue.length}</span>}
+              </h2>
+            </div>
+            {queue.length===0 ? (
+              <div style={{ background:"white", borderRadius:".75rem", padding:"3rem", textAlign:"center", border:"1px solid #f1f5f9" }}>
+                <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>✅</div>
+                <div style={{ fontWeight:700, color:"#1e293b" }}>Queue is clear</div>
+                <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".3rem" }}>All submitted PRs have been reviewed</div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"1rem" }}>
+                {queue.map(order=>(
+                  <div key={order.id} style={{ background:"white", borderRadius:".75rem", border:"1px solid #e2e8f0", padding:"1.25rem" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"1rem", flexWrap:"wrap" }}>
+                      <div>
+                        <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".3rem" }}>
+                          <span style={{ fontSize:".7rem", fontWeight:800, color:"white", background:TIER_COLORS[order.product_name?.toLowerCase()]||"#6366f1", padding:".2rem .6rem", borderRadius:"99px", textTransform:"uppercase" }}>
+                            {order.product_name}
+                          </span>
+                          <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{new Date(order.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                        </div>
+                        <div style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", marginBottom:".2rem" }}>{order.pr_title||"Untitled PR"}</div>
+                        <div style={{ fontSize:".78rem", color:"#6366f1", fontFamily:"monospace" }}>{order.company_name||order.location_id}</div>
+                      </div>
+                      <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
+                        <button onClick={()=>setPreviewOrder(order)}
+                          style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", fontSize:".8rem", fontWeight:600, cursor:"pointer" }}>
+                          👁 Preview
+                        </button>
+                        <button onClick={()=>approveOrder(order.id)}
+                          style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontSize:".8rem", fontWeight:700, cursor:"pointer" }}>
+                          ✅ Approve
+                        </button>
+                        <button onClick={()=>rejectOrder(order.id)}
+                          style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontSize:".8rem", fontWeight:700, cursor:"pointer" }}>
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SETTINGS */}
+        {!loading && activeTab==="settings" && (
+          <div style={{ maxWidth:600 }}>
+            <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 1.5rem" }}>Operational Settings</h2>
+            <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.5rem", marginBottom:"1rem" }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"1rem" }}>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".3rem" }}>🔒 Global Review Mode</div>
+                  <div style={{ fontSize:".82rem", color:"#64748b", lineHeight:1.55 }}>
+                    When ON, all new PRs from every location are held in the Approval Queue for your review before being marked ready for the partner. When OFF, PRs are approved automatically.
+                  </div>
+                  <div style={{ marginTop:".75rem", fontSize:".78rem", fontWeight:600, color: settings.review_mode_global?"#991b1b":"#166534", background: settings.review_mode_global?"#fee2e2":"#dcfce7", display:"inline-block", padding:".25rem .75rem", borderRadius:"99px" }}>
+                    Currently {settings.review_mode_global ? "ON — PRs held for review" : "OFF — PRs auto-approved"}
+                  </div>
+                </div>
+                <button onClick={()=>setSettings(s=>({...s,review_mode_global:!s.review_mode_global}))}
+                  style={{ position:"relative", width:52, height:28, borderRadius:99, border:"none", cursor:"pointer", padding:0, flexShrink:0,
+                    background: settings.review_mode_global?"#ef4444":"#10b981", transition:"background .2s" }}>
+                  <div style={{ position:"absolute", top:3, left: settings.review_mode_global?26:3, width:22, height:22, borderRadius:"50%", background:"white", transition:"left .2s", boxShadow:"0 1px 4px rgba(0,0,0,.25)" }}/>
+                </button>
+              </div>
+            </div>
+            <div style={{ background:"#fffbeb", borderRadius:".75rem", border:"1px solid #fde68a", padding:"1rem 1.25rem", marginBottom:"1.5rem", fontSize:".8rem", color:"#92400e" }}>
+              💡 Per-location overrides are set in the Locations table. The global switch applies to all locations that don't have an explicit override.
+            </div>
+            <button onClick={saveSettings}
+              style={{ padding:".75rem 2rem", borderRadius:".65rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,.3)" }}>
+              Save Settings
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Credit Override Modal */}
+      {overrideTarget && (
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:420, padding:"2rem" }}>
+            <h3 style={{ fontWeight:900, margin:"0 0 .25rem", fontSize:"1.1rem" }}>💳 Credit Override</h3>
+            <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>{overrideTarget.company_name||overrideTarget.location_id}</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:".75rem" }}>
+              <div>
+                <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Tier</label>
+                <select value={overrideTier} onChange={e=>setOverrideTier(e.target.value)}
+                  style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".85rem" }}>
+                  <option value="starter">Starter</option>
+                  <option value="standard">Standard</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Amount (use negative to remove)</label>
+                <input type="number" value={overrideAmt} onChange={e=>setOverrideAmt(e.target.value)} placeholder="e.g. 3 or -1"
+                  style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", boxSizing:"border-box" }}/>
+              </div>
+              <div>
+                <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Reason (required — shown to client)</label>
+                <input value={overrideNote} onChange={e=>setOverrideNote(e.target.value)} placeholder="e.g. Bonus credits for onboarding"
+                  style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ display:"flex", gap:".75rem", marginTop:".25rem" }}>
+                <button onClick={()=>setOverrideTarget(null)} style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, cursor:"pointer" }}>Cancel</button>
+                <button onClick={submitOverride} disabled={overriding||!overrideNote.trim()||!overrideAmt}
+                  style={{ flex:2, padding:".65rem", borderRadius:".5rem", border:"none", background: overriding||!overrideNote.trim()?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color: overriding||!overrideNote.trim()?"#94a3b8":"white", fontWeight:800, cursor: overriding?"not-allowed":"pointer" }}>
+                  {overriding?"Applying…":"Apply Override"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PR Preview Modal */}
+      {previewOrder && (
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:700, maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
+            <div style={{ padding:"1.25rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:800, fontSize:".95rem", color:"#1e293b" }}>{previewOrder.pr_title}</div>
+                <div style={{ fontSize:".75rem", color:"#94a3b8" }}>{previewOrder.company_name} · {previewOrder.product_name}</div>
+              </div>
+              <button onClick={()=>setPreviewOrder(null)} style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8" }}>✕</button>
+            </div>
+            <div style={{ padding:"1.5rem", overflowY:"auto", flex:1 }}
+              dangerouslySetInnerHTML={{ __html: previewOrder.pr_content||"<p>No content</p>" }}/>
+            <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".75rem", justifyContent:"flex-end" }}>
+              <button onClick={()=>rejectOrder(previewOrder.id)}
+                style={{ padding:".6rem 1.25rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, cursor:"pointer" }}>
+                ✕ Reject
+              </button>
+              <button onClick={()=>{approveOrder(previewOrder.id);setPreviewOrder(null);}}
+                style={{ padding:".6rem 1.25rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, cursor:"pointer" }}>
+                ✅ Approve & Mark Ready
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position:"fixed", bottom:"1.5rem", right:"1.5rem", zIndex:10001,
+          background: toast.type==="error"?"#991b1b":"#166534", color:"white",
+          borderRadius:".65rem", padding:".85rem 1.25rem", fontSize:".85rem", fontWeight:600,
+          boxShadow:"0 8px 24px rgba(0,0,0,.25)" }}>
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  );
+}

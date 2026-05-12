@@ -97,6 +97,7 @@ export default function PRDashboard() {
   const [authorityPayload, setAuthorityPayload] = useState<ExecutePayload|null>(null);
   const [draftToLoad,      setDraftToLoad]      = useState<Order|null>(null);
   const [unreadAlerts,     setUnreadAlerts]     = useState(0);
+  const isImpersonating = !!new URLSearchParams(window.location.search).get("impersonate");
   const [savedCards,       setSavedCards]       = useState<{pm_id:string;last4:string;brand:string}[]>([]);
   const savedCard = savedCards[0] ?? null;
   const billingEmail = new URLSearchParams(window.location.search).get("xpemail") || "";
@@ -349,6 +350,13 @@ export default function PRDashboard() {
 
   return (
     <AuthGuard locationId={locationId}>
+      {isImpersonating && (
+        <div style={{ background:"#dc2626", color:"white", padding:".6rem 1.25rem", display:"flex", alignItems:"center", justifyContent:"center", gap:".75rem", fontSize:".82rem", fontWeight:700, position:"sticky", top:0, zIndex:999 }}>
+          <span>🔴 ADMIN MODE</span>
+          <span style={{ fontWeight:400, opacity:.85 }}>You are viewing this dashboard as the client. Actions taken here are real.</span>
+          <button onClick={()=>window.close()} style={{ marginLeft:"auto", background:"rgba(255,255,255,.2)", border:"none", color:"white", borderRadius:".35rem", padding:".25rem .7rem", cursor:"pointer", fontWeight:700, fontSize:".78rem" }}>✕ Close</button>
+        </div>
+      )}
     <div className="mbb-root" style={{ display:"flex", minHeight:"100vh", background:"#f1f5f9" }}>
       <GlobalStyles/>
 
