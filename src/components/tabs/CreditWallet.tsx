@@ -194,7 +194,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
       // Validate by attempting a dry-run charge lookup — use Stripe promo code lookup
       const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/validate-coupon", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ promo_code: couponCode.trim(), tier: confirmCharge.tier, quantity: confirmCharge.quantity })
+        body:JSON.stringify({ promo_code: couponCode.trim(), tier: confirmCharge.tier, quantity: confirmCharge.quantity, location_id: locationId })
       });
       const d = await res.json();
       if (d.error) { setCouponError(d.error); }

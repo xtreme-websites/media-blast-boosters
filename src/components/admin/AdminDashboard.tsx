@@ -71,7 +71,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
   const [creating, setCreating] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [locSearch, setLocSearch] = useState("");
-  const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", expires_at:"" };
+  const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", max_redemptions_per_user:"", expires_at:"" };
   const [form, setForm] = useState(EMPTY_FORM);
   const ALL_PKGS = ["starter","standard","premium"];
   const togglePkg = (p: string) => setForm(f=>({...f, packages: f.packages.includes(p) ? f.packages.filter(x=>x!==p) : [...f.packages, p]}));
@@ -102,6 +102,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
       packages: form.packages.length ? form.packages : null,
       location_ids: form.location_ids.length ? form.location_ids : null,
       max_redemptions: form.max_redemptions ? Number(form.max_redemptions) : null,
+      max_redemptions_per_user: form.max_redemptions_per_user ? Number(form.max_redemptions_per_user) : null,
       expires_at: form.expires_at || null,
     }, session.access_token);
     if (d.ok) {
@@ -141,7 +142,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
         <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
             <thead><tr style={{ background:"#1e1b4b" }}>
-              {["Code","Discount","Packages","Audience","Uses","Expires","Status",""].map(h=>(
+              {["Code","Discount","Packages","Audience","Uses (Total)","Uses (Per Client)","Expires","Status",""].map(h=>(
                 <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
               ))}
             </tr></thead>
@@ -166,6 +167,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                     {p.location_ids ? <span style={{ fontSize:".72rem", color:"#6366f1" }}>{p.location_ids.length} location{p.location_ids.length!==1?"s":""}</span> : <span style={{ fontSize:".72rem", color:"#94a3b8" }}>All</span>}
                   </td>
                   <td style={{ padding:".8rem 1rem", color:"#374151" }}>{p.max_redemptions || <span style={{ color:"#94a3b8" }}>∞</span>}</td>
+                  <td style={{ padding:".8rem 1rem", color:"#374151" }}>{p.max_redemptions_per_user || <span style={{ color:"#94a3b8" }}>∞</span>}</td>
                   <td style={{ padding:".8rem 1rem", color:"#64748b", fontSize:".78rem" }}>
                     {p.expires_at ? new Date(p.expires_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : <span style={{ color:"#94a3b8" }}>Never</span>}
                   </td>
@@ -271,10 +273,18 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".75rem" }}>
                 <div>
-                  <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Max Uses <span style={{ color:"#94a3b8", fontWeight:400 }}>(blank = ∞)</span></label>
+                  <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Max Uses — Total <span style={{ color:"#94a3b8", fontWeight:400 }}>(blank = ∞)</span></label>
                   <input type="number" value={form.max_redemptions} onChange={e=>setForm(f=>({...f,max_redemptions:e.target.value}))} placeholder="∞"
                     style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" as const }}/>
+                  <div style={{ fontSize:".68rem", color:"#94a3b8", marginTop:".25rem" }}>Max times the code can be used across all clients</div>
                 </div>
+                <div>
+                  <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Max Uses — Per Client <span style={{ color:"#94a3b8", fontWeight:400 }}>(blank = ∞)</span></label>
+                  <input type="number" value={form.max_redemptions_per_user} onChange={e=>setForm(f=>({...f,max_redemptions_per_user:e.target.value}))} placeholder="∞"
+                    style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" as const }}/>
+                  <div style={{ fontSize:".68rem", color:"#94a3b8", marginTop:".25rem" }}>Max times one location can redeem this code</div>
+                </div>
+              </div>
                 <div>
                   <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Expiry Date <span style={{ color:"#94a3b8", fontWeight:400 }}>(blank = none)</span></label>
                   <input type="date" value={form.expires_at} onChange={e=>setForm(f=>({...f,expires_at:e.target.value}))}
