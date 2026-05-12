@@ -3,7 +3,7 @@ import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/sup
 import type { Session } from "@supabase/supabase-js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "revenue" | "locations" | "queue" | "email_alerts" | "settings";
+type Tab = "overview" | "revenue" | "locations" | "queue" | "pr_orders" | "email_alerts" | "settings";
 interface EmailTemplate { key: string; subject: string; html: string; updated_at?: string; is_custom?: boolean; }
 
 interface Location { location_id: string; company_name?: string; email?: string;
@@ -73,6 +73,8 @@ export default function AdminDashboard() {
   const [revenue,     setRevenue]     = useState<RevenueData|null>(null);
   const [settings,    setSettings]    = useState<AdminSettings>({ review_mode_global:false, review_mode_overrides:{} });
   const [loading,     setLoading]     = useState(false);
+  const [allOrders,      setAllOrders]      = useState<Order[]>([]);
+  const [ordFilter,      setOrdFilter]      = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
   const [emailTemplates,  setEmailTemplates]  = useState<EmailTemplate[]>([]);
   const [defaultTmpl,     setDefaultTmpl]     = useState("");
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate|null>(null);
@@ -80,6 +82,8 @@ export default function AdminDashboard() {
   const [editHtml,        setEditHtml]        = useState("");
   const [showPreview,     setShowPreview]     = useState(false);
   const [savingTmpl,      setSavingTmpl]      = useState(false);
+  const [sendingTest,     setSendingTest]     = useState(false);
+  const [adminNotifEmail, setAdminNotifEmail] = useState("");
   const [toast,       setToast]       = useState<{msg:string;type:"success"|"error"}|null>(null);
 
   // Override modal
@@ -162,6 +166,10 @@ export default function AdminDashboard() {
         const d = await res.json();
         if (!d.error) setRevenue(d);
       }
+      if (tab === "pr_orders") {
+        const d = await adminPost("get_all_orders", {}, session.access_token);
+        if (!d.error) setAllOrders(d.orders || []);
+      }
       if (tab === "email_alerts") {
         const d = await adminPost("get_email_templates", {}, session.access_token);
         if (!d.error) {
@@ -225,7 +233,7 @@ export default function AdminDashboard() {
 
   const saveSettings = async () => {
     if (!session) return;
-    const d = await adminPost("save_settings", { review_mode_global: settings.review_mode_global, review_mode_overrides: settings.review_mode_overrides }, session.access_token);
+    const d = await adminPost("save_settings", { review_mode_global: settings.review_mode_global, review_mode_overrides: settings.review_mode_overrides, admin_notification_email: adminNotifEmail }, session.access_token);
     if (!d.error) showToast("Settings saved");
     else showToast(d.error, "error");
   };
@@ -250,6 +258,7 @@ export default function AdminDashboard() {
     setInviting(false);
   };
 
+  const admin = session ? { email: session.user?.email || "" } : null;
   const totalOrders = (loc: Location) => loc.orders?.length || 0;
   const ordersByTier = (loc: Location, tier: string) => loc.orders?.filter(o => o.product_name?.toLowerCase() === tier).length || 0;
 
@@ -268,6 +277,7 @@ export default function AdminDashboard() {
     { id:"revenue",   label:"Revenue",         icon:"💰" },
     { id:"locations", label:"Locations",       icon:"🏢" },
     { id:"queue",       label:"Approval Queue",  icon:"📋" },
+    { id:"pr_orders",    label:"PR Orders",       icon:"📰" },
     { id:"email_alerts", label:"Email Alerts",    icon:"📧" },
     { id:"settings",    label:"Settings",        icon:"⚙️" },
   ];
@@ -530,6 +540,131 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* PR ORDERS */}
+        {!loading && activeTab==="pr_orders" && (() => {
+          const STATUSES = ["","draft","scheduled","submitted","published","rejected","draft_pending_review"];
+          const PACKAGES = ["","Starter","Standard","Premium"];
+          // Get unique locations for filter autocomplete
+          const locationOptions = [...new Map(allOrders.filter(o=>o.company_name||o.location_id).map(o=>[o.location_id,o])).values()];
+
+          const filtered = allOrders.filter(o => {
+            if (ordFilter.location && o.location_id !== ordFilter.location) return false;
+            if (ordFilter.package && o.product_name?.toLowerCase() !== ordFilter.package.toLowerCase()) return false;
+            if (ordFilter.status && o.status !== ordFilter.status) return false;
+            if (ordFilter.dateFrom && new Date(o.created_at) < new Date(ordFilter.dateFrom)) return false;
+            if (ordFilter.dateTo && new Date(o.created_at) > new Date(ordFilter.dateTo+"T23:59:59")) return false;
+            return true;
+          });
+
+          const STATUS_COLORS: Record<string,{bg:string;color:string}> = {
+            submitted:{bg:"#dbeafe",color:"#1d4ed8"}, published:{bg:"#dcfce7",color:"#166534"},
+            rejected:{bg:"#fee2e2",color:"#991b1b"}, draft:{bg:"#f1f5f9",color:"#475569"},
+            scheduled:{bg:"#fef3c7",color:"#92400e"}, draft_pending_review:{bg:"#faf5ff",color:"#7e22ce"},
+          };
+          const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+
+          return (
+            <div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.25rem" }}>
+                <div>
+                  <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .2rem" }}>PR Orders</h2>
+                  <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>{filtered.length} of {allOrders.length} orders</p>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1rem 1.25rem", marginBottom:"1rem", display:"flex", gap:".65rem", flexWrap:"wrap", alignItems:"flex-end" }}>
+                {/* Location autocomplete */}
+                <div style={{ flex:"1 1 200px" }}>
+                  <div style={{ fontSize:".7rem", fontWeight:700, color:"#64748b", marginBottom:".3rem", textTransform:"uppercase", letterSpacing:".05em" }}>Location</div>
+                  <select value={ordFilter.location} onChange={e=>setOrdFilter(f=>({...f,location:e.target.value}))}
+                    style={{ width:"100%", padding:".45rem .65rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".82rem", background:"white" }}>
+                    <option value="">All Locations</option>
+                    {locationOptions.map(o=>(
+                      <option key={o.location_id} value={o.location_id}>{o.company_name||o.location_id}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex:"0 0 140px" }}>
+                  <div style={{ fontSize:".7rem", fontWeight:700, color:"#64748b", marginBottom:".3rem", textTransform:"uppercase", letterSpacing:".05em" }}>Package</div>
+                  <select value={ordFilter.package} onChange={e=>setOrdFilter(f=>({...f,package:e.target.value}))}
+                    style={{ width:"100%", padding:".45rem .65rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".82rem", background:"white" }}>
+                    {PACKAGES.map(p=><option key={p} value={p}>{p||"All Packages"}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex:"0 0 160px" }}>
+                  <div style={{ fontSize:".7rem", fontWeight:700, color:"#64748b", marginBottom:".3rem", textTransform:"uppercase", letterSpacing:".05em" }}>Status</div>
+                  <select value={ordFilter.status} onChange={e=>setOrdFilter(f=>({...f,status:e.target.value}))}
+                    style={{ width:"100%", padding:".45rem .65rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".82rem", background:"white" }}>
+                    {STATUSES.map(s=><option key={s} value={s}>{s?s.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase()):"All Statuses"}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex:"0 0 140px" }}>
+                  <div style={{ fontSize:".7rem", fontWeight:700, color:"#64748b", marginBottom:".3rem", textTransform:"uppercase", letterSpacing:".05em" }}>From</div>
+                  <input type="date" value={ordFilter.dateFrom} onChange={e=>setOrdFilter(f=>({...f,dateFrom:e.target.value}))}
+                    style={{ width:"100%", padding:".45rem .65rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".82rem", boxSizing:"border-box" }}/>
+                </div>
+                <div style={{ flex:"0 0 140px" }}>
+                  <div style={{ fontSize:".7rem", fontWeight:700, color:"#64748b", marginBottom:".3rem", textTransform:"uppercase", letterSpacing:".05em" }}>To</div>
+                  <input type="date" value={ordFilter.dateTo} onChange={e=>setOrdFilter(f=>({...f,dateTo:e.target.value}))}
+                    style={{ width:"100%", padding:".45rem .65rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".82rem", boxSizing:"border-box" }}/>
+                </div>
+                <button onClick={()=>setOrdFilter({location:"",package:"",status:"",dateFrom:"",dateTo:""})}
+                  style={{ padding:".45rem .85rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", fontSize:".78rem", fontWeight:600, cursor:"pointer", color:"#64748b", alignSelf:"flex-end" }}>
+                  ↩ Clear
+                </button>
+              </div>
+
+              {/* Table */}
+              <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
+                  <thead><tr style={{ background:"#1e1b4b" }}>
+                    {["Company","PR Title","Package","Status","Date","Ready"].map(h=>(
+                      <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {filtered.map(order=>{
+                      const sc = STATUS_COLORS[order.status] || {bg:"#f1f5f9",color:"#475569"};
+                      return (
+                        <tr key={order.id} style={{ borderTop:"1px solid #f8fafc", cursor:"pointer" }}
+                          onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                          onMouseOut={e=>(e.currentTarget.style.background="white")}
+                          onClick={()=>{ setPreviewOrder(order); setOriginalContent(order.pr_content||""); setEditedContent(order.pr_content||""); }}>
+                          <td style={{ padding:".7rem 1rem" }}>
+                            <div style={{ fontWeight:600, color:"#1e293b" }}>{order.company_name||"—"}</div>
+                            <div style={{ fontSize:".7rem", color:"#94a3b8", fontFamily:"monospace" }}>{order.location_id?.slice(0,12)}…</div>
+                          </td>
+                          <td style={{ padding:".7rem 1rem", maxWidth:260 }}>
+                            <div style={{ fontWeight:500, color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{order.pr_title||"—"}</div>
+                          </td>
+                          <td style={{ padding:".7rem 1rem" }}>
+                            <span style={{ fontSize:".72rem", fontWeight:700, color: TIER_COLORS[order.product_name?.toLowerCase()]||"#6366f1", background:"#f1f5f9", padding:".2rem .6rem", borderRadius:"99px" }}>
+                              {order.product_name||"—"}
+                            </span>
+                          </td>
+                          <td style={{ padding:".7rem 1rem" }}>
+                            <span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .6rem", borderRadius:"99px", whiteSpace:"nowrap" }}>
+                              {order.status?.replace(/_/g," ")||"—"}
+                            </span>
+                          </td>
+                          <td style={{ padding:".7rem 1rem", color:"#64748b", whiteSpace:"nowrap" }}>
+                            {order.created_at ? new Date(order.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}
+                          </td>
+                          <td style={{ padding:".7rem 1rem", textAlign:"center" }}>
+                            {order.ready_for_partner ? "✅" : "⏳"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filtered.length===0 && <div style={{ padding:"3rem", textAlign:"center", color:"#94a3b8" }}>No orders match the filters</div>}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* EMAIL ALERTS */}
         {!loading && activeTab==="email_alerts" && (() => {
           const EMAIL_TYPES = [
@@ -555,6 +690,11 @@ export default function AdminDashboard() {
             { section:"💳 Media Credits", items:[
               { key:"credits_low",       label:"Low Credit Alert",      desc:"Sent when any tier drops to 1 credit remaining" },
               { key:"credits_promotion", label:"Promotions & Offers",   desc:"Special deals and bonus credit opportunities" },
+            ]},
+            { section:"🔴 Admin Alerts", items:[
+              { key:"admin_credits_purchase", label:"New Credits Purchase", desc:"Sent to admin when a client purchases media credits — links to PR Orders tab" },
+              { key:"admin_new_pr_order",     label:"New PR Order",         desc:"Sent to admin when a client submits a new press release — links to PR Orders tab" },
+              { key:"admin_approval_needed",  label:"Approval Needed",      desc:"Sent to admin when a PR is awaiting review in the Approval Queue" },
             ]},
           ];
 
@@ -677,10 +817,24 @@ export default function AdminDashboard() {
 
                     {/* Footer actions */}
                     <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
-                      <button onClick={resetTemplate}
-                        style={{ padding:".55rem 1rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#64748b", fontWeight:600, fontSize:".8rem", cursor:"pointer" }}>
-                        ↩ Reset to Default
-                      </button>
+                      <div style={{ display:"flex", gap:".5rem" }}>
+                        <button onClick={resetTemplate}
+                          style={{ padding:".5rem .9rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#64748b", fontWeight:600, fontSize:".78rem", cursor:"pointer" }}>
+                          ↩ Reset to Default
+                        </button>
+                        <button onClick={async()=>{
+                            if(!session||!admin)return;
+                            setSendingTest(true);
+                            const toEmail = admin.email || "";
+                            const d = await adminPost("send_test_email",{subject:editSubject,html:editHtml,to_email:toEmail},session.access_token);
+                            if(d.ok) showToast(`📧 Test email sent to ${toEmail}`);
+                            else showToast(d.error||"Failed to send test","error");
+                            setSendingTest(false);
+                          }} disabled={sendingTest}
+                          style={{ padding:".5rem .9rem", borderRadius:".45rem", border:"1px solid #6366f1", background:"#eef2ff", color:"#6366f1", fontWeight:600, fontSize:".78rem", cursor: sendingTest?"not-allowed":"pointer" }}>
+                          {sendingTest ? "Sending…" : "📨 Send Test to My Email"}
+                        </button>
+                      </div>
                       <div style={{ display:"flex", gap:".65rem" }}>
                         <button onClick={()=>setEditingTemplate(null)}
                           style={{ padding:".55rem 1.25rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>
@@ -723,6 +877,17 @@ export default function AdminDashboard() {
             </div>
             <div style={{ background:"#fffbeb", borderRadius:".75rem", border:"1px solid #fde68a", padding:"1rem 1.25rem", marginBottom:"1.5rem", fontSize:".8rem", color:"#92400e" }}>
               💡 Per-location overrides are set in the Locations table. The global switch applies to all locations that don't have an explicit override.
+            </div>
+
+            {/* Admin notification email */}
+            <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.25rem", marginBottom:"1.25rem" }}>
+              <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".25rem" }}>📧 Admin Alert Email</div>
+              <div style={{ fontSize:".8rem", color:"#64748b", marginBottom:".75rem", lineHeight:1.5 }}>
+                Email address(es) that receive admin alerts (new purchases, new PR orders, approval needed). Separate multiple with commas.
+              </div>
+              <input type="email" value={adminNotifEmail} onChange={e=>setAdminNotifEmail(e.target.value)}
+                placeholder="roberto@xtremewebsites.com"
+                style={{ width:"100%", padding:".55rem .85rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", outline:"none", boxSizing:"border-box" }}/>
             </div>
             <button onClick={saveSettings}
               style={{ padding:".75rem 2rem", borderRadius:".65rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,.3)" }}>
