@@ -39,6 +39,7 @@ export interface Order {
   submittedAt?: string;
   publishedDate?: string;
   reportLink?: string;
+  prContentOriginal?: string;
   lastEditedAt?: string;
   formData?: Record<string, unknown>;
 }

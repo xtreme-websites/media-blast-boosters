@@ -82,6 +82,8 @@ export default function AdminDashboard() {
 
   // PR preview modal
   const [previewOrder, setPreviewOrder] = useState<Order|null>(null);
+  const [editedContent, setEditedContent] = useState<string>("");
+  const [originalContent, setOriginalContent] = useState<string>("");
 
   const showToast = (msg: string, type: "success"|"error" = "success") => {
     setToast({ msg, type });
@@ -210,6 +212,31 @@ export default function AdminDashboard() {
     const d = await adminPost("save_settings", { review_mode_global: settings.review_mode_global, review_mode_overrides: settings.review_mode_overrides }, session.access_token);
     if (!d.error) showToast("Settings saved");
     else showToast(d.error, "error");
+  };
+
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName,  setInviteName]  = useState("");
+  const [invitePass,  setInvitePass]  = useState("");
+  const [inviting,    setInviting]    = useState(false);
+
+  const inviteAdmin = async () => {
+    if (!inviteEmail || !invitePass || !session) return;
+    setInviting(true);
+    try {
+      // Create user via Supabase Admin API
+      const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/auth/v1/admin/users", {
+        method: "POST",
+        headers: { apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYW9zY2dvdHVtbHZzYnp3ZGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NTkwNzAsImV4cCI6MjA4ODQzNTA3MH0.eZfmlFg-bg_g5uWruw2xBDFTIvmxHV1lAHrKQdv8aSk", Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail, password: invitePass, email_confirm: true }),
+      });
+      const d = await res.json();
+      if (d.id) {
+        // Insert into admin_users via admin-proxy (need a new operation) - for now show instructions
+        showToast(`User created! Add to admin_users: INSERT INTO admin_users (id, email, name) VALUES ('${d.id}', '${inviteEmail}', '${inviteName || inviteEmail}');`);
+        setInviteEmail(""); setInvitePass(""); setInviteName("");
+      } else showToast(d.msg || d.error_description || "Failed to create user", "error");
+    } catch (e: any) { showToast(e.message, "error"); }
+    setInviting(false);
   };
 
   const totalOrders = (loc: Location) => loc.orders?.length || 0;
@@ -470,7 +497,7 @@ export default function AdminDashboard() {
                         <div style={{ fontSize:".78rem", color:"#6366f1", fontFamily:"monospace" }}>{order.company_name||order.location_id}</div>
                       </div>
                       <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
-                        <button onClick={()=>setPreviewOrder(order)}
+                        <button onClick={()=>{ setPreviewOrder(order); setOriginalContent(order.pr_content||""); setEditedContent(order.pr_content||""); }}
                           style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", fontSize:".8rem", fontWeight:600, cursor:"pointer" }}>
                           👁 Preview
                         </button>
@@ -520,6 +547,26 @@ export default function AdminDashboard() {
               style={{ padding:".75rem 2rem", borderRadius:".65rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,.3)" }}>
               Save Settings
             </button>
+
+            {/* Add Admin User */}
+            <div style={{ marginTop:"2rem", paddingTop:"2rem", borderTop:"1px solid #f1f5f9" }}>
+              <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .35rem" }}>👤 Add Admin User</h3>
+              <p style={{ fontSize:".8rem", color:"#64748b", margin:"0 0 1rem", lineHeight:1.5 }}>
+                Create a new admin account. After creating, copy the SQL shown in the toast and run it in Supabase SQL Editor to grant admin access.
+              </p>
+              <div style={{ display:"flex", flexDirection:"column", gap:".65rem" }}>
+                <input value={inviteName} onChange={e=>setInviteName(e.target.value)} placeholder="Full name"
+                  style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem" }}/>
+                <input type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} placeholder="Email address"
+                  style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem" }}/>
+                <input type="password" value={invitePass} onChange={e=>setInvitePass(e.target.value)} placeholder="Temporary password"
+                  style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem" }}/>
+                <button onClick={inviteAdmin} disabled={inviting || !inviteEmail || !invitePass}
+                  style={{ padding:".6rem 1.25rem", borderRadius:".5rem", border:"none", background: inviting||!inviteEmail||!invitePass?"#e2e8f0":"#1e293b", color: inviting||!inviteEmail||!invitePass?"#94a3b8":"white", fontWeight:700, fontSize:".84rem", cursor: inviting?"not-allowed":"pointer", alignSelf:"flex-start" }}>
+                  {inviting ? "Creating…" : "Create Admin User"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -562,27 +609,67 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* PR Preview Modal */}
+      {/* PR Preview Modal — formatted, inline-editable, 3-button approval */}
       {previewOrder && (
-        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
-          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:700, maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
-            <div style={{ padding:"1.25rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:780, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
+            {/* Header */}
+            <div style={{ padding:"1rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
               <div>
-                <div style={{ fontWeight:800, fontSize:".95rem", color:"#1e293b" }}>{previewOrder.pr_title}</div>
-                <div style={{ fontSize:".75rem", color:"#94a3b8" }}>{previewOrder.company_name} · {previewOrder.product_name}</div>
+                <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b" }}>{previewOrder.pr_title}</div>
+                <div style={{ fontSize:".75rem", color:"#94a3b8", marginTop:".15rem" }}>
+                  <span style={{ background: previewOrder.product_name?.toLowerCase()==="premium"?"#fef3c7":previewOrder.product_name?.toLowerCase()==="standard"?"#f5f3ff":"#eef2ff", color: previewOrder.product_name?.toLowerCase()==="premium"?"#92400e":previewOrder.product_name?.toLowerCase()==="standard"?"#6b21a8":"#3730a3", fontWeight:700, fontSize:".68rem", padding:".15rem .5rem", borderRadius:"99px", marginRight:".5rem", textTransform:"uppercase" }}>{previewOrder.product_name}</span>
+                  {previewOrder.company_name} · {new Date(previewOrder.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
+                </div>
               </div>
-              <button onClick={()=>setPreviewOrder(null)} style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8" }}>✕</button>
+              <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
+                <span style={{ fontSize:".72rem", color:"#6366f1", fontWeight:600 }}>✏️ Click content to edit</span>
+                <button onClick={()=>{ setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
+                  style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
+              </div>
             </div>
-            <div style={{ padding:"1.5rem", overflowY:"auto", flex:1 }}
-              dangerouslySetInnerHTML={{ __html: previewOrder.pr_content||"<p>No content</p>" }}/>
-            <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".75rem", justifyContent:"flex-end" }}>
+
+            {/* Editable PR content with full client-style formatting */}
+            <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
+              <style>{`
+                .admin-pr-preview { font-family: Georgia, 'Times New Roman', serif; color: #1e293b; line-height: 1.7; }
+                .admin-pr-preview h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem; line-height: 1.25; font-family: system-ui, sans-serif; }
+                .admin-pr-preview h2 { font-size: 1.05rem; font-weight: 700; color: #374151; margin: 1.5rem 0 .5rem; font-family: system-ui, sans-serif; border-bottom: 1px solid #f1f5f9; padding-bottom: .3rem; }
+                .admin-pr-preview p { margin: 0 0 1rem; font-size: .93rem; }
+                .admin-pr-preview strong { font-weight: 700; color: #1e293b; }
+                .admin-pr-preview em { font-style: italic; color: #374151; }
+                .admin-pr-preview a { color: #6366f1; }
+                .admin-pr-preview [contenteditable]:focus { outline: 2px dashed #6366f1; outline-offset: 4px; border-radius: 4px; }
+              `}</style>
+              <div
+                className="admin-pr-preview"
+                contentEditable
+                suppressContentEditableWarning
+                onInput={e => setEditedContent((e.target as HTMLDivElement).innerHTML)}
+                dangerouslySetInnerHTML={{ __html: editedContent || previewOrder.pr_content || "<p>No content</p>" }}
+              />
+            </div>
+
+            {/* 3-button footer */}
+            <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"flex-end", flexShrink:0, flexWrap:"wrap" }}>
               <button onClick={()=>rejectOrder(previewOrder.id)}
-                style={{ padding:".6rem 1.25rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, cursor:"pointer" }}>
+                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
                 ✕ Reject
               </button>
-              <button onClick={()=>{approveOrder(previewOrder.id);setPreviewOrder(null);}}
-                style={{ padding:".6rem 1.25rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, cursor:"pointer" }}>
-                ✅ Approve & Mark Ready
+              <button onClick={async()=>{
+                  if(!session)return;
+                  const changed = editedContent && editedContent !== originalContent;
+                  if(!changed){ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); return; }
+                  const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContent, new_content:editedContent, location_id:previewOrder.location_id }, session.access_token);
+                  if(!d.error){ showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
+                  else showToast(d.error,"error");
+                }}
+                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fef3c7", color:"#92400e", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                ✏️ Approve with Changes
+              </button>
+              <button onClick={()=>{ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
+                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                ✅ Approve
               </button>
             </div>
           </div>

@@ -1,4 +1,27 @@
 import { useState, useEffect } from "react";
+
+// Simple word-level diff for PR content comparison
+function buildDiffHtml(original: string, modified: string): string {
+  const strip = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const orig = strip(original).split(" ");
+  const mod  = strip(modified).split(" ");
+  const m = orig.length, n = mod.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i = m-1; i >= 0; i--)
+    for (let j = n-1; j >= 0; j--)
+      dp[i][j] = orig[i]===mod[j] ? 1+dp[i+1][j+1] : Math.max(dp[i+1][j], dp[i][j+1]);
+  const parts: string[] = [];
+  let i = 0, j = 0;
+  while (i < m || j < n) {
+    if (i < m && j < n && orig[i]===mod[j]) { parts.push(orig[i]); i++; j++; }
+    else if (j < n && (i >= m || dp[i][j+1] >= dp[i+1][j])) {
+      parts.push(`<ins style="background:#dcfce7;color:#166534;text-decoration:none;padding:1px 3px;border-radius:3px;font-style:normal">${mod[j]}</ins>`); j++;
+    } else {
+      parts.push(`<del style="background:#fee2e2;color:#991b1b;padding:1px 3px;border-radius:3px">${orig[i]}</del>`); i++;
+    }
+  }
+  return `<p style="font-size:.85rem;line-height:1.9;font-family:system-ui,sans-serif">${parts.join(" ")}</p>`;
+}
 import { createPortal } from "react-dom";
 import { XIcon } from "../icons";
 import { Order, OrderStatus } from "../../lib/constants";
@@ -61,6 +84,7 @@ function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
 export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onApproveAndSubmit, preOpenDraftId }: Props) {
   const [activeTab, setActiveTab] = useState<"published"|"drafts">("published");
   const [articleModal, setArticleModal] = useState<Order | null>(null);
+  const [showDiff, setShowDiff] = useState(false);
 
   // Auto-open draft if coming from auto-generate
   useEffect(() => {
@@ -221,12 +245,12 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
               <div style={{ display:"flex", gap:".5rem", alignItems:"center", flexShrink:0, marginLeft:".75rem" }}>
                 {/* Edit Instructions: only for draft / scheduled (manually created) — NOT for submitted or draft_pending_review */}
                 {(articleModal.status === "draft" || articleModal.status === "scheduled") && (
-                  <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); }}
+                  <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); setShowDiff(false); }}
                     style={{ padding:".4rem .85rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontSize:".78rem", fontWeight:600, cursor:"pointer" }}>
                     ✏️ Edit Instructions
                   </button>
                 )}
-                <button onClick={() => setArticleModal(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", padding:".25rem", fontSize:"1.4rem", lineHeight:1 }}>×</button>
+                <button onClick={() => { setArticleModal(null); setShowDiff(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", padding:".25rem", fontSize:"1.4rem", lineHeight:1 }}>×</button>
               </div>
             </div>
 
@@ -239,7 +263,7 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                   <div style={{ fontSize:".75rem", color:"#78350f" }}>Your review and approval are required. You have until the scheduled date to approve or edit. After that, it will be automatically submitted for distribution.</div>
                 </div>
                 <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
-                  <button onClick={() => { onApproveAndSubmit?.(articleModal!); setArticleModal(null); }}
+                  <button onClick={() => { onApproveAndSubmit?.(articleModal!); setArticleModal(null); setShowDiff(false); }}
                     style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
                     ✅ Approve & Submit
                   </button>
@@ -258,14 +282,26 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
             {/* PR content — editable for draft/scheduled/draft_pending_review, read-only for submitted */}
             {(() => {
               const isReadOnly = articleModal.status === "submitted" || !articleModal.status || articleModal.status === "published" || articleModal.status === "rejected";
+              const hasDiff = !!(articleModal.prContentOriginal && articleModal.prContentOriginal !== articleModal.prContent);
               return (
                 <>
+                  {hasDiff && (
+                    <div style={{ padding:".6rem 1.25rem", borderBottom:"1px solid #fde68a", background:"#fffbeb", display:"flex", alignItems:"center", gap:".75rem", flexShrink:0 }}>
+                      <span style={{ fontSize:".78rem", fontWeight:700, color:"#92400e" }}>✏️ Your account manager made edits to this PR</span>
+                      <button onClick={() => setShowDiff(d => !d)}
+                        style={{ fontSize:".72rem", fontWeight:700, color:"#6366f1", background:"#eef2ff", border:"none", borderRadius:".35rem", padding:".2rem .65rem", cursor:"pointer" }}>
+                        {showDiff ? "Show Final Version" : "View Changes"}
+                      </button>
+                    </div>
+                  )}
                   <div
-                    contentEditable={!isReadOnly}
+                    contentEditable={!isReadOnly && !showDiff}
                     suppressContentEditableWarning
                     style={{ overflowY:"auto", padding:"2rem 2.25rem", flex:1, outline:"none", cursor: isReadOnly ? "default" : "text",
                       background: isReadOnly ? "#fafafa" : "white" }}
-                    dangerouslySetInnerHTML={{ __html: articleModal.prContent ?? "<p>Content not available.</p>" }}
+                    dangerouslySetInnerHTML={{ __html: showDiff && hasDiff
+                      ? buildDiffHtml(articleModal.prContentOriginal!, articleModal.prContent!)
+                      : (articleModal.prContent ?? "<p>Content not available.</p>") }}
                   />
                   <style>{`
                     [contenteditable] h1 { font-size:1.45rem; font-weight:800; color:#0f172a; margin:0 0 1rem; line-height:1.25; }
