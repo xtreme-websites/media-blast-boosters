@@ -129,12 +129,12 @@ export default function PRDashboard() {
         if (data) {
           const parsed: CompanyData = { name: data.company_name || "", industry: data.industry || "", websiteUrl: data.website_url || "", googleProfileUrl: data.google_profile_url || "", summaryFileUrl: data.summary_file_url || "", about: data.about_company || data.about_us || "", tagline: data.tagline || "", targetAudience: data.target_audience || "", differentiators: data.differentiators || "", services: data.list_of_services || "", servicePages: data.services_json || [], locationPages: data.locations_json || [], address: data.address || "", phone: data.phone || "", email: data.email || "", quoteAttribution: data.quote_attribution || "" };
           setCompanyData(parsed);
-          try { await store.set("mbb:companyData", JSON.stringify(parsed)); } catch {}
+          try { await store.set(`mbb:companyData:${locationId}`, JSON.stringify(parsed)); } catch {}
         } else {
-          const cached = await store.get("mbb:companyData");
+          const cached = await store.get(`mbb:companyData:${locationId}`);
           if (cached) setCompanyData(JSON.parse(cached));
         }
-      } catch { try { const c = await store.get("mbb:companyData"); if (c) setCompanyData(JSON.parse(c)); } catch {} }
+      } catch { try { const c = await store.get(`mbb:companyData:${locationId}`); if (c) setCompanyData(JSON.parse(c)); } catch {} }
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?location_id=eq.${locationId}&order=created_at.desc`, { headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` } });
         const data = await res.json();
@@ -184,7 +184,7 @@ export default function PRDashboard() {
   // ── Save company data to Supabase + store ─────────────────────────────────
   const saveCompanyData = async (data: CompanyData) => {
     setCompanyData(data);
-    try { await store.set("mbb:companyData", JSON.stringify(data)); } catch {}
+    try { await store.set(`mbb:companyData:${locationId}`, JSON.stringify(data)); } catch {}
     try {
       await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
         method: "POST", headers: { "Content-Type": "application/json" },
