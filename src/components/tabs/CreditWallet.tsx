@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { XIcon } from "../icons";
+import PromoBanners from "./PromoBanners";
 
 const fireConfetti = () => {
   const canvas = document.createElement("canvas");
@@ -108,6 +109,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
   const [couponError,     setCouponError]     = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [selectedPmId,    setSelectedPmId]    = useState<string>("");
+  const [pendingCoupon,   setPendingCoupon]   = useState<string | null>(null);
   const [checkout,        setCheckout]        = useState<{ tier:Tier; qty:number }|null>(null);
   const [clientSecret,    setClientSecret]    = useState<string|null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -493,6 +495,17 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── PROMOTIONS BANNERS (shown below packages) ── */}
+      {activeTab === "packages" && (
+        <PromoBanners
+          locationId={locationId}
+          onApplyCode={(code) => {
+            setCouponCode(code);
+            setCouponOpen(true);
+          }}
+        />
       )}
 
       {/* ── THANK YOU MODAL ── */}

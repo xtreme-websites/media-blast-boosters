@@ -71,7 +71,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
   const [creating, setCreating] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [locSearch, setLocSearch] = useState("");
-  const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", max_redemptions_per_user:"", expires_at:"" };
+  const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", max_redemptions_per_user:"", expires_at:"", client_description:"", show_banner:false };
   const [form, setForm] = useState(EMPTY_FORM);
   const ALL_PKGS = ["starter","standard","premium"];
   const togglePkg = (p: string) => setForm(f=>({...f, packages: f.packages.includes(p) ? f.packages.filter(x=>x!==p) : [...f.packages, p]}));
@@ -104,6 +104,8 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
       max_redemptions: form.max_redemptions ? Number(form.max_redemptions) : null,
       max_redemptions_per_user: form.max_redemptions_per_user ? Number(form.max_redemptions_per_user) : null,
       expires_at: form.expires_at || null,
+      client_description: form.client_description || null,
+      show_banner: form.show_banner,
     }, session.access_token);
     if (d.ok) {
       showToast(`✅ Promotion ${form.code.toUpperCase()} created`);
@@ -142,7 +144,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
         <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
             <thead><tr style={{ background:"#1e1b4b" }}>
-              {["Code","Discount","Packages","Audience","Uses (Total)","Uses (Per Client)","Expires","Status",""].map(h=>(
+              {["Code","Discount","Packages","Audience","Uses (Total)","Uses (Per Client)","Expires","Banner","Status",""].map(h=>(
                 <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
               ))}
             </tr></thead>
@@ -171,6 +173,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                   <td style={{ padding:".8rem 1rem", color:"#64748b", fontSize:".78rem" }}>
                     {p.expires_at ? new Date(p.expires_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : <span style={{ color:"#94a3b8" }}>Never</span>}
                   </td>
+                  <td style={{ padding:".8rem 1rem", textAlign:"center" }}>{p.show_banner ? "✅" : "—"}</td>
                   <td style={{ padding:".8rem 1rem" }}>
                     <span style={{ fontSize:".7rem", fontWeight:700, padding:".2rem .55rem", borderRadius:"99px", background:p.active?"#dcfce7":"#fee2e2", color:p.active?"#166534":"#991b1b" }}>
                       {p.active ? "Active" : "Inactive"}
@@ -290,6 +293,27 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                   <input type="date" value={form.expires_at} onChange={e=>setForm(f=>({...f,expires_at:e.target.value}))}
                     style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" as const }}/>
                 </div>
+              {/* Client Description */}
+              <div>
+                <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>
+                  Client Description <span style={{ color:"#94a3b8", fontWeight:400 }}>(shown on the banner)</span>
+                </label>
+                <input value={form.client_description} onChange={e=>setForm(f=>({...f,client_description:e.target.value}))}
+                  placeholder="e.g. Limited time offer — save on your next PR package!"
+                  style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" as const }}/>
+              </div>
+              {/* Promo Banner toggle */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:".75rem 1rem", borderRadius:".55rem", border:"1.5px solid #e2e8f0", background:"#fafafa" }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:".84rem", color:"#1e293b" }}>Show Promo Banner on Client Dashboard</div>
+                  <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".15rem" }}>Displays a promotional banner below the Media Packages section</div>
+                </div>
+                <button onClick={()=>setForm(f=>({...f,show_banner:!f.show_banner}))}
+                  style={{ position:"relative", width:44, height:24, borderRadius:99, border:"none", cursor:"pointer", padding:0, flexShrink:0,
+                    background: form.show_banner?"#10b981":"#e2e8f0", transition:"background .2s" }}>
+                  <div style={{ position:"absolute", top:3, left: form.show_banner?22:3, width:18, height:18, borderRadius:"50%", background:"white", transition:"left .2s", boxShadow:"0 1px 3px rgba(0,0,0,.2)" }}/>
+                </button>
+              </div>
               {form.code && form.discount_value && (
                 <div style={{ background:"linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius:".65rem", padding:"1rem", border:"1px solid #bbf7d0", textAlign:"center" }}>
                   <div style={{ fontSize:".72rem", fontWeight:700, color:"#166534", textTransform:"uppercase", letterSpacing:".06em", marginBottom:".3rem" }}>Preview</div>
