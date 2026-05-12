@@ -414,6 +414,9 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
             })}
           </div>
 
+          {/* Promotions banners */}
+          <PromoBanners locationId={locationId} />
+
           {/* Compelling reasons */}
           <div style={{ marginBottom:".75rem" }}>
             <h3 style={{ fontWeight:700, fontSize:"1rem", color:"#1e293b", margin:"0 0 .25rem" }}>Why Publish with Media Blast Boosters™?</h3>
@@ -495,17 +498,6 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
             </div>
           </div>
         </div>
-      )}
-
-      {/* ── PROMOTIONS BANNERS (shown below packages) ── */}
-      {activeTab === "packages" && (
-        <PromoBanners
-          locationId={locationId}
-          onApplyCode={(code) => {
-            setCouponCode(code);
-            setCouponOpen(true);
-          }}
-        />
       )}
 
       {/* ── THANK YOU MODAL ── */}

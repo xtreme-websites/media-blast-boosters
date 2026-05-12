@@ -19,7 +19,6 @@ interface Promo {
 
 interface Props {
   locationId: string;
-  onApplyCode?: (code: string) => void;
 }
 
 const TIER_GRAD: Record<string, string> = {
@@ -28,7 +27,7 @@ const TIER_GRAD: Record<string, string> = {
   premium:  "linear-gradient(135deg,#d97706,#b45309)",
 };
 
-export default function PromoBanners({ locationId, onApplyCode }: Props) {
+export default function PromoBanners({ locationId }: Props) {
   const [banners, setBanners] = useState<Promo[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -134,12 +133,7 @@ export default function PromoBanners({ locationId, onApplyCode }: Props) {
                   style={{ padding:".45rem 1rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", background:"white", fontWeight:700, fontSize:".78rem", cursor:"pointer", color:"#374151", transition:"all .15s", whiteSpace:"nowrap" }}>
                   {copied === p.code ? "✓ Copied!" : "📋 Copy Code"}
                 </button>
-                {onApplyCode && (
-                  <button onClick={() => onApplyCode(p.code)}
-                    style={{ padding:".45rem 1rem", borderRadius:".5rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:700, fontSize:".78rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                    Apply →
-                  </button>
-                )}
+
               </div>
             </div>
           </div>
