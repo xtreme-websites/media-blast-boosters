@@ -3,7 +3,9 @@ import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/sup
 import type { Session } from "@supabase/supabase-js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "revenue" | "locations" | "queue" | "settings";
+type Tab = "overview" | "revenue" | "locations" | "queue" | "email_alerts" | "settings";
+interface EmailTemplate { key: string; subject: string; html: string; updated_at?: string; is_custom?: boolean; }
+
 interface Location { location_id: string; company_name?: string; email?: string;
   starter_credits: number; standard_credits: number; premium_credits: number;
   orders: { product_name: string; status: string }[]; }
@@ -71,6 +73,13 @@ export default function AdminDashboard() {
   const [revenue,     setRevenue]     = useState<RevenueData|null>(null);
   const [settings,    setSettings]    = useState<AdminSettings>({ review_mode_global:false, review_mode_overrides:{} });
   const [loading,     setLoading]     = useState(false);
+  const [emailTemplates,  setEmailTemplates]  = useState<EmailTemplate[]>([]);
+  const [defaultTmpl,     setDefaultTmpl]     = useState("");
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate|null>(null);
+  const [editSubject,     setEditSubject]     = useState("");
+  const [editHtml,        setEditHtml]        = useState("");
+  const [showPreview,     setShowPreview]     = useState(false);
+  const [savingTmpl,      setSavingTmpl]      = useState(false);
   const [toast,       setToast]       = useState<{msg:string;type:"success"|"error"}|null>(null);
 
   // Override modal
@@ -152,6 +161,13 @@ export default function AdminDashboard() {
         const res = await fetch(ADMIN_REVENUE, { headers: { Authorization: `Bearer ${session.access_token}` } });
         const d = await res.json();
         if (!d.error) setRevenue(d);
+      }
+      if (tab === "email_alerts") {
+        const d = await adminPost("get_email_templates", {}, session.access_token);
+        if (!d.error) {
+          setEmailTemplates(d.templates || []);
+          setDefaultTmpl(d.default_template || "");
+        }
       }
       if (tab === "settings") {
         const d = await adminPost("get_settings", {}, session.access_token);
@@ -251,8 +267,9 @@ export default function AdminDashboard() {
     { id:"overview",  label:"Overview",        icon:"📊" },
     { id:"revenue",   label:"Revenue",         icon:"💰" },
     { id:"locations", label:"Locations",       icon:"🏢" },
-    { id:"queue",     label:"Approval Queue",  icon:"📋" },
-    { id:"settings",  label:"Settings",        icon:"⚙️" },
+    { id:"queue",       label:"Approval Queue",  icon:"📋" },
+    { id:"email_alerts", label:"Email Alerts",    icon:"📧" },
+    { id:"settings",    label:"Settings",        icon:"⚙️" },
   ];
 
   const queueBadge = queue.length;
@@ -512,6 +529,175 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* EMAIL ALERTS */}
+        {!loading && activeTab==="email_alerts" && (() => {
+          const EMAIL_TYPES = [
+            { section:"✍️ Media Creator", items:[
+              { key:"mc_scheduled",  label:"PR Scheduled",              desc:"Sent when a client schedules a press release for a future date" },
+              { key:"mc_submitted",  label:"PR Submitted",              desc:"Sent when a PR is ordered and submitted for review" },
+              { key:"mc_published",  label:"PR Published",              desc:"Sent when a PR goes live and the distribution report is added" },
+              { key:"mc_rejected",   label:"PR Rejected / Revision",    desc:"Sent when a submitted PR requires changes" },
+            ]},
+            { section:"🏆 Authority Builder", items:[
+              { key:"ab_approval",   label:"AI Draft Ready for Review", desc:"Sent when an auto-generated PR is ready for client approval" },
+            ]},
+            { section:"🔥 Trending Topics", items:[
+              { key:"tt_digest",     label:"Trending Topics Digest",    desc:"Digest of trending topics in the client's industry" },
+            ]},
+            { section:"📊 Competitor Analysis", items:[
+              { key:"ca_digest",     label:"Competitor Activity Report",desc:"Updates on competitor movements and positioning" },
+            ]},
+            { section:"🛡️ Trust Widget", items:[
+              { key:"tw_not_created",  label:"Widget Not Set Up",       desc:"Reminder if no Trust Widget has been created after 7 days" },
+              { key:"tw_not_verified", label:"Widget Not Verified",     desc:"Alert if widget isn't verified within 48 hours of setup" },
+            ]},
+            { section:"💳 Media Credits", items:[
+              { key:"credits_low",       label:"Low Credit Alert",      desc:"Sent when any tier drops to 1 credit remaining" },
+              { key:"credits_promotion", label:"Promotions & Offers",   desc:"Special deals and bonus credit opportunities" },
+            ]},
+          ];
+
+          const openEditor = (key: string, label: string) => {
+            const saved = emailTemplates.find(t => t.key === key);
+            setEditingTemplate({ key, subject: saved?.subject || `[MBB] ${label}`, html: saved?.html || defaultTmpl, is_custom: !!saved?.html });
+            setEditSubject(saved?.subject || `[MBB] ${label}`);
+            setEditHtml(saved?.html || defaultTmpl);
+            setShowPreview(false);
+          };
+
+          const saveTemplate = async () => {
+            if (!editingTemplate || !session) return;
+            setSavingTmpl(true);
+            const d = await adminPost("save_email_template", { key: editingTemplate.key, subject: editSubject, html: editHtml }, session.access_token);
+            if (!d.error) { showToast("Template saved ✓"); setEmailTemplates(prev => { const idx = prev.findIndex(t=>t.key===editingTemplate.key); const updated = [...prev]; if(idx>=0) updated[idx]={...updated[idx],subject:editSubject,html:editHtml}; else updated.push({key:editingTemplate.key,subject:editSubject,html:editHtml,is_custom:true}); return updated; }); }
+            else showToast(d.error,"error");
+            setSavingTmpl(false);
+          };
+
+          const resetTemplate = async () => {
+            if (!editingTemplate || !session) return;
+            if (!confirm("Reset to default template? Your changes will be lost.")) return;
+            const d = await adminPost("reset_email_template", { key: editingTemplate.key }, session.access_token);
+            if (!d.error) { setEditHtml(d.default_template || defaultTmpl); setEmailTemplates(prev=>prev.filter(t=>t.key!==editingTemplate.key)); showToast("Reset to default"); }
+          };
+
+          const VARS = ["{{badge}}","{{title}}","{{message}}","{{dashUrl}}"];
+          const previewHtml = editHtml.replace(/\{\{badge\}\}/g,"Media Creator").replace(/\{\{title\}\}/g,"Test Email Subject").replace(/\{\{message\}\}/g,"This is a preview of your email notification.").replace(/\{\{dashUrl\}\}/g,"https://mediablast.xlogic.app");
+
+          return (
+            <div>
+              <div style={{ marginBottom:"1.5rem" }}>
+                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Email Alerts</h2>
+                <p style={{ color:"#64748b", fontSize:".84rem", margin:0 }}>Customize the HTML template for each system email. Default templates are used automatically until overridden.</p>
+              </div>
+
+              {EMAIL_TYPES.map(group => (
+                <div key={group.section} style={{ marginBottom:"1.75rem" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".65rem", paddingBottom:".5rem", borderBottom:"2px solid #f1f5f9" }}>
+                    <span style={{ fontSize:"1rem" }}>{group.section.split(" ")[0]}</span>
+                    <h3 style={{ margin:0, fontWeight:800, fontSize:".88rem", color:"#1e293b" }}>{group.section.split(" ").slice(1).join(" ")}</h3>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:".35rem" }}>
+                    {group.items.map(item => {
+                      const isCustom = emailTemplates.some(t => t.key === item.key);
+                      return (
+                        <div key={item.key} style={{ display:"flex", alignItems:"center", padding:".7rem .9rem", borderRadius:".55rem", gap:"1rem", background:"white", border:`1px solid ${isCustom?"#c7d2fe":"#f1f5f9"}` }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontWeight:600, fontSize:".84rem", color:"#1e293b", display:"flex", alignItems:"center", gap:".5rem" }}>
+                              {item.label}
+                              {isCustom && <span style={{ fontSize:".65rem", fontWeight:800, color:"#6366f1", background:"#eef2ff", padding:".1rem .45rem", borderRadius:"99px" }}>Custom</span>}
+                            </div>
+                            <div style={{ fontSize:".73rem", color:"#94a3b8", marginTop:".1rem" }}>{item.desc}</div>
+                          </div>
+                          <button onClick={() => openEditor(item.key, item.label)}
+                            style={{ padding:".4rem .9rem", borderRadius:".45rem", border:`1px solid ${isCustom?"#6366f1":"#e2e8f0"}`, background: isCustom?"#eef2ff":"white", color: isCustom?"#6366f1":"#374151", fontWeight:600, fontSize:".78rem", cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+                            ✏️ {isCustom?"Edit Template":"Edit Template"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Template Editor Modal */}
+              {editingTemplate && (
+                <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+                  <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:960, height:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
+                    {/* Header */}
+                    <div style={{ padding:"1rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", alignItems:"center", gap:"1rem", flexShrink:0 }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontWeight:800, fontSize:".95rem", color:"#1e293b" }}>✏️ Edit Email Template</div>
+                        <div style={{ fontSize:".73rem", color:"#94a3b8", marginTop:".1rem" }}>key: <code style={{ background:"#f1f5f9", padding:"0 .3rem", borderRadius:".2rem" }}>{editingTemplate.key}</code></div>
+                      </div>
+                      {/* Variables reference */}
+                      <div style={{ display:"flex", gap:".35rem", alignItems:"center" }}>
+                        <span style={{ fontSize:".68rem", color:"#94a3b8", fontWeight:600 }}>Variables:</span>
+                        {VARS.map(v => (
+                          <code key={v} onClick={() => { const ta = document.getElementById("tmpl-editor") as HTMLTextAreaElement; if(ta){const s=ta.selectionStart; const newVal=editHtml.slice(0,s)+v+editHtml.slice(ta.selectionEnd); setEditHtml(newVal); setTimeout(()=>{ta.selectionStart=ta.selectionEnd=s+v.length;ta.focus();},0);} }}
+                            style={{ fontSize:".68rem", background:"#eef2ff", color:"#6366f1", padding:".15rem .4rem", borderRadius:".25rem", cursor:"pointer", fontFamily:"monospace" }} title="Click to insert">
+                            {v}
+                          </code>
+                        ))}
+                      </div>
+                      <button onClick={() => setShowPreview(p=>!p)}
+                        style={{ padding:".4rem .9rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background: showPreview?"#eef2ff":"white", color: showPreview?"#6366f1":"#374151", fontWeight:600, fontSize:".78rem", cursor:"pointer" }}>
+                        {showPreview?"◀ Editor":"👁 Preview"}
+                      </button>
+                      <button onClick={() => setEditingTemplate(null)} style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
+                    </div>
+
+                    {/* Subject line */}
+                    <div style={{ padding:".6rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", alignItems:"center", gap:".75rem", flexShrink:0, background:"#fafafa" }}>
+                      <span style={{ fontSize:".75rem", fontWeight:700, color:"#64748b", whiteSpace:"nowrap" }}>Subject line:</span>
+                      <input value={editSubject} onChange={e=>setEditSubject(e.target.value)}
+                        style={{ flex:1, padding:".4rem .7rem", borderRadius:".4rem", border:"1px solid #e2e8f0", fontSize:".84rem", outline:"none" }}/>
+                    </div>
+
+                    {/* Editor / Preview split */}
+                    <div style={{ flex:1, overflow:"hidden", display:"flex" }}>
+                      {!showPreview ? (
+                        <textarea
+                          id="tmpl-editor"
+                          value={editHtml}
+                          onChange={e => setEditHtml(e.target.value)}
+                          spellCheck={false}
+                          style={{ flex:1, padding:"1rem 1.5rem", fontFamily:"'Cascadia Code','Fira Code','JetBrains Mono',monospace", fontSize:".78rem", lineHeight:1.6, border:"none", resize:"none", outline:"none", color:"#1e293b", background:"#fafffe", overflowY:"auto" }}
+                        />
+                      ) : (
+                        <iframe
+                          srcDoc={previewHtml}
+                          sandbox="allow-same-origin"
+                          style={{ flex:1, border:"none", background:"white" }}
+                          title="Email Preview"
+                        />
+                      )}
+                    </div>
+
+                    {/* Footer actions */}
+                    <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+                      <button onClick={resetTemplate}
+                        style={{ padding:".55rem 1rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#64748b", fontWeight:600, fontSize:".8rem", cursor:"pointer" }}>
+                        ↩ Reset to Default
+                      </button>
+                      <div style={{ display:"flex", gap:".65rem" }}>
+                        <button onClick={()=>setEditingTemplate(null)}
+                          style={{ padding:".55rem 1.25rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".85rem", cursor:"pointer" }}>
+                          Cancel
+                        </button>
+                        <button onClick={saveTemplate} disabled={savingTmpl}
+                          style={{ padding:".55rem 1.5rem", borderRadius:".45rem", border:"none", background: savingTmpl?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color: savingTmpl?"#94a3b8":"white", fontWeight:800, fontSize:".85rem", cursor: savingTmpl?"not-allowed":"pointer" }}>
+                          {savingTmpl?"Saving…":"Save Template"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* SETTINGS */}
         {!loading && activeTab==="settings" && (
