@@ -70,6 +70,8 @@ interface PromotionsTabProps {
 function PromotionsTab({ promotions, locationsList, session, showToast, onRefresh }: PromotionsTabProps) {
   const [creating, setCreating] = useState(false);
   const [saving,   setSaving]   = useState(false);
+  const [editingPromo, setEditingPromo] = useState<any | null>(null);
+  const [editSaving,   setEditSaving]   = useState(false);
   const [locSearch, setLocSearch] = useState("");
   const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", max_redemptions_per_user:"", expires_at:"", client_description:"", show_banner:false };
   const [form, setForm] = useState(EMPTY_FORM);
@@ -180,7 +182,11 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                     </span>
                   </td>
                   <td style={{ padding:".8rem 1rem" }}>
-                    {p.active && <button onClick={()=>deactivate(p.id)} style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #fee2e2", background:"white", color:"#991b1b", cursor:"pointer", fontWeight:600 }}>Deactivate</button>}
+                    <div style={{ display:"flex", gap:".4rem" }}>
+                      <button onClick={()=>setEditingPromo({...p, location_ids: p.location_ids||[] })}
+                        style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", cursor:"pointer", fontWeight:600 }}>✏️ Edit</button>
+                      {p.active && <button onClick={()=>deactivate(p.id)} style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #fee2e2", background:"white", color:"#991b1b", cursor:"pointer", fontWeight:600 }}>Deactivate</button>}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -333,6 +339,122 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
           </div>
         </div>
       )}
+
+      {/* Edit modal */}
+      {editingPromo && (() => {
+        const ALL_PKGS_E = ["starter","standard","premium"];
+        const [eLocSearch, setELocSearch] = useState("");
+        const eSugg = eLocSearch.trim() ? locationsList.filter((l:any)=>!(editingPromo.location_ids||[]).includes(l.location_id)&&l.company_name?.toLowerCase().includes(eLocSearch.toLowerCase())).slice(0,6) : [];
+        const addELoc = (loc:any) => { setEditingPromo((f:any)=>({...f,location_ids:[...(f.location_ids||[]),loc.location_id]})); setELocSearch(""); };
+        const remELoc = (id:string) => setEditingPromo((f:any)=>({...f,location_ids:(f.location_ids||[]).filter((x:string)=>x!==id)}));
+        const togglePkgE = (p:string) => setEditingPromo((f:any)=>({...f,packages:(f.packages||[]).includes(p)?(f.packages||[]).filter((x:string)=>x!==p):[...(f.packages||[]),p]}));
+        const saveEdit = async () => {
+          if(!session)return;
+          setEditSaving(true);
+          const d = await adminPost("edit_promotion",{id:editingPromo.id,name:editingPromo.name||null,packages:editingPromo.packages?.length?editingPromo.packages:null,location_ids:editingPromo.location_ids?.length?editingPromo.location_ids:null,max_redemptions_per_user:editingPromo.max_redemptions_per_user?Number(editingPromo.max_redemptions_per_user):null,expires_at:editingPromo.expires_at||null,client_description:editingPromo.client_description||null,show_banner:!!editingPromo.show_banner},session.access_token);
+          if(d.ok){showToast("Promotion updated ✓");setEditingPromo(null);onRefresh();}
+          else showToast(d.error||"Save failed","error");
+          setEditSaving(false);
+        };
+        return (
+          <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+            <div style={{background:"white",borderRadius:"1rem",width:"100%",maxWidth:560,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.35)"}}>
+              <div style={{padding:"1.25rem 1.5rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"white",zIndex:1}}>
+                <div>
+                  <h3 style={{fontWeight:900,margin:"0 0 .2rem",fontSize:"1.05rem"}}>✏️ Edit Promo Code</h3>
+                  <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+                    <span style={{fontFamily:"monospace",fontWeight:800,fontSize:".85rem",color:"#6366f1",background:"#eef2ff",padding:".15rem .5rem",borderRadius:".3rem"}}>{editingPromo.code}</span>
+                    <span style={{fontWeight:700,color:"#16a34a",fontSize:".82rem"}}>{editingPromo.discount_type==="percent"?`${editingPromo.discount_value}% off`:`$${editingPromo.discount_value} off`}</span>
+                    <span style={{fontSize:".68rem",color:"#94a3b8"}}>· Code & discount are fixed</span>
+                  </div>
+                </div>
+                <button onClick={()=>setEditingPromo(null)} style={{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#94a3b8",lineHeight:1}}>✕</button>
+              </div>
+              <div style={{padding:"1.5rem",display:"flex",flexDirection:"column",gap:"1rem"}}>
+                <div>
+                  <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>Internal Name</label>
+                  <input value={editingPromo.name||""} onChange={e=>setEditingPromo((f:any)=>({...f,name:e.target.value}))} placeholder="e.g. Summer Sale"
+                    style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const}}/>
+                </div>
+                <div>
+                  <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".5rem"}}>Packages <span style={{color:"#94a3b8",fontWeight:400}}>(unchecked = all)</span></label>
+                  <div style={{display:"flex",gap:".5rem"}}>
+                    {ALL_PKGS_E.map(p=>(
+                      <button key={p} onClick={()=>togglePkgE(p)}
+                        style={{padding:".4rem .9rem",borderRadius:".4rem",border:"2px solid",borderColor:(editingPromo.packages||[]).includes(p)?"#6366f1":"#e2e8f0",background:(editingPromo.packages||[]).includes(p)?"#eef2ff":"white",color:(editingPromo.packages||[]).includes(p)?"#6366f1":"#374151",fontWeight:(editingPromo.packages||[]).includes(p)?700:500,cursor:"pointer",fontSize:".8rem",textTransform:"capitalize" as const}}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".5rem"}}>Audience <span style={{color:"#94a3b8",fontWeight:400}}>(empty = all locations)</span></label>
+                  {(editingPromo.location_ids||[]).length>0&&(
+                    <div style={{display:"flex",flexWrap:"wrap",gap:".35rem",marginBottom:".5rem"}}>
+                      {(editingPromo.location_ids||[]).map((id:string)=>(
+                        <span key={id} style={{display:"inline-flex",alignItems:"center",gap:".3rem",background:"#eef2ff",color:"#6366f1",fontSize:".75rem",fontWeight:600,padding:".25rem .6rem",borderRadius:"99px"}}>
+                          {locationsList.find((l:any)=>l.location_id===id)?.company_name||id}
+                          <button onClick={()=>remELoc(id)} style={{background:"none",border:"none",cursor:"pointer",color:"#6366f1",padding:0,fontSize:".75rem",lineHeight:1}}>✕</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{position:"relative"}}>
+                    <input value={eLocSearch} onChange={e=>setELocSearch(e.target.value)} placeholder="Search locations…"
+                      style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const}}/>
+                    {eSugg.length>0&&(
+                      <div style={{position:"absolute",top:"100%",left:0,right:0,background:"white",border:"1px solid #e2e8f0",borderRadius:".45rem",boxShadow:"0 4px 16px rgba(0,0,0,.1)",zIndex:100,marginTop:".2rem",overflow:"hidden"}}>
+                        {eSugg.map((loc:any)=>(
+                          <button key={loc.location_id} onMouseDown={()=>addELoc(loc)}
+                            style={{width:"100%",padding:".55rem .85rem",border:"none",background:"white",textAlign:"left",cursor:"pointer",fontSize:".82rem",color:"#374151"}}
+                            onMouseOver={e=>(e.currentTarget.style.background="#f1f5f9")}
+                            onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                            {loc.company_name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".75rem"}}>
+                  <div>
+                    <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>Max Uses Per Client</label>
+                    <input type="number" value={editingPromo.max_redemptions_per_user||""} onChange={e=>setEditingPromo((f:any)=>({...f,max_redemptions_per_user:e.target.value}))} placeholder="∞"
+                      style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>Expiry Date <span style={{color:"#94a3b8",fontWeight:400,fontSize:".68rem"}}>(also updates Stripe)</span></label>
+                    <input type="date" value={editingPromo.expires_at?editingPromo.expires_at.split("T")[0]:""} onChange={e=>setEditingPromo((f:any)=>({...f,expires_at:e.target.value}))}
+                      style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const}}/>
+                  </div>
+                </div>
+                <div>
+                  <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>Client Description</label>
+                  <input value={editingPromo.client_description||""} onChange={e=>setEditingPromo((f:any)=>({...f,client_description:e.target.value}))} placeholder="Shown on the promo banner"
+                    style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const}}/>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:".75rem 1rem",borderRadius:".55rem",border:"1.5px solid #e2e8f0",background:"#fafafa"}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:".84rem",color:"#1e293b"}}>Show Promo Banner on Client Dashboard</div>
+                    <div style={{fontSize:".72rem",color:"#94a3b8",marginTop:".1rem"}}>Displays a promotional banner below the Media Packages section</div>
+                  </div>
+                  <button onClick={()=>setEditingPromo((f:any)=>({...f,show_banner:!f.show_banner}))}
+                    style={{position:"relative",width:44,height:24,borderRadius:99,border:"none",cursor:"pointer",padding:0,flexShrink:0,background:editingPromo.show_banner?"#10b981":"#e2e8f0",transition:"background .2s"}}>
+                    <div style={{position:"absolute",top:3,left:editingPromo.show_banner?22:3,width:18,height:18,borderRadius:"50%",background:"white",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
+                  </button>
+                </div>
+                <div style={{display:"flex",gap:".75rem",paddingTop:".25rem"}}>
+                  <button onClick={()=>setEditingPromo(null)} style={{flex:1,padding:".7rem",borderRadius:".5rem",border:"1px solid #e2e8f0",background:"white",fontWeight:600,cursor:"pointer"}}>Cancel</button>
+                  <button onClick={saveEdit} disabled={editSaving}
+                    style={{flex:2,padding:".7rem",borderRadius:".5rem",border:"none",background:editSaving?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)",color:editSaving?"#94a3b8":"white",fontWeight:800,cursor:editSaving?"not-allowed":"pointer",fontSize:".9rem"}}>
+                    {editSaving?"Saving…":"Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
