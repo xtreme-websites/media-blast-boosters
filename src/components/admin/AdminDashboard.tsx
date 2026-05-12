@@ -16,7 +16,7 @@ interface AdminSettings { review_mode_global: boolean; review_mode_overrides: Re
 const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
 
 // ── Login ─────────────────────────────────────────────────────────────────────
-function AdminLogin({ onLogin }: { onLogin: () => void }) {
+function AdminLogin({ onLogin, accessDenied }: { onLogin: () => void; accessDenied?: boolean }) {
   const [email, setEmail] = useState("");
   const [pass,  setPass]  = useState("");
   const [err,   setErr]   = useState("");
@@ -38,6 +38,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
           <h1 style={{ fontWeight:900, fontSize:"1.3rem", color:"#1e293b", margin:"0 0 .25rem" }}>Admin Command Center</h1>
           <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Media Blast Boosters™</p>
         </div>
+        {accessDenied && <div style={{ background:"#fff1f2", border:"1px solid #fecdd3", borderRadius:".5rem", padding:".65rem .9rem", color:"#be123c", fontSize:".82rem", marginBottom:"1rem" }}>⛔ Access denied — your account is not authorized as admin.</div>}
         {err && <div style={{ background:"#fff1f2", border:"1px solid #fecdd3", borderRadius:".5rem", padding:".65rem .9rem", color:"#be123c", fontSize:".82rem", marginBottom:"1rem" }}>{err}</div>}
         <div style={{ display:"flex", flexDirection:"column", gap:".75rem" }}>
           <input type="email" placeholder="Admin email" value={email} onChange={e=>setEmail(e.target.value)}
@@ -61,6 +62,7 @@ export default function AdminDashboard() {
   const [session,   setSession]   = useState<Session|null>(null);
   const [isAdmin,   setIsAdmin]   = useState(false);
   const [authCheck, setAuthCheck] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
   // Data state
@@ -103,9 +105,18 @@ export default function AdminDashboard() {
   const checkAdmin = async (s: Session) => {
     try {
       const d = await adminPost("get_settings", {}, s.access_token);
-      setIsAdmin(!d.error);
-      if (!d.error) setSettings(d.settings || settings);
-    } catch { setIsAdmin(false); }
+      if (!d.error) {
+        setIsAdmin(true);
+        setSettings(d.settings || settings);
+      } else {
+        setIsAdmin(false);
+        setAccessDenied(true);
+        await supabase.auth.signOut();
+      }
+    } catch {
+      setIsAdmin(false);
+      setAccessDenied(true);
+    }
     setAuthCheck(false);
   };
 
@@ -212,7 +223,7 @@ export default function AdminDashboard() {
     </div>
   );
 
-  if (!session || !isAdmin) return <AdminLogin onLogin={() => {}} />;
+  if (!session || !isAdmin) return <AdminLogin onLogin={() => {}} accessDenied={accessDenied} />;
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id:"overview",  label:"Overview",        icon:"📊" },
