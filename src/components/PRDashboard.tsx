@@ -513,7 +513,7 @@ export default function PRDashboard() {
 
           {activeTab === "topics"     && <TrendingTopics companyData={companyData} showToast={showToast} onTopicSelect={handleTopicSelect}/>}
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
-          {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV}/>}
+          {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV} hasCompanyData={hasCompanyData} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
           {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}
             onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}
@@ -558,7 +558,7 @@ export default function PRDashboard() {
               {[1,2,3].map(i => <div key={i} style={{ height:96, background:"#f8fafc", borderRadius:".75rem", border:"1px solid #f1f5f9" }}/>)}
             </div>
           )}
-          {activeTab === "authority"  && dataLoaded && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
+          {activeTab === "authority"  && dataLoaded && <AuthorityBuilder companyData={companyData} orders={orders} onExecute={(p) => { setAuthorityPayload(p); setActiveTab("pr"); }} onScheduleAutomatic={scheduleAutomatic} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)} showToast={showToast}/>}
           {(activeTab as string) === "alerts"       && <AlertsTab locationId={locationId} onUnreadChange={(n) => setUnreadAlerts(n)}/>}
           {(activeTab as string) === "settings"    && <SettingsPage locationId={locationId} companyData={companyData} showToast={showToast} isDev={IS_DEV}/>}
           {(activeTab as string) === "company_data" && <CompanyDataPage companyData={companyData} onSave={saveCompanyData} showToast={showToast}/>}

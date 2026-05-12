@@ -20,6 +20,8 @@ interface TrustAssetsProps {
   orders: Order[]; locationId: string; showToast: (msg: string, type?: "success" | "error") => void;
   credits?: { starter_credits: number; standard_credits: number; premium_credits: number };
   isDevAccess?: boolean;
+  hasCompanyData?: boolean;
+  onNavigateToCompanyProfile?: () => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -222,7 +224,7 @@ function MiniThumb({ config, tier }: { config: BadgeConfig; tier: Tier }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function TrustAssets({ orders, locationId, showToast, credits, isDevAccess = false }: TrustAssetsProps) {
+export default function TrustAssets({ orders, locationId, showToast, credits, isDevAccess = false, hasCompanyData = true, onNavigateToCompanyProfile }: TrustAssetsProps) {
   const autoTier: Tier = credits?.premium_credits  ? "premium"
                         : credits?.standard_credits ? "standard"
                         : "starter";
@@ -324,6 +326,47 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
     }
     setIsVerifying(false);
   };
+
+  // Empty state for new users without company profile
+  const PREVIEW_LOGOS = LOGOS.starter;
+  const PREVIEW_CONFIG: BadgeConfig = { id:"preview", name:"As Seen On", ...EMPTY_CONFIG };
+
+  if (!hasCompanyData) return (
+    <div>
+      {/* Hero card */}
+      <div className="card" style={{ padding:"2.5rem 2rem", textAlign:"center", border:"1px solid #e0e7ff", background:"linear-gradient(135deg,#fafaff,#f5f3ff)", marginBottom:"1.5rem" }}>
+        <div style={{ fontSize:"3.5rem", marginBottom:"1rem" }}>🛡️</div>
+        <h3 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .6rem" }}>Trust Widget</h3>
+        <p style={{ color:"#64748b", fontSize:".88rem", maxWidth:480, margin:"0 auto 1rem", lineHeight:1.65 }}>
+          Add a professional "As Seen On" badge to your website showcasing the media outlets that published your press releases. Builds instant credibility and social proof with every site visitor.
+        </p>
+        <div style={{ display:"flex", gap:"1rem", justifyContent:"center", flexWrap:"wrap", marginBottom:"1.5rem" }}>
+          {["📰 200+ Media Outlets","✅ Auto-Updated","💡 Easy Embed"].map(f => (
+            <span key={f} style={{ fontSize:".75rem", fontWeight:600, color:"#6366f1", background:"#eef2ff", padding:".3rem .75rem", borderRadius:"99px" }}>{f}</span>
+          ))}
+        </div>
+        <button
+          onClick={() => showToast("Please complete your Company Profile first to use the Trust Widget.", "error")}
+          style={{ background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", border:"none", borderRadius:".65rem", padding:".75rem 2rem", fontWeight:800, fontSize:".9rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,.35)" }}>
+          🛡️ Get My Trust Widget
+        </button>
+        <p style={{ marginTop:".85rem", fontSize:".75rem", color:"#94a3b8" }}>
+          Complete your{" "}
+          <button onClick={onNavigateToCompanyProfile} style={{ background:"none", border:"none", color:"#6366f1", cursor:"pointer", fontWeight:600, padding:0, fontSize:".75rem", textDecoration:"underline" }}>
+            Company Profile
+          </button>{" "}
+          to get started
+        </p>
+      </div>
+      {/* Live preview so they can see what they'll get */}
+      <div style={{ marginBottom:".6rem", fontSize:".78rem", fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:".06em" }}>
+        Preview — what your badge will look like
+      </div>
+      <div className="card" style={{ padding:"1.25rem", overflow:"hidden", opacity:.85 }}>
+        <BadgePreview config={PREVIEW_CONFIG} logos={PREVIEW_LOGOS} tier="starter"/>
+      </div>
+    </div>
+  );
 
   return (
     <div className="animate-fadein">
