@@ -593,7 +593,7 @@ export default function AdminDashboard() {
                 { label:"Total Locations", value: locations.length, icon:"🏢", color:"#6366f1" },
                 { label:"Total PRs Ordered", value: locations.reduce((s,l)=>s+totalOrders(l),0), icon:"📰", color:"#8929bd" },
                 { label:"Pending Queue", value: queueBadge, icon:"📋", color:"#ef4444" },
-                { label:"Review Mode", value: settings.review_mode_global ? "ON" : "OFF", icon:"🔒", color: settings.review_mode_global?"#ef4444":"#10b981" },
+                { label:"Review Mode", value: settings.review_mode_global ? "ON" : "OFF", icon:"🔒", color: settings.review_mode_global?"#10b981":"#ef4444" },
               ].map(card => (
                 <div key={card.label} style={{ background:"white", borderRadius:".75rem", padding:"1.25rem", border:"1px solid #f1f5f9", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".5rem" }}>
@@ -728,7 +728,7 @@ export default function AdminDashboard() {
                           <button onClick={()=>{
                             const newVal = !(override !== undefined ? override : settings.review_mode_global);
                             setSettings(s=>({...s,review_mode_overrides:{...s.review_mode_overrides,[loc.location_id]:newVal}}));
-                          }} style={{ fontSize:".7rem", padding:".25rem .6rem", borderRadius:"99px", border:"none", background: reviewOn?"#fee2e2":"#dcfce7", color: reviewOn?"#991b1b":"#166534", fontWeight:700, cursor:"pointer" }}>
+                          }} style={{ fontSize:".7rem", padding:".25rem .6rem", borderRadius:"99px", border:"none", background: reviewOn?"#dcfce7":"#fee2e2", color: reviewOn?"#166534":"#991b1b", fontWeight:700, cursor:"pointer" }}>
                             {reviewOn?"🔒 Review ON":"✅ Direct"}
                           </button>
                         </td>
@@ -1153,13 +1153,13 @@ export default function AdminDashboard() {
                   <div style={{ fontSize:".82rem", color:"#64748b", lineHeight:1.55 }}>
                     When ON, all new PRs from every location are held in the Approval Queue for your review before being marked ready for the partner. When OFF, PRs are approved automatically.
                   </div>
-                  <div style={{ marginTop:".75rem", fontSize:".78rem", fontWeight:600, color: settings.review_mode_global?"#991b1b":"#166534", background: settings.review_mode_global?"#fee2e2":"#dcfce7", display:"inline-block", padding:".25rem .75rem", borderRadius:"99px" }}>
+                  <div style={{ marginTop:".75rem", fontSize:".78rem", fontWeight:600, color: settings.review_mode_global?"#166534":"#991b1b", background: settings.review_mode_global?"#dcfce7":"#fee2e2", display:"inline-block", padding:".25rem .75rem", borderRadius:"99px" }}>
                     Currently {settings.review_mode_global ? "ON — PRs held for review" : "OFF — PRs auto-approved"}
                   </div>
                 </div>
                 <button onClick={()=>setSettings(s=>({...s,review_mode_global:!s.review_mode_global}))}
                   style={{ position:"relative", width:52, height:28, borderRadius:99, border:"none", cursor:"pointer", padding:0, flexShrink:0,
-                    background: settings.review_mode_global?"#ef4444":"#10b981", transition:"background .2s" }}>
+                    background: settings.review_mode_global?"#10b981":"#ef4444", transition:"background .2s" }}>
                   <div style={{ position:"absolute", top:3, left: settings.review_mode_global?26:3, width:22, height:22, borderRadius:"50%", background:"white", transition:"left .2s", boxShadow:"0 1px 4px rgba(0,0,0,.25)" }}/>
                 </button>
               </div>
