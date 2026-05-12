@@ -72,6 +72,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
   const [saving,   setSaving]   = useState(false);
   const [editingPromo, setEditingPromo] = useState<any | null>(null);
   const [editSaving,   setEditSaving]   = useState(false);
+  const [eLocSearch,   setELocSearch]   = useState("");
   const [locSearch, setLocSearch] = useState("");
   const EMPTY_FORM = { name:"", code:"", discount_type:"percent", discount_value:"", packages:[] as string[], location_ids:[] as string[], max_redemptions:"", max_redemptions_per_user:"", expires_at:"", client_description:"", show_banner:false };
   const [form, setForm] = useState(EMPTY_FORM);
@@ -343,7 +344,6 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
       {/* Edit modal */}
       {editingPromo && (() => {
         const ALL_PKGS_E = ["starter","standard","premium"];
-        const [eLocSearch, setELocSearch] = useState("");
         const eSugg = eLocSearch.trim() ? locationsList.filter((l:any)=>!(editingPromo.location_ids||[]).includes(l.location_id)&&l.company_name?.toLowerCase().includes(eLocSearch.toLowerCase())).slice(0,6) : [];
         const addELoc = (loc:any) => { setEditingPromo((f:any)=>({...f,location_ids:[...(f.location_ids||[]),loc.location_id]})); setELocSearch(""); };
         const remELoc = (id:string) => setEditingPromo((f:any)=>({...f,location_ids:(f.location_ids||[]).filter((x:string)=>x!==id)}));
@@ -352,7 +352,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
           if(!session)return;
           setEditSaving(true);
           const d = await adminPost("edit_promotion",{id:editingPromo.id,name:editingPromo.name||null,packages:editingPromo.packages?.length?editingPromo.packages:null,location_ids:editingPromo.location_ids?.length?editingPromo.location_ids:null,max_redemptions_per_user:editingPromo.max_redemptions_per_user?Number(editingPromo.max_redemptions_per_user):null,expires_at:editingPromo.expires_at||null,client_description:editingPromo.client_description||null,show_banner:!!editingPromo.show_banner},session.access_token);
-          if(d.ok){showToast("Promotion updated ✓");setEditingPromo(null);onRefresh();}
+          if(d.ok){showToast("Promotion updated ✓");setEditingPromo(null);setELocSearch("");onRefresh();}
           else showToast(d.error||"Save failed","error");
           setEditSaving(false);
         };
@@ -368,7 +368,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                     <span style={{fontSize:".68rem",color:"#94a3b8"}}>· Code & discount are fixed</span>
                   </div>
                 </div>
-                <button onClick={()=>setEditingPromo(null)} style={{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#94a3b8",lineHeight:1}}>✕</button>
+                <button onClick={()=>{setEditingPromo(null);setELocSearch("");}} style={{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#94a3b8",lineHeight:1}}>✕</button>
               </div>
               <div style={{padding:"1.5rem",display:"flex",flexDirection:"column",gap:"1rem"}}>
                 <div>
@@ -444,7 +444,7 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                   </button>
                 </div>
                 <div style={{display:"flex",gap:".75rem",paddingTop:".25rem"}}>
-                  <button onClick={()=>setEditingPromo(null)} style={{flex:1,padding:".7rem",borderRadius:".5rem",border:"1px solid #e2e8f0",background:"white",fontWeight:600,cursor:"pointer"}}>Cancel</button>
+                  <button onClick={()=>{setEditingPromo(null);setELocSearch("");}} style={{flex:1,padding:".7rem",borderRadius:".5rem",border:"1px solid #e2e8f0",background:"white",fontWeight:600,cursor:"pointer"}}>Cancel</button>
                   <button onClick={saveEdit} disabled={editSaving}
                     style={{flex:2,padding:".7rem",borderRadius:".5rem",border:"none",background:editSaving?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)",color:editSaving?"#94a3b8":"white",fontWeight:800,cursor:editSaving?"not-allowed":"pointer",fontSize:".9rem"}}>
                     {editSaving?"Saving…":"Save Changes"}
