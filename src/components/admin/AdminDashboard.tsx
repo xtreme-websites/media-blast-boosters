@@ -223,18 +223,13 @@ export default function AdminDashboard() {
     if (!inviteEmail || !invitePass || !session) return;
     setInviting(true);
     try {
-      // Create user via Supabase Admin API
-      const res = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/auth/v1/admin/users", {
-        method: "POST",
-        headers: { apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYW9zY2dvdHVtbHZzYnp3ZGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NTkwNzAsImV4cCI6MjA4ODQzNTA3MH0.eZfmlFg-bg_g5uWruw2xBDFTIvmxHV1lAHrKQdv8aSk", Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, password: invitePass, email_confirm: true }),
-      });
-      const d = await res.json();
-      if (d.id) {
-        // Insert into admin_users via admin-proxy (need a new operation) - for now show instructions
-        showToast(`User created! Add to admin_users: INSERT INTO admin_users (id, email, name) VALUES ('${d.id}', '${inviteEmail}', '${inviteName || inviteEmail}');`);
+      const d = await adminPost("create_admin_user", { email: inviteEmail, password: invitePass, name: inviteName || inviteEmail }, session.access_token);
+      if (d.ok) {
+        showToast(`✅ Admin user created — ${d.email} can now sign in`);
         setInviteEmail(""); setInvitePass(""); setInviteName("");
-      } else showToast(d.msg || d.error_description || "Failed to create user", "error");
+      } else {
+        showToast(d.error || "Failed to create admin user", "error");
+      }
     } catch (e: any) { showToast(e.message, "error"); }
     setInviting(false);
   };
