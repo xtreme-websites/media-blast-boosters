@@ -1357,6 +1357,35 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
+
+            {/* Add Partner User */}
+            <div style={{ marginTop:"2rem", paddingTop:"2rem", borderTop:"1px solid #f1f5f9" }}>
+              <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .35rem" }}>🤝 Add Partner User</h3>
+              <p style={{ fontSize:".8rem", color:"#64748b", margin:"0 0 1rem", lineHeight:1.5 }}>
+                Create a partner account for <strong>mediablast.xlogic.app/partner</strong>. Partners can view PR Orders, manage the Approval Queue, and see payout revenue only — no admin access.
+              </p>
+              <div style={{ display:"flex", flexDirection:"column", gap:".65rem" }}>
+                <input value={inviteName} onChange={e=>setInviteName(e.target.value)} placeholder="Partner name (e.g. NewswireJet)"
+                  style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem" }}/>
+                <input type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} placeholder="Partner email"
+                  style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem" }}/>
+                <input type="password" value={invitePass} onChange={e=>setInvitePass(e.target.value)} placeholder="Temporary password"
+                  style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem" }}/>
+                <button onClick={async () => {
+                    if (!inviteEmail || !invitePass || !session) return;
+                    setInviting(true);
+                    try {
+                      const d = await adminPost("create_partner_user", { email: inviteEmail, password: invitePass, name: inviteName || inviteEmail }, session.access_token);
+                      if (d.ok) { showToast(`✅ Partner user created — ${inviteEmail} can sign in at /partner`); setInviteEmail(""); setInvitePass(""); setInviteName(""); }
+                      else showToast(d.error || "Failed to create partner", "error");
+                    } catch (e: any) { showToast(e.message, "error"); }
+                    setInviting(false);
+                  }} disabled={inviting || !inviteEmail || !invitePass}
+                  style={{ padding:".6rem 1.25rem", borderRadius:".5rem", border:"none", background: inviting||!inviteEmail||!invitePass?"#e2e8f0":"#1a0a2e", color: inviting||!inviteEmail||!invitePass?"#94a3b8":"white", fontWeight:700, fontSize:".84rem", cursor: inviting?"not-allowed":"pointer", alignSelf:"flex-start" }}>
+                  {inviting ? "Creating…" : "Create Partner User"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
