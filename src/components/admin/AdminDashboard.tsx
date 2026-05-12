@@ -290,7 +290,6 @@ function PromotionsTab({ promotions, locationsList, session, showToast, onRefres
                   <input type="date" value={form.expires_at} onChange={e=>setForm(f=>({...f,expires_at:e.target.value}))}
                     style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" as const }}/>
                 </div>
-              </div>
               {form.code && form.discount_value && (
                 <div style={{ background:"linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius:".65rem", padding:"1rem", border:"1px solid #bbf7d0", textAlign:"center" }}>
                   <div style={{ fontSize:".72rem", fontWeight:700, color:"#166534", textTransform:"uppercase", letterSpacing:".06em", marginBottom:".3rem" }}>Preview</div>
