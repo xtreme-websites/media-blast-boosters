@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/supabase-admin";
 import type { Session } from "@supabase/supabase-js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "revenue" | "locations" | "queue" | "pr_orders" | "email_alerts" | "settings";
+type Tab = "overview" | "revenue" | "locations" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "settings";
 interface EmailTemplate { key: string; subject: string; html: string; updated_at?: string; is_custom?: boolean; }
 
 interface Location { location_id: string; company_name?: string; email?: string;
@@ -36,7 +36,7 @@ function AdminLogin({ onLogin, accessDenied }: { onLogin: () => void; accessDeni
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0f0a1e,#1e1b4b)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"system-ui,sans-serif" }}>
       <div style={{ background:"white", borderRadius:"1rem", padding:"2.5rem", width:"100%", maxWidth:380, boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
         <div style={{ textAlign:"center", marginBottom:"2rem" }}>
-          <div style={{ fontSize:"2.5rem", marginBottom:".5rem" }}>⚡</div>
+          <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:56, height:56, objectFit:"contain", marginBottom:".75rem" }}/>
           <h1 style={{ fontWeight:900, fontSize:"1.3rem", color:"#1e293b", margin:"0 0 .25rem" }}>Admin Command Center</h1>
           <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Media Blast Boosters™</p>
         </div>
@@ -74,15 +74,18 @@ export default function AdminDashboard() {
   const [settings,    setSettings]    = useState<AdminSettings>({ review_mode_global:false, review_mode_overrides:{} });
   const [loading,     setLoading]     = useState(false);
   const [allOrders,      setAllOrders]      = useState<Order[]>([]);
+  const [promotions,     setPromotions]     = useState<any[]>([]);
+  const [locationsList,  setLocationsList]  = useState<any[]>([]);
   const [ordFilter,      setOrdFilter]      = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
   const [emailTemplates,  setEmailTemplates]  = useState<EmailTemplate[]>([]);
   const [defaultTmpl,     setDefaultTmpl]     = useState("");
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate|null>(null);
   const [editSubject,     setEditSubject]     = useState("");
   const [editHtml,        setEditHtml]        = useState("");
-  const [showPreview,     setShowPreview]     = useState(false);
+  const [showPreview,     setShowPreview]     = useState(true);
   const [savingTmpl,      setSavingTmpl]      = useState(false);
   const [sendingTest,     setSendingTest]     = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [adminNotifEmail, setAdminNotifEmail] = useState("");
   const [toast,       setToast]       = useState<{msg:string;type:"success"|"error"}|null>(null);
 
@@ -169,6 +172,19 @@ export default function AdminDashboard() {
       if (tab === "pr_orders") {
         const d = await adminPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
+      }
+      if (tab === "promotions") {
+        const d = await adminPost("get_promotions", {}, session.access_token);
+        if (!d.error) setPromotions(d.promotions || []);
+        // Also load location list for audience picker
+        const ld = await adminPost("get_locations", {}, session.access_token);
+        if (!ld.error) {
+          const merged = (ld.profiles as any[]).map((p: any) => {
+            const co = (ld.companies as any[]).find((c:any)=>c.location_id===p.location_id);
+            return { location_id: p.location_id, company_name: co?.company_name||p.location_id };
+          });
+          setLocationsList(merged);
+        }
       }
       if (tab === "email_alerts") {
         const d = await adminPost("get_email_templates", {}, session.access_token);
@@ -278,6 +294,7 @@ export default function AdminDashboard() {
     { id:"locations", label:"Locations",       icon:"🏢" },
     { id:"queue",       label:"Approval Queue",  icon:"📋" },
     { id:"pr_orders",    label:"PR Orders",       icon:"📰" },
+    { id:"promotions",   label:"Promotions",     icon:"🎟️" },
     { id:"email_alerts", label:"Email Alerts",    icon:"📧" },
     { id:"settings",    label:"Settings",        icon:"⚙️" },
   ];
@@ -287,22 +304,25 @@ export default function AdminDashboard() {
   return (
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
       {/* Top bar */}
-      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)", padding:".75rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:".75rem" }}>
-          <span style={{ fontSize:"1.3rem" }}>⚡</span>
-          <div>
-            <div style={{ color:"white", fontWeight:900, fontSize:".95rem", letterSpacing:"-.01em" }}>Media Blast Boosters™</div>
-            <div style={{ color:"rgba(255,255,255,.5)", fontSize:".68rem", letterSpacing:".08em", textTransform:"uppercase" }}>Admin Command Center</div>
+      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)" }}>
+        <div style={{ maxWidth:1200, margin:"0 auto", padding:".75rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:".75rem" }}>
+            <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:36, height:36, objectFit:"contain" }}/>
+            <div>
+              <div style={{ color:"white", fontWeight:900, fontSize:".95rem", letterSpacing:"-.01em" }}>Media Blast Boosters™</div>
+              <div style={{ color:"rgba(255,255,255,.5)", fontSize:".68rem", letterSpacing:".08em", textTransform:"uppercase" }}>Admin Command Center</div>
+            </div>
           </div>
+          <button onClick={() => supabase.auth.signOut()}
+            style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .85rem", fontSize:".78rem", cursor:"pointer" }}>
+            Sign out
+          </button>
         </div>
-        <button onClick={() => supabase.auth.signOut()}
-          style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .85rem", fontSize:".78rem", cursor:"pointer" }}>
-          Sign out
-        </button>
       </div>
 
       {/* Tab nav */}
-      <div style={{ background:"white", borderBottom:"1px solid #e2e8f0", padding:"0 1.5rem", display:"flex", gap:"0" }}>
+      <div style={{ background:"white", borderBottom:"1px solid #e2e8f0" }}>
+        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 1.5rem", display:"flex", gap:"0", overflowX:"auto" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ padding:".85rem 1.1rem", border:"none", borderBottom: activeTab===t.id ? "2.5px solid #6366f1" : "2.5px solid transparent", background:"transparent", color: activeTab===t.id ? "#6366f1" : "#64748b", fontWeight: activeTab===t.id ? 700 : 500, fontSize:".84rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem", whiteSpace:"nowrap" }}>
@@ -312,6 +332,7 @@ export default function AdminDashboard() {
             )}
           </button>
         ))}
+        </div>
       </div>
 
       {/* Content */}
@@ -665,6 +686,210 @@ export default function AdminDashboard() {
           );
         })()}
 
+        {/* PROMOTIONS */}
+        {!loading && activeTab==="promotions" && (() => {
+          const [creating, setCreating] = useState(false);
+          const [saving, setSaving] = useState(false);
+          const [form, setForm] = useState({
+            name:"", code:"", discount_type:"percent", discount_value:"",
+            packages:[] as string[], location_ids:[] as string[],
+            max_redemptions:"", expires_at:"", start_date:""
+          });
+          const ALL_PKGS = ["starter","standard","premium"];
+          const togglePkg = (p: string) => setForm(f=>({...f,packages:f.packages.includes(p)?f.packages.filter(x=>x!==p):[...f.packages,p]}));
+          const toggleLoc = (id: string) => setForm(f=>({...f,location_ids:f.location_ids.includes(id)?f.location_ids.filter(x=>x!==id):[...f.location_ids,id]}));
+
+          const createPromo = async () => {
+            if(!form.code||!form.discount_value||!session)return;
+            setSaving(true);
+            const d = await adminPost("create_promotion",{
+              name:form.name||form.code,
+              code:form.code.toUpperCase(),
+              discount_type:form.discount_type,
+              discount_value:Number(form.discount_value),
+              packages:form.packages.length?form.packages:null,
+              location_ids:form.location_ids.length?form.location_ids:null,
+              max_redemptions:form.max_redemptions?Number(form.max_redemptions):null,
+              expires_at:form.expires_at||null,
+            }, session.access_token);
+            if(d.ok){ showToast(`✅ Promotion ${form.code.toUpperCase()} created`); setCreating(false); setForm({name:"",code:"",discount_type:"percent",discount_value:"",packages:[],location_ids:[],max_redemptions:"",expires_at:"",start_date:""}); load("promotions"); }
+            else showToast(d.error||"Failed to create","error");
+            setSaving(false);
+          };
+
+          const deactivate = async (id: string) => {
+            if(!session||!confirm("Deactivate this promo code? It will no longer be usable."))return;
+            const d = await adminPost("deactivate_promotion",{id},session.access_token);
+            if(d.ok){showToast("Promo code deactivated");load("promotions");}
+            else showToast(d.error,"error");
+          };
+
+          return (
+            <div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.5rem" }}>
+                <div>
+                  <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .2rem" }}>🎟️ Promotions</h2>
+                  <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Create and manage coupon codes — synced live with Stripe</p>
+                </div>
+                <button onClick={()=>setCreating(true)}
+                  style={{ padding:".65rem 1.5rem", borderRadius:".55rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".85rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,.25)" }}>
+                  + New Promo Code
+                </button>
+              </div>
+
+              {/* Active promotions list */}
+              {promotions.length===0 ? (
+                <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"3rem", textAlign:"center" }}>
+                  <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>🎟️</div>
+                  <div style={{ fontWeight:700, color:"#1e293b" }}>No promotions yet</div>
+                  <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".3rem" }}>Create your first coupon code above</div>
+                </div>
+              ) : (
+                <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
+                    <thead><tr style={{ background:"#1e1b4b" }}>
+                      {["Code","Discount","Packages","Audience","Uses","Expires","Status",""].map(h=>(
+                        <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {promotions.map(p=>(
+                        <tr key={p.id} style={{ borderTop:"1px solid #f8fafc" }}
+                          onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                          onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                          <td style={{ padding:".8rem 1rem" }}>
+                            <span style={{ fontFamily:"monospace", fontWeight:800, fontSize:".88rem", color:"#6366f1", background:"#eef2ff", padding:".2rem .6rem", borderRadius:".3rem" }}>{p.code}</span>
+                            {p.name&&p.name!==p.code&&<div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".2rem" }}>{p.name}</div>}
+                          </td>
+                          <td style={{ padding:".8rem 1rem", fontWeight:700, color:"#16a34a", fontSize:".9rem" }}>
+                            {p.discount_type==="percent"?`${p.discount_value}% off`:`$${p.discount_value} off`}
+                          </td>
+                          <td style={{ padding:".8rem 1rem" }}>
+                            {p.packages?p.packages.map((pkg:string)=>(
+                              <span key={pkg} style={{ fontSize:".68rem", fontWeight:700, background:"#f1f5f9", color:"#374151", padding:".15rem .45rem", borderRadius:"99px", marginRight:".25rem" }}>{pkg}</span>
+                            )):<span style={{ fontSize:".72rem", color:"#94a3b8" }}>All</span>}
+                          </td>
+                          <td style={{ padding:".8rem 1rem" }}>
+                            {p.location_ids?<span style={{ fontSize:".72rem", color:"#6366f1" }}>{p.location_ids.length} location{p.location_ids.length!==1?"s":""}</span>:<span style={{ fontSize:".72rem", color:"#94a3b8" }}>All</span>}
+                          </td>
+                          <td style={{ padding:".8rem 1rem", color:"#374151" }}>{p.max_redemptions||<span style={{ color:"#94a3b8" }}>∞</span>}</td>
+                          <td style={{ padding:".8rem 1rem", color:"#64748b", fontSize:".78rem" }}>{p.expires_at?new Date(p.expires_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):<span style={{ color:"#94a3b8" }}>Never</span>}</td>
+                          <td style={{ padding:".8rem 1rem" }}>
+                            <span style={{ fontSize:".7rem", fontWeight:700, padding:".2rem .55rem", borderRadius:"99px", background:p.active?"#dcfce7":"#fee2e2", color:p.active?"#166534":"#991b1b" }}>
+                              {p.active?"Active":"Inactive"}
+                            </span>
+                          </td>
+                          <td style={{ padding:".8rem 1rem" }}>
+                            {p.active&&<button onClick={()=>deactivate(p.id)} style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #fee2e2", background:"white", color:"#991b1b", cursor:"pointer", fontWeight:600 }}>Deactivate</button>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Create modal */}
+              {creating && (
+                <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+                  <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:560, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 24px 80px rgba(0,0,0,.35)" }}>
+                    <div style={{ padding:"1.25rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background:"white", zIndex:1 }}>
+                      <h3 style={{ fontWeight:900, margin:0, fontSize:"1.05rem" }}>🎟️ New Promo Code</h3>
+                      <button onClick={()=>setCreating(false)} style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
+                    </div>
+                    <div style={{ padding:"1.5rem", display:"flex", flexDirection:"column", gap:"1.1rem" }}>
+                      {/* Code + Name */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".75rem" }}>
+                        <div>
+                          <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Promo Code *</label>
+                          <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="SAVE20"
+                            style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".9rem", fontFamily:"monospace", fontWeight:700, letterSpacing:".05em", boxSizing:"border-box" }}/>
+                        </div>
+                        <div>
+                          <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Internal Name</label>
+                          <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Summer promotion"
+                            style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" }}/>
+                        </div>
+                      </div>
+                      {/* Discount */}
+                      <div>
+                        <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Discount *</label>
+                        <div style={{ display:"flex", gap:".5rem" }}>
+                          <select value={form.discount_type} onChange={e=>setForm(f=>({...f,discount_type:e.target.value}))}
+                            style={{ padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", background:"white" }}>
+                            <option value="percent">% Off</option>
+                            <option value="amount">$ Off</option>
+                          </select>
+                          <input type="number" value={form.discount_value} onChange={e=>setForm(f=>({...f,discount_value:e.target.value}))}
+                            placeholder={form.discount_type==="percent"?"20":"50"} min="1" max={form.discount_type==="percent"?100:undefined}
+                            style={{ flex:1, padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".9rem", fontWeight:700 }}/>
+                          <span style={{ display:"flex", alignItems:"center", fontWeight:800, color:"#6366f1", fontSize:".9rem" }}>{form.discount_type==="percent"?"%":"USD"}</span>
+                        </div>
+                      </div>
+                      {/* Packages */}
+                      <div>
+                        <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".5rem" }}>Packages <span style={{ color:"#94a3b8", fontWeight:400 }}>(leave all unchecked = applies to all)</span></label>
+                        <div style={{ display:"flex", gap:".5rem" }}>
+                          {ALL_PKGS.map(p=>(
+                            <button key={p} onClick={()=>togglePkg(p)}
+                              style={{ padding:".4rem .9rem", borderRadius:".4rem", border:"2px solid", borderColor:form.packages.includes(p)?"#6366f1":"#e2e8f0", background:form.packages.includes(p)?"#eef2ff":"white", color:form.packages.includes(p)?"#6366f1":"#374151", fontWeight:form.packages.includes(p)?700:500, cursor:"pointer", fontSize:".8rem", textTransform:"capitalize" }}>
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Audience */}
+                      <div>
+                        <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".5rem" }}>
+                          Audience <span style={{ color:"#94a3b8", fontWeight:400 }}>(leave all unchecked = all locations)</span>
+                        </label>
+                        <div style={{ maxHeight:120, overflowY:"auto", border:"1px solid #e2e8f0", borderRadius:".45rem", padding:".5rem" }}>
+                          {locationsList.length===0?<div style={{ color:"#94a3b8", fontSize:".8rem", textAlign:"center", padding:".5rem" }}>No locations loaded</div>:
+                          locationsList.map(loc=>(
+                            <label key={loc.location_id} style={{ display:"flex", alignItems:"center", gap:".5rem", padding:".3rem .5rem", cursor:"pointer", borderRadius:".35rem" }}>
+                              <input type="checkbox" checked={form.location_ids.includes(loc.location_id)} onChange={()=>toggleLoc(loc.location_id)} style={{ cursor:"pointer" }}/>
+                              <span style={{ fontSize:".81rem", color:"#374151" }}>{loc.company_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Limits */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".75rem" }}>
+                        <div>
+                          <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Max Uses <span style={{ color:"#94a3b8", fontWeight:400 }}>(blank = unlimited)</span></label>
+                          <input type="number" value={form.max_redemptions} onChange={e=>setForm(f=>({...f,max_redemptions:e.target.value}))} placeholder="∞"
+                            style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" }}/>
+                        </div>
+                        <div>
+                          <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Expiry Date <span style={{ color:"#94a3b8", fontWeight:400 }}>(blank = no expiry)</span></label>
+                          <input type="date" value={form.expires_at} onChange={e=>setForm(f=>({...f,expires_at:e.target.value}))}
+                            style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", boxSizing:"border-box" }}/>
+                        </div>
+                      </div>
+                      {/* Preview */}
+                      {form.code&&form.discount_value&&(
+                        <div style={{ background:"linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius:".65rem", padding:"1rem", border:"1px solid #bbf7d0", textAlign:"center" }}>
+                          <div style={{ fontSize:".72rem", fontWeight:700, color:"#166534", textTransform:"uppercase", letterSpacing:".06em", marginBottom:".3rem" }}>Preview</div>
+                          <code style={{ fontSize:"1.1rem", fontWeight:900, color:"#166534" }}>{form.code.toUpperCase()}</code>
+                          <span style={{ marginLeft:".75rem", fontWeight:700, color:"#166534" }}>→ {form.discount_type==="percent"?`${form.discount_value}% off`:`$${form.discount_value} off`}</span>
+                          {form.packages.length>0&&<span style={{ marginLeft:".5rem", color:"#16a34a", fontSize:".8rem" }}>({form.packages.join(", ")})</span>}
+                        </div>
+                      )}
+                      <div style={{ display:"flex", gap:".75rem", paddingTop:".25rem" }}>
+                        <button onClick={()=>setCreating(false)} style={{ flex:1, padding:".7rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, cursor:"pointer" }}>Cancel</button>
+                        <button onClick={createPromo} disabled={saving||!form.code||!form.discount_value}
+                          style={{ flex:2, padding:".7rem", borderRadius:".5rem", border:"none", background:saving||!form.code||!form.discount_value?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:saving||!form.code||!form.discount_value?"#94a3b8":"white", fontWeight:800, cursor:saving?"not-allowed":"pointer", fontSize:".9rem" }}>
+                          {saving?"Creating…":"🎟️ Create & Sync to Stripe"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* EMAIL ALERTS */}
         {!loading && activeTab==="email_alerts" && (() => {
           const EMAIL_TYPES = [
@@ -807,10 +1032,22 @@ export default function AdminDashboard() {
                         />
                       ) : (
                         <iframe
+                          ref={iframeRef}
                           srcDoc={previewHtml}
-                          sandbox="allow-same-origin"
+                          sandbox="allow-same-origin allow-scripts"
                           style={{ flex:1, border:"none", background:"white" }}
                           title="Email Preview"
+                          onLoad={() => {
+                            try {
+                              const doc = iframeRef.current?.contentDocument;
+                              if (doc) {
+                                doc.designMode = "on";
+                                doc.addEventListener("input", () => {
+                                  setEditHtml(doc.documentElement.outerHTML);
+                                });
+                              }
+                            } catch {}
+                          }}
                         />
                       )}
                     </div>
