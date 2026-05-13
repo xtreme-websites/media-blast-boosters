@@ -482,6 +482,7 @@ export default function AdminDashboard() {
   const [pdNotes,        setPdNotes]        = useState<any[]>([]);
   const [pdDocuments,    setPdDocuments]    = useState<any[]>([]);
   const [pdSettingMain,  setPdSettingMain]  = useState(false);
+  const [viewingPartner, setViewingPartner] = useState<any|null>(null);
   const [emailTemplates,  setEmailTemplates]  = useState<EmailTemplate[]>([]);
   const [defaultTmpl,     setDefaultTmpl]     = useState("");
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate|null>(null);
@@ -749,24 +750,36 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Tab nav */}
-      <div style={{ background:"white", borderBottom:"1px solid #e2e8f0" }}>
-        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 1.5rem", display:"flex", gap:"0", overflowX:"auto" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            style={{ padding:".85rem 1.1rem", border:"none", borderBottom: activeTab===t.id ? "2.5px solid #6366f1" : "2.5px solid transparent", background:"transparent", color: activeTab===t.id ? "#6366f1" : "#64748b", fontWeight: activeTab===t.id ? 700 : 500, fontSize:".84rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem", whiteSpace:"nowrap" }}>
-            {t.icon} {t.label}
-            {t.id==="queue" && queueBadge > 0 && (
-              <span style={{ background:"#ef4444", color:"white", fontSize:".6rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px" }}>{queueBadge}</span>
-            )}
-          </button>
-        ))}
-        </div>
-      </div>
+      {/* Body: sidebar + content */}
+      <div style={{ display:"flex", minHeight:"calc(100vh - 56px)" }}>
 
-      {/* Content */}
-      <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>
-        {loading && <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}>Loading…</div>}
+        {/* Vertical sidebar */}
+        <div style={{ width:220, background:"white", borderRight:"1px solid #e2e8f0", flexShrink:0, position:"sticky", top:0, height:"calc(100vh - 56px)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+          <nav style={{ padding:".5rem 0", flex:1 }}>
+            {TABS.map(t => {
+              const active = activeTab === t.id;
+              return (
+                <button key={t.id} onClick={() => navigateTab(t.id)}
+                  style={{ width:"100%", padding:".65rem 1.25rem", border:"none", borderLeft: active ? "3px solid #6366f1" : "3px solid transparent", background: active ? "#eef2ff" : "transparent", color: active ? "#6366f1" : "#4b5563", fontWeight: active ? 700 : 500, fontSize:".83rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".6rem", textAlign:"left", transition:"all .12s" }}
+                  onMouseOver={e=>{ if(!active)(e.currentTarget.style.background="#f8fafc"); }}
+                  onMouseOut={e=>{ if(!active)(e.currentTarget.style.background="transparent"); }}>
+                  <span style={{ fontSize:".95rem", flexShrink:0 }}>{t.icon}</span>
+                  <span style={{ flex:1 }}>{t.label}</span>
+                  {t.id==="queue" && queueBadge > 0 && (
+                    <span style={{ background:"#ef4444", color:"white", fontSize:".58rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px", flexShrink:0 }}>{queueBadge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+          <div style={{ padding:".75rem 1rem", borderTop:"1px solid #f1f5f9", fontSize:".7rem", color:"#94a3b8" }}>
+            {session?.user?.email}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex:1, padding:"1.5rem", minWidth:0, overflowX:"hidden" }}>
+          {loading && <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}>Loading…</div>}
 
         {/* OVERVIEW */}
         {!loading && activeTab==="overview" && (
@@ -1173,7 +1186,7 @@ export default function AdminDashboard() {
                           {/* Identity */}
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontWeight:700, fontSize:".92rem", color:"#1e293b" }}>{p.name || p.email}</div>
-                            <div style={{ fontSize:".76rem", color:"#64748b", marginTop:".1rem" }}>{p.email}{p.company ? ` · ${p.company}` : ""}</div>
+                            {p.company && <div style={{ fontSize:".76rem", color:"#64748b", marginTop:".1rem" }}>{p.company}</div>}
                           </div>
                           {/* Stripe status */}
                           <div style={{ flexShrink:0 }}>
@@ -1186,6 +1199,11 @@ export default function AdminDashboard() {
                               <span style={{ background:"#f1f5f9", color:"#64748b", fontSize:".72rem", fontWeight:600, padding:".25rem .65rem", borderRadius:"99px" }}>⚠️ No Stripe</span>
                             )}
                           </div>
+                          {/* See Profile */}
+                          <button onClick={() => setViewingPartner(p)}
+                            style={{ padding:".35rem .85rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", fontSize:".75rem", fontWeight:600, cursor:"pointer", color:"#374151", flexShrink:0 }}>
+                            👤 See Profile
+                          </button>
                           {/* Member since */}
                           <div style={{ fontSize:".72rem", color:"#94a3b8", flexShrink:0 }}>
                             Since {new Date(p.created_at).toLocaleDateString("en-US",{month:"short",year:"numeric"})}
@@ -1203,6 +1221,55 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Partner Profile Modal */}
+              {viewingPartner && (
+                <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.5)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+                  <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:440, boxShadow:"0 24px 80px rgba(0,0,0,.3)", overflow:"hidden" }}>
+                    <div style={{ background:"linear-gradient(135deg,#1a0a2e,#2d1054)", padding:"1.25rem 1.5rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:".75rem" }}>
+                        <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.1rem" }}>👤</div>
+                        <div>
+                          <div style={{ color:"white", fontWeight:800, fontSize:".95rem" }}>{viewingPartner.name || viewingPartner.email}</div>
+                          <div style={{ color:"rgba(255,255,255,.5)", fontSize:".72rem", marginTop:".1rem" }}>Partner Profile</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setViewingPartner(null)}
+                        style={{ background:"none", border:"none", color:"rgba(255,255,255,.6)", fontSize:"1.2rem", cursor:"pointer", lineHeight:1, padding:".25rem" }}>✕</button>
+                    </div>
+                    <div style={{ padding:"1.5rem", display:"flex", flexDirection:"column", gap:"0" }}>
+                      {([
+                        { label:"Email",            value: viewingPartner.email },
+                        { label:"Company",          value: viewingPartner.company },
+                        { label:"Point of Contact", value: viewingPartner.contact },
+                        { label:"Phone",            value: viewingPartner.phone },
+                        { label:"Website",          value: viewingPartner.website, isUrl: true },
+                        { label:"Member Since",     value: viewingPartner.created_at ? new Date(viewingPartner.created_at).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : null },
+                      ] as { label:string; value:string|null; isUrl?:boolean }[]).filter(f=>f.value).map(f=>(
+                        <div key={f.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"1rem", padding:".65rem 0", borderBottom:"1px solid #f8fafc" }}>
+                          <span style={{ fontSize:".73rem", fontWeight:700, color:"#94a3b8", textTransform:"uppercase" as const, letterSpacing:".05em", flexShrink:0, paddingTop:".05rem" }}>{f.label}</span>
+                          {f.isUrl ? (
+                            <a href={f.value!} target="_blank" rel="noreferrer" style={{ fontSize:".85rem", color:"#6366f1", fontWeight:500, textDecoration:"none", textAlign:"right" as const, wordBreak:"break-all" as const }}>{f.value}</a>
+                          ) : (
+                            <span style={{ fontSize:".85rem", color:"#1e293b", fontWeight:500, textAlign:"right" as const, wordBreak:"break-all" as const }}>{f.value}</span>
+                          )}
+                        </div>
+                      ))}
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:".65rem 0" }}>
+                        <span style={{ fontSize:".73rem", fontWeight:700, color:"#94a3b8", textTransform:"uppercase" as const, letterSpacing:".05em" }}>Stripe</span>
+                        {viewingPartner.stripe_connect_status === "active"
+                          ? <span style={{ background:"linear-gradient(135deg,#f5f3ff,#ede9fe)", color:"#4338ca", fontSize:".75rem", fontWeight:700, padding:".25rem .7rem", borderRadius:"99px", border:"1px solid #635bff40" }}>✓ Connected</span>
+                          : <span style={{ background:"#f1f5f9", color:"#94a3b8", fontSize:".75rem", fontWeight:600, padding:".25rem .7rem", borderRadius:"99px" }}>Not connected</span>
+                        }
+                      </div>
+                    </div>
+                    <div style={{ padding:".75rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={() => setViewingPartner(null)}
+                        style={{ padding:".55rem 1.25rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", fontSize:".84rem", fontWeight:600, cursor:"pointer" }}>Close</button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Package Pricing — read-only view of main partner's bullets */}
               <div style={{ marginBottom:"2rem" }}>
@@ -1608,7 +1675,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-      </div>
+      </div>{/* /content */}
+      </div>{/* /body: sidebar+content */}
 
       {/* Credit Override Modal */}
       {overrideTarget && (
