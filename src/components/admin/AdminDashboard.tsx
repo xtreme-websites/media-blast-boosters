@@ -733,9 +733,9 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
-      {/* Top bar */}
-      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)" }}>
-        <div style={{ maxWidth:1200, margin:"0 auto", padding:".75rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      {/* Top bar — full width to match sidebar layout */}
+      <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)", flexShrink:0 }}>
+        <div style={{ padding:".75rem 1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:".75rem" }}>
             <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:36, height:36, objectFit:"contain" }}/>
             <div>
