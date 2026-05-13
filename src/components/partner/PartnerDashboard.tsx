@@ -137,24 +137,35 @@ export default function PartnerDashboard() {
   };
 
   // Auth
-  // Handle Stripe Connect OAuth callback + general ?tab= deep links
+  // Handle Stripe Connect Account Links return + general ?tab= deep links
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const state = params.get("state");
-    const tabParam = params.get("tab") as Tab | null;
+    const tabParam  = params.get("tab") as Tab | null;
+    const stripeReturn  = params.get("stripe_return");
+    const stripeRefresh = params.get("stripe_refresh");
 
-    if (code && state === "stripe_connect") {
-      // Remove params from URL, land on details tab
+    if (stripeReturn || stripeRefresh) {
+      // Clear params, land on details tab
       window.history.replaceState({}, "", "/partner?tab=details");
-      const doExchange = async () => {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        if (s) {
-          const d = await partnerPost("complete_stripe_connect", { code }, s.access_token);
-          if (d.ok) { setConnectId(d.stripe_user_id); setConnectStatus("active"); setActiveTab("details"); }
-        }
-      };
-      setTimeout(doExchange, 1500);
+      if (tabParam !== "details") setActiveTab("details");
+
+      if (stripeReturn) {
+        // Verify account status after onboarding
+        const doVerify = async () => {
+          const { data: { session: s } } = await supabase.auth.getSession();
+          if (!s) return;
+          const d = await partnerPost("verify_connect", {}, s.access_token);
+          if (d.ok) {
+            setConnectStatus(d.status);
+            if (d.status === "active") setConnectId(prev => prev); // already set
+          }
+          // Reload details to get latest connect state
+          const det = await partnerPost("get_details", {}, s.access_token);
+          if (!det.error) { setConnectId(det.stripe_connect_id); setConnectStatus(det.stripe_connect_status || "not_connected"); }
+        };
+        setTimeout(doVerify, 800);
+      }
+      // stripe_refresh = user needs to re-do onboarding (link expired) — UI will show button again
     } else if (tabParam) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", `/partner?tab=${tabParam}`);
@@ -706,14 +717,27 @@ export default function PartnerDashboard() {
                 ) : (
                   <div style={{ padding:"1.5rem", background:"white", borderRadius:".75rem", border:"1.5px solid #e2e8f0", textAlign:"center" }}>
                     <div style={{ fontSize:"2rem", marginBottom:".5rem" }}>🔗</div>
-                    <div style={{ fontWeight:700, color:"#1e293b", marginBottom:".3rem" }}>Connect your Stripe account</div>
-                    <div style={{ color:"#64748b", fontSize:".82rem", marginBottom:"1.25rem" }}>You'll be redirected to Stripe to complete the Express onboarding. Takes about 2 minutes.</div>
-                    <a
-                      href={`https://connect.stripe.com/express/oauth/authorize?client_id=${connectClientId}&state=stripe_connect&redirect_uri=https://mediablast.xlogic.app/partner&suggested_capabilities[]=transfers`}
-                      style={{ display:"inline-flex", alignItems:"center", gap:".5rem", padding:".75rem 1.75rem", borderRadius:".6rem", background:"linear-gradient(135deg,#635bff,#0a2540)", color:"white", fontWeight:800, fontSize:".9rem", textDecoration:"none", boxShadow:"0 4px 14px rgba(99,91,255,.35)" }}>
+                    <div style={{ fontWeight:700, color:"#1e293b", marginBottom:".3rem" }}>
+                      {connectStatus === "pending" ? "Complete your Stripe setup" : "Connect your Stripe account"}
+                    </div>
+                    <div style={{ color:"#64748b", fontSize:".82rem", marginBottom:"1.25rem" }}>
+                      {connectStatus === "pending"
+                        ? "Your account was created but onboarding isn't complete. Click below to continue."
+                        : "You'll be redirected to Stripe to complete Express onboarding. Takes about 2 minutes."}
+                    </div>
+                    <button onClick={async () => {
+                        if (!session) return;
+                        const d = await partnerPost("initiate_connect", {}, session.access_token);
+                        if (d.ok && d.url) {
+                          window.location.href = d.url;
+                        } else {
+                          alert(d.error || "Failed to start Stripe onboarding");
+                        }
+                      }}
+                      style={{ display:"inline-flex", alignItems:"center", gap:".5rem", padding:".75rem 1.75rem", borderRadius:".6rem", background:"linear-gradient(135deg,#635bff,#0a2540)", color:"white", fontWeight:800, fontSize:".9rem", border:"none", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,91,255,.35)" }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>
-                      Connect with Stripe
-                    </a>
+                      {connectStatus === "pending" ? "Continue Stripe Setup" : "Connect with Stripe"}
+                    </button>
                   </div>
                 )}
               </div>
@@ -818,7 +842,7 @@ export default function PartnerDashboard() {
               <p style={{ color:"#64748b", fontSize:".88rem", margin:"0 0 1.5rem", maxWidth:420, marginLeft:"auto", marginRight:"auto", lineHeight:1.65 }}>
                 Please complete your Stripe setup in the Partner Details tab to view earnings and receive payouts.
               </p>
-              <button onClick={()=>setActiveTab("details")}
+              <button onClick={()=>navigateTab("details")}
                 style={{ padding:".7rem 1.75rem", borderRadius:".6rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer" }}>
                 Go to Partner Details →
               </button>
