@@ -116,7 +116,7 @@ export default function PartnerDashboard() {
   const [accountSession, setAccountSession] = useState<string|null>(null);
   const [partnerName,  setPartnerName]  = useState("");
   const [showDisconnect, setShowDisconnect] = useState(false);
-  const [profile,       setProfile]       = useState({ email:"", company:"", phone:"", website:"" });
+  const [profile,       setProfile]       = useState({ email:"", contact:"", company:"", phone:"", website:"" });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileDirty,  setProfileDirty]  = useState(false);
   const [packageNotes, setPackageNotes] = useState<any[]>([]);
@@ -222,7 +222,7 @@ export default function PartnerDashboard() {
         if (!d.error) { setPackageNotes(d.notes || []); setDocuments(d.documents || []); setConnectId(d.stripe_connect_id); setConnectStatus(d.stripe_connect_status||"not_connected"); if(d.partner_name) setPartnerName(d.partner_name); }
         // Load profile separately so we always get fresh data
         const pf = await partnerPost("get_profile", {}, session.access_token);
-        if (!pf.error) setProfile({ email: pf.email||"", company: pf.company||"", phone: pf.phone||"", website: pf.website||"" });
+        if (!pf.error) setProfile({ email: pf.email||"", contact: pf.contact||"", company: pf.company||"", phone: pf.phone||"", website: pf.website||"" });
       }
       if (tab === "payouts") {
         const cs = await partnerPost("get_connect_status", {}, session.access_token);
@@ -817,13 +817,24 @@ export default function PartnerDashboard() {
                 <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Profile Details</h2>
                 <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Keep your contact info up to date. Email is set by the admin and cannot be changed here.</p>
                 <div style={{ background:"white", borderRadius:".875rem", border:"1px solid #f1f5f9", padding:"1.5rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
-                  {/* Email — read-only */}
-                  <div>
-                    <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>
-                      Email <span style={{ color:"#94a3b8", fontWeight:400 }}>(set by admin)</span>
-                    </label>
-                    <div style={{ padding:".5rem .85rem", borderRadius:".45rem", border:"1.5px solid #f1f5f9", background:"#f8fafc", fontSize:".88rem", color:"#64748b", fontFamily:"monospace" }}>
-                      {profile.email || "—"}
+                  {/* Email + Point of Contact side by side */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".85rem" }}>
+                    <div>
+                      <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>
+                        Email <span style={{ color:"#94a3b8", fontWeight:400 }}>(set by admin)</span>
+                      </label>
+                      <div style={{ padding:".5rem .85rem", borderRadius:".45rem", border:"1.5px solid #f1f5f9", background:"#f8fafc", fontSize:".88rem", color:"#64748b", fontFamily:"monospace" }}>
+                        {profile.email || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize:".75rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".3rem" }}>Point of Contact</label>
+                      <input
+                        value={profile.contact}
+                        onChange={e=>{ setProfile(p=>({...p,contact:e.target.value})); setProfileDirty(true); }}
+                        placeholder="Full name of main contact"
+                        style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", boxSizing:"border-box" as const, outline:"none" }}
+                      />
                     </div>
                   </div>
                   {/* Company + Phone side by side */}
@@ -833,7 +844,7 @@ export default function PartnerDashboard() {
                       <input
                         value={profile.company}
                         onChange={e=>{ setProfile(p=>({...p,company:e.target.value})); setProfileDirty(true); }}
-                        placeholder="e.g. NewswireJet"
+                        placeholder="Your company name"
                         style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", boxSizing:"border-box" as const, outline:"none" }}
                       />
                     </div>
@@ -855,7 +866,7 @@ export default function PartnerDashboard() {
                       type="url"
                       value={profile.website}
                       onChange={e=>{ setProfile(p=>({...p,website:e.target.value})); setProfileDirty(true); }}
-                      placeholder="https://newswirejet.com"
+                      placeholder="https://yourcompany.com"
                       style={{ width:"100%", padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", boxSizing:"border-box" as const, outline:"none" }}
                     />
                   </div>
@@ -865,7 +876,7 @@ export default function PartnerDashboard() {
                       onClick={async () => {
                         if (!session) return;
                         setProfileSaving(true);
-                        const d = await partnerPost("save_profile", { company:profile.company, phone:profile.phone, website:profile.website }, session.access_token);
+                        const d = await partnerPost("save_profile", { contact:profile.contact, company:profile.company, phone:profile.phone, website:profile.website }, session.access_token);
                         if (d.ok) { showToast("Profile saved ✓"); setProfileDirty(false); if(profile.company) setPartnerName(profile.company); }
                         else showToast(d.error || "Save failed", "error");
                         setProfileSaving(false);
