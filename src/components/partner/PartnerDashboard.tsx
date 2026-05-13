@@ -59,7 +59,8 @@ const STATUS_COLORS: Record<string, { bg:string; color:string }> = {
 
 // ── Partner Login ──────────────────────────────────────────────────────────────
 function PartnerLogin({ accessDenied }: { accessDenied?: boolean }) {
-  const [email,   setEmail]   = useState("");
+  const prefill = new URLSearchParams(window.location.search).get("email") || "";
+  const [email,   setEmail]   = useState(prefill);
   const [pass,    setPass]    = useState("");
   const [err,     setErr]     = useState("");
   const [loading, setLoading] = useState(false);
