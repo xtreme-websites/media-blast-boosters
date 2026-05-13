@@ -180,7 +180,7 @@ export default function PartnerDashboard() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      if (s) { checkPartner(s); }; else { setIsPartner(false); setAuthCheck(false); }
+      if (s) { checkPartner(s); } else { setIsPartner(false); setAuthCheck(false); }
     });
     return () => subscription.unsubscribe();
   }, []);
