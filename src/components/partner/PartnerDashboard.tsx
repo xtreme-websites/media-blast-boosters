@@ -137,15 +137,16 @@ export default function PartnerDashboard() {
   };
 
   // Auth
-  // Handle Stripe Connect OAuth callback
+  // Handle Stripe Connect OAuth callback + general ?tab= deep links
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const state = params.get("state");
+    const tabParam = params.get("tab") as Tab | null;
+
     if (code && state === "stripe_connect") {
-      // Remove params from URL
+      // Remove params from URL, land on details tab
       window.history.replaceState({}, "", "/partner?tab=details");
-      // Exchange code after auth is ready
       const doExchange = async () => {
         const { data: { session: s } } = await supabase.auth.getSession();
         if (s) {
@@ -153,7 +154,10 @@ export default function PartnerDashboard() {
           if (d.ok) { setConnectId(d.stripe_user_id); setConnectStatus("active"); setActiveTab("details"); }
         }
       };
-      setTimeout(doExchange, 1500); // wait for auth to settle
+      setTimeout(doExchange, 1500);
+    } else if (tabParam) {
+      setActiveTab(tabParam);
+      window.history.replaceState({}, "", `/partner?tab=${tabParam}`);
     }
   }, []);
 
@@ -266,6 +270,11 @@ export default function PartnerDashboard() {
     { id:"payouts",   label:"Payouts",         icon:"💸" },
   ];
 
+  const navigateTab = (tab: Tab) => {
+    setActiveTab(tab);
+    window.history.replaceState({}, "", `/partner?tab=${tab}`);
+  };
+
   const queueBadge = queue.length;
 
   // PR Orders filtered
@@ -304,7 +313,7 @@ export default function PartnerDashboard() {
       <div style={{ background:"white", borderBottom:"1px solid #e2e8f0" }}>
         <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 1.5rem", display:"flex", overflowX:"auto" }}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
+            <button key={t.id} onClick={() => navigateTab(t.id)}
               style={{ padding:".85rem 1.1rem", border:"none", borderBottom: activeTab===t.id ? "2.5px solid #8929bd" : "2.5px solid transparent", background:"transparent", color: activeTab===t.id ? "#8929bd" : "#64748b", fontWeight: activeTab===t.id ? 700 : 500, fontSize:".84rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem", whiteSpace:"nowrap" }}>
               {t.icon} {t.label}
               {t.id==="queue" && queueBadge > 0 && (

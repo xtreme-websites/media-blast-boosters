@@ -723,6 +723,11 @@ export default function AdminDashboard() {
     { id:"settings",        label:"Settings",        icon:"⚙️" },
   ];
 
+  const navigateTab = (tab: Tab) => {
+    setActiveTab(tab);
+    window.history.replaceState({}, "", `/admin?tab=${tab}`);
+  };
+
   const queueBadge = queue.length;
 
   return (
