@@ -463,7 +463,7 @@ export default function PartnerDashboard() {
       </div>
 
       {/* PARTNER DETAILS */}
-      {!loading && activeTab==="details" && (() => {
+      {!loading && activeTab==="details" && <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>{(() => {
           const TIERS = [
             { key:"starter",  label:"Starter",  price:120, color:"#6366f1", bg:"#eef2ff" },
             { key:"standard", label:"Standard", price:220, color:"#8929bd", bg:"#f5f3ff" },
@@ -699,7 +699,7 @@ export default function PartnerDashboard() {
               )}
             </div>
           );
-      })()}
+      })()}</div>}
 
       {/* PR Preview Modal */}
       {previewOrder && (
