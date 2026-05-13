@@ -338,6 +338,13 @@ export default function PRDashboard() {
     if (webhookUrl) {
       try { await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "order.placed", location_id: locationId, order_id: newOrder.id, pr_title: prTitle, package: packageType, price: pkg.price, pr_content: prContent, company_name: companyData.name, industry: companyData.industry, timestamp: new Date().toISOString() }) }); } catch {}
     }
+    // Auto-approve when review mode is OFF (fire-and-forget)
+    if (status === "submitted" && locationId !== "preview-mode") {
+      fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/auto-approve-order", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: newOrder.id, location_id: locationId }),
+      }).catch(() => {});
+    }
   };
 
   const handleTopicSelect = (topic: Topic & { selectedIdea?: string }) => {

@@ -2,7 +2,43 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, partnerPost } from "../../lib/supabase-partner";
 import type { Session } from "@supabase/supabase-js";
 
-type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "details";
+// ── Stripe Connect Embedded Payouts ───────────────────────────────────────────
+const STRIPE_PUBLISHABLE_KEY = "pk_live_51QRk7nKWRQxDCjAzFSFjlNJRBK9ORKpxB0k4eP4nH5gCi8mBFkmpNm9OxupGbJnKlQ6TU0X4CQxLDXW1dHFf3Ns00oJlasEdZS";
+
+function PayoutsEmbed({ clientSecret }: { clientSecret: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let instance: any;
+    (async () => {
+      try {
+        const { loadConnectAndInitialize } = await import("@stripe/connect-js");
+        instance = loadConnectAndInitialize({
+          publishableKey: STRIPE_PUBLISHABLE_KEY,
+          fetchClientSecret: () => Promise.resolve(clientSecret),
+          appearance: {
+            overlays: "drawer",
+            variables: {
+              colorPrimary: "#8929bd",
+              colorBackground: "#ffffff",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              borderRadius: "8px",
+            },
+          },
+        });
+        if (containerRef.current) {
+          const payouts = instance.create("payouts");
+          payouts.mount(containerRef.current);
+        }
+      } catch (e) {
+        console.error("Stripe Connect failed to load:", e);
+      }
+    })();
+    return () => { try { instance?.destroy(); } catch {} };
+  }, [clientSecret]);
+  return <div ref={containerRef} style={{ minHeight:400 }}/>;
+}
+
+type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "details" | "payouts";
 
 interface Order {
   id: string; location_id: string; pr_title: string; product_name: string;
@@ -75,6 +111,10 @@ export default function PartnerDashboard() {
   const [queue,       setQueue]       = useState<Order[]>([]);
   const [allOrders,   setAllOrders]   = useState<Order[]>([]);
   const [ordFilter,   setOrdFilter]   = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
+  const [connectId,    setConnectId]    = useState<string|null>(null);
+  const [connectStatus,setConnectStatus]= useState("not_connected");
+  const [connectClientId, setConnectClientId] = useState("ca_UVPxtVObJ1J2nUieqPiHROqJn7etM44E");
+  const [accountSession, setAccountSession] = useState<string|null>(null);
   const [packageNotes, setPackageNotes] = useState<any[]>([]);
   const [documents,    setDocuments]    = useState<any[]>([]);
   const [editingTier,  setEditingTier]  = useState<string|null>(null);
@@ -97,6 +137,26 @@ export default function PartnerDashboard() {
   };
 
   // Auth
+  // Handle Stripe Connect OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    if (code && state === "stripe_connect") {
+      // Remove params from URL
+      window.history.replaceState({}, "", "/partner?tab=details");
+      // Exchange code after auth is ready
+      const doExchange = async () => {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s) {
+          const d = await partnerPost("complete_stripe_connect", { code }, s.access_token);
+          if (d.ok) { setConnectId(d.stripe_user_id); setConnectStatus("active"); setActiveTab("details"); }
+        }
+      };
+      setTimeout(doExchange, 1500); // wait for auth to settle
+    }
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -140,7 +200,15 @@ export default function PartnerDashboard() {
       }
       if (tab === "details") {
         const d = await partnerPost("get_details", {}, session.access_token);
-        if (!d.error) { setPackageNotes(d.notes || []); setDocuments(d.documents || []); }
+        if (!d.error) { setPackageNotes(d.notes || []); setDocuments(d.documents || []); setConnectId(d.stripe_connect_id); setConnectStatus(d.stripe_connect_status||"not_connected"); }
+      }
+      if (tab === "payouts") {
+        const cs = await partnerPost("get_connect_status", {}, session.access_token);
+        if (!cs.error) { setConnectId(cs.stripe_connect_id); setConnectStatus(cs.stripe_connect_status||"not_connected"); setConnectClientId(cs.connect_client_id||"ca_UVPxtVObJ1J2nUieqPiHROqJn7etM44E"); }
+        if (cs.stripe_connect_id) {
+          const as = await partnerPost("get_account_session", {}, session.access_token);
+          if (!as.error) setAccountSession(as.client_secret);
+        }
       }
       if (tab === "pr_orders") {
         const d = await partnerPost("get_all_orders", {}, session.access_token);
@@ -195,6 +263,7 @@ export default function PartnerDashboard() {
     { id:"queue",     label:"Approval Queue", icon:"📋" },
     { id:"pr_orders", label:"PR Orders",      icon:"📰" },
     { id:"details",   label:"Partner Details", icon:"🤝" },
+    { id:"payouts",   label:"Payouts",         icon:"💸" },
   ];
 
   const queueBadge = queue.length;
@@ -612,7 +681,33 @@ export default function PartnerDashboard() {
                 )}
               </div>
 
-              {/* Edit Bullets Modal */}
+              {/* Stripe Connect section */}
+              <div style={{ marginTop:"2.5rem" }}>
+                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Stripe Connect</h2>
+                <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Connect your Stripe account to receive automatic payouts when PRs are fulfilled.</p>
+                {connectStatus === "active" && connectId ? (
+                  <div style={{ display:"flex", alignItems:"center", gap:"1rem", padding:"1rem 1.5rem", background:"linear-gradient(135deg,#fffbeb,#fef3c7)", border:"1.5px solid #d97706", borderRadius:".75rem" }}>
+                    <div style={{ fontSize:"1.5rem" }}>✅</div>
+                    <div>
+                      <div style={{ fontWeight:800, fontSize:".95rem", color:"#92400e" }}>Stripe Connected</div>
+                      <div style={{ fontSize:".75rem", color:"#b45309", marginTop:".1rem", fontFamily:"monospace" }}>{connectId}</div>
+                    </div>
+                    <span style={{ marginLeft:"auto", background:"#d97706", color:"white", fontWeight:800, fontSize:".72rem", padding:".3rem .85rem", borderRadius:"99px" }}>Active</span>
+                  </div>
+                ) : (
+                  <div style={{ padding:"1.5rem", background:"white", borderRadius:".75rem", border:"1.5px solid #e2e8f0", textAlign:"center" }}>
+                    <div style={{ fontSize:"2rem", marginBottom:".5rem" }}>🔗</div>
+                    <div style={{ fontWeight:700, color:"#1e293b", marginBottom:".3rem" }}>Connect your Stripe account</div>
+                    <div style={{ color:"#64748b", fontSize:".82rem", marginBottom:"1.25rem" }}>You'll be redirected to Stripe to complete the Express onboarding. Takes about 2 minutes.</div>
+                    <a
+                      href={`https://connect.stripe.com/express/oauth/authorize?client_id=${connectClientId}&state=stripe_connect&redirect_uri=https://mediablast.xlogic.app/partner&suggested_capabilities[]=transfers`}
+                      style={{ display:"inline-flex", alignItems:"center", gap:".5rem", padding:".75rem 1.75rem", borderRadius:".6rem", background:"linear-gradient(135deg,#635bff,#0a2540)", color:"white", fontWeight:800, fontSize:".9rem", textDecoration:"none", boxShadow:"0 4px 14px rgba(99,91,255,.35)" }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>
+                      Connect with Stripe
+                    </a>
+                  </div>
+                )}
+              </div>
               {editingTier && (()=>{
                 const tier=TIERS.find(t=>t.key===editingTier)!;
                 return(
@@ -700,6 +795,32 @@ export default function PartnerDashboard() {
             </div>
           );
       })()}</div>}
+
+      {/* PAYOUTS */}
+      {!loading && activeTab==="payouts" && (
+        <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>
+          <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>💸 Payouts</h2>
+          <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.5rem" }}>View your available balance, payout history, and manage your bank account.</p>
+
+          {!connectId || connectStatus !== "active" ? (
+            <div style={{ background:"white", borderRadius:".875rem", border:"1px solid #f1f5f9", padding:"4rem 2rem", textAlign:"center" }}>
+              <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>🔗</div>
+              <h3 style={{ fontWeight:800, fontSize:"1.1rem", color:"#1e293b", margin:"0 0 .5rem" }}>Stripe not connected</h3>
+              <p style={{ color:"#64748b", fontSize:".88rem", margin:"0 0 1.5rem", maxWidth:420, marginLeft:"auto", marginRight:"auto", lineHeight:1.65 }}>
+                Please complete your Stripe setup in the Partner Details tab to view earnings and receive payouts.
+              </p>
+              <button onClick={()=>setActiveTab("details")}
+                style={{ padding:".7rem 1.75rem", borderRadius:".6rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer" }}>
+                Go to Partner Details →
+              </button>
+            </div>
+          ) : accountSession ? (
+            <PayoutsEmbed clientSecret={accountSession} />
+          ) : (
+            <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}>Loading payout dashboard…</div>
+          )}
+        </div>
+      )}
 
       {/* PR Preview Modal */}
       {previewOrder && (
