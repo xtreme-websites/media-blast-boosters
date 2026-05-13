@@ -38,7 +38,7 @@ function PayoutsEmbed({ clientSecret }: { clientSecret: string }) {
   return <div ref={containerRef} style={{ minHeight:400 }}/>;
 }
 
-type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "details" | "payouts";
+type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "pipeline" | "details" | "payouts";
 
 interface Order {
   id: string; location_id: string; pr_title: string; product_name: string;
@@ -47,6 +47,7 @@ interface Order {
 }
 
 const TIER_COLORS: Record<string, string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+const PAYOUT: Record<string, number> = { starter:120, standard:220, premium:400 };
 const STATUS_COLORS: Record<string, { bg:string; color:string }> = {
   submitted:          { bg:"#dbeafe", color:"#1d4ed8" },
   published:          { bg:"#dcfce7", color:"#166534" },
@@ -111,6 +112,9 @@ export default function PartnerDashboard() {
   const [queue,       setQueue]       = useState<Order[]>([]);
   const [allOrders,   setAllOrders]   = useState<Order[]>([]);
   const [ordFilter,   setOrdFilter]   = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
+  const [pipelineItems,   setPipelineItems]   = useState<any[]>([]);
+  const [pipelineTotal,   setPipelineTotal]   = useState(0);
+  const [pipelineFilter,  setPipelineFilter]  = useState<"all"|"scheduled"|"draft"|"unused">("all");
   const [connectId,    setConnectId]    = useState<string|null>(null);
   const [connectStatus,setConnectStatus]= useState("not_connected");
   const [accountSession, setAccountSession] = useState<string|null>(null);
@@ -224,6 +228,10 @@ export default function PartnerDashboard() {
         const pf = await partnerPost("get_profile", {}, session.access_token);
         if (!pf.error) setProfile({ email: pf.email||"", contact: pf.contact||"", company: pf.company||"", phone: pf.phone||"", website: pf.website||"" });
       }
+      if (tab === "pipeline") {
+        const d = await partnerPost("get_pipeline", {}, session.access_token);
+        if (!d.error) { setPipelineItems(d.items || []); setPipelineTotal(d.total_pipeline || 0); }
+      }
       if (tab === "payouts") {
         const cs = await partnerPost("get_connect_status", {}, session.access_token);
         if (!cs.error) { setConnectId(cs.stripe_connect_id); setConnectStatus(cs.stripe_connect_status||"not_connected"); setConnectClientId(cs.connect_client_id||"ca_UVPxtVObJ1J2nUieqPiHROqJn7etM44E"); }
@@ -284,6 +292,7 @@ export default function PartnerDashboard() {
     { id:"revenue",   label:"Revenue",        icon:"💰" },
     { id:"queue",     label:"Approval Queue", icon:"📋" },
     { id:"pr_orders", label:"PR Orders",      icon:"📰" },
+    { id:"pipeline",  label:"Pipeline",        icon:"📈" },
     { id:"details",   label:"Partner Details", icon:"🤝" },
     { id:"payouts",   label:"Payouts",         icon:"💸" },
   ];
@@ -557,6 +566,141 @@ export default function PartnerDashboard() {
           </div>
         )}
       </div>
+
+      {/* PIPELINE */}
+      {!loading && activeTab==="pipeline" && (
+        <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>
+          {/* Header + Total Pipeline Value */}
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem", marginBottom:"1.5rem" }}>
+            <div>
+              <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .25rem" }}>📈 Pipeline</h2>
+              <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Fulfillment forecast based on purchased credits and active drafts.</p>
+            </div>
+            <div style={{ background:"linear-gradient(135deg,#1a0a2e,#2d1054)", borderRadius:".875rem", padding:"1rem 1.5rem", textAlign:"right", minWidth:200 }}>
+              <div style={{ fontSize:".7rem", fontWeight:700, color:"rgba(255,255,255,.5)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:".25rem" }}>Total Pipeline Value</div>
+              <div style={{ fontSize:"1.75rem", fontWeight:900, color:"white" }}>
+                ${pipelineTotal.toLocaleString("en-US", { minimumFractionDigits:0 })}
+              </div>
+              <div style={{ fontSize:".72rem", color:"rgba(255,255,255,.4)", marginTop:".15rem" }}>{pipelineItems.length} items</div>
+            </div>
+          </div>
+
+          {/* Status filter pills */}
+          <div style={{ display:"flex", gap:".5rem", marginBottom:"1.25rem", flexWrap:"wrap" }}>
+            {([
+              { key:"all",       label:"All",           count: pipelineItems.length },
+              { key:"scheduled", label:"🗓 Scheduled",  count: pipelineItems.filter(i=>i.status==="scheduled").length },
+              { key:"draft",     label:"✏️ In Draft",   count: pipelineItems.filter(i=>i.status==="draft").length },
+              { key:"unused",    label:"💤 Unused",     count: pipelineItems.filter(i=>i.status==="unused").length },
+            ] as { key: typeof pipelineFilter; label: string; count: number }[]).map(f => (
+              <button key={f.key} onClick={() => setPipelineFilter(f.key)}
+                style={{ padding:".4rem .9rem", borderRadius:"99px", border:`1.5px solid ${pipelineFilter===f.key?"#8929bd":"#e2e8f0"}`, background:pipelineFilter===f.key?"#f5f3ff":"white", color:pipelineFilter===f.key?"#8929bd":"#374151", fontWeight:pipelineFilter===f.key?700:500, fontSize:".8rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".35rem" }}>
+                {f.label}
+                <span style={{ background:pipelineFilter===f.key?"#8929bd":"#e2e8f0", color:pipelineFilter===f.key?"white":"#64748b", fontSize:".65rem", fontWeight:800, padding:".1rem .4rem", borderRadius:"99px" }}>{f.count}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Data grid */}
+          {pipelineItems.length === 0 ? (
+            <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"3rem", textAlign:"center" }}>
+              <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>📭</div>
+              <div style={{ fontWeight:700, color:"#1e293b" }}>No pipeline data yet</div>
+              <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".3rem" }}>Items will appear as clients purchase credits and create drafts</div>
+            </div>
+          ) : (() => {
+            const STATUS_STYLES: Record<string, { bg:string; color:string; label:string }> = {
+              scheduled: { bg:"#fef3c7", color:"#92400e",  label:"Scheduled"     },
+              draft:     { bg:"#dbeafe", color:"#1d4ed8",  label:"In Draft"      },
+              unused:    { bg:"#f1f5f9", color:"#475569",  label:"Unused Credit" },
+            };
+            const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+
+            const filtered = pipelineItems.filter(i => pipelineFilter === "all" || i.status === pipelineFilter);
+            const filteredTotal = filtered.reduce((s:number, i:any) => s + i.payout, 0);
+
+            return (
+              <div>
+                {pipelineFilter !== "all" && (
+                  <div style={{ marginBottom:".75rem", fontSize:".82rem", color:"#64748b" }}>
+                    <span style={{ fontWeight:700, color:"#1e293b" }}>{filtered.length} items</span> · Est. value: <span style={{ fontWeight:700, color:"#8929bd" }}>${filteredTotal.toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={{ background:"white", borderRadius:".875rem", border:"1px solid #f1f5f9", overflow:"auto", boxShadow:"0 1px 4px rgba(0,0,0,.04)" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".83rem" }}>
+                    <thead>
+                      <tr style={{ background:"#1a0a2e" }}>
+                        {["Location","Tier","Status","Est. Payout","Actionable Date"].map(h => (
+                          <th key={h} style={{ padding:".75rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.75)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".06em", whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((item: any) => {
+                        const ss = STATUS_STYLES[item.status];
+                        const tierColor = TIER_COLORS[item.tier] || "#6366f1";
+                        return (
+                          <tr key={item.key} style={{ borderTop:"1px solid #f8fafc" }}
+                            onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                            onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                            {/* Location */}
+                            <td style={{ padding:".8rem 1rem" }}>
+                              <div style={{ fontWeight:600, color:"#1e293b", fontSize:".85rem" }}>{item.company_name}</div>
+                              <div style={{ fontSize:".7rem", color:"#94a3b8", fontFamily:"monospace", marginTop:".1rem" }}>{item.location_id}</div>
+                            </td>
+                            {/* Tier */}
+                            <td style={{ padding:".8rem 1rem" }}>
+                              <span style={{ fontWeight:700, fontSize:".75rem", color:tierColor, background:tierColor+"18", padding:".2rem .6rem", borderRadius:"99px", textTransform:"capitalize" as const }}>
+                                {item.tier}
+                              </span>
+                            </td>
+                            {/* Status */}
+                            <td style={{ padding:".8rem 1rem" }}>
+                              <span style={{ fontWeight:700, fontSize:".75rem", color:ss.color, background:ss.bg, padding:".25rem .65rem", borderRadius:"99px", whiteSpace:"nowrap" as const }}>
+                                {ss.label}
+                                {item.status === "unused" && item.credits > 1 && (
+                                  <span style={{ marginLeft:".35rem", opacity:.75 }}>×{item.credits}</span>
+                                )}
+                              </span>
+                            </td>
+                            {/* Est. Payout */}
+                            <td style={{ padding:".8rem 1rem" }}>
+                              <span style={{ fontWeight:800, fontSize:".88rem", color:"#8929bd" }}>
+                                ${item.payout.toLocaleString()}
+                              </span>
+                              {item.status === "unused" && item.credits > 1 && (
+                                <div style={{ fontSize:".68rem", color:"#94a3b8", marginTop:".1rem" }}>${PAYOUT[item.tier]||120} × {item.credits}</div>
+                              )}
+                            </td>
+                            {/* Actionable Date */}
+                            <td style={{ padding:".8rem 1rem", color:"#64748b", fontSize:".78rem", whiteSpace:"nowrap" as const }}>
+                              {item.actionable_date
+                                ? new Date(item.actionable_date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
+                                : <span style={{ color:"#cbd5e1" }}>—</span>
+                              }
+                              {item.status === "scheduled" && item.actionable_date && new Date(item.actionable_date) > new Date() && (
+                                <div style={{ fontSize:".68rem", color:"#92400e", marginTop:".1rem" }}>
+                                  {Math.ceil((new Date(item.actionable_date).getTime()-Date.now())/(1000*60*60*24))}d away
+                                </div>
+                              )}
+                              {item.status === "draft" && item.actionable_date && (
+                                <div style={{ fontSize:".68rem", color:"#64748b", marginTop:".1rem" }}>last edited</div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {filtered.length === 0 && (
+                    <div style={{ padding:"2.5rem", textAlign:"center", color:"#94a3b8" }}>No items match this filter</div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* PARTNER DETAILS */}
       {!loading && activeTab==="details" && <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>{(() => {
