@@ -3,7 +3,7 @@ import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/sup
 import type { Session } from "@supabase/supabase-js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "revenue" | "locations" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "settings";
+type Tab = "overview" | "revenue" | "locations" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "partner_details" | "settings";
 interface EmailTemplate { key: string; subject: string; html: string; updated_at?: string; is_custom?: boolean; }
 
 interface Location { location_id: string; company_name?: string; email?: string;
@@ -477,6 +477,11 @@ export default function AdminDashboard() {
   const [promotions,     setPromotions]     = useState<any[]>([]);
   const [locationsList,  setLocationsList]  = useState<any[]>([]);
   const [ordFilter,      setOrdFilter]      = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
+  const [pdPartners,     setPdPartners]     = useState<any[]>([]);
+  const [pdDefaultId,    setPdDefaultId]    = useState<string>("");
+  const [pdNotes,        setPdNotes]        = useState<any[]>([]);
+  const [pdDocuments,    setPdDocuments]    = useState<any[]>([]);
+  const [pdSettingMain,  setPdSettingMain]  = useState(false);
   const [emailTemplates,  setEmailTemplates]  = useState<EmailTemplate[]>([]);
   const [defaultTmpl,     setDefaultTmpl]     = useState("");
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate|null>(null);
@@ -507,6 +512,13 @@ export default function AdminDashboard() {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
+
+  // Handle deep-link tab from URL params (e.g. email CTA → ?tab=partner_details)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab") as Tab | null;
+    if (tab) { setActiveTab(tab); window.history.replaceState({}, "", "/admin"); }
+  }, []);
 
   // Auth check
   useEffect(() => {
@@ -571,7 +583,16 @@ export default function AdminDashboard() {
         const d = await res.json();
         if (!d.error) setRevenue(d);
       }
-      if (tab === "pr_orders") {
+      if (tab === "partner_details") {
+      const d = await adminPost("get_partner_details", {}, s.access_token);
+      if (!d.error) {
+        setPdPartners(d.partners || []);
+        setPdDefaultId(d.default_partner_id || "");
+        setPdNotes(d.notes || []);
+        setPdDocuments(d.documents || []);
+      }
+    }
+    if (tab === "pr_orders") {
         const d = await adminPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
       }
@@ -697,8 +718,9 @@ export default function AdminDashboard() {
     { id:"queue",       label:"Approval Queue",  icon:"📋" },
     { id:"pr_orders",    label:"PR Orders",       icon:"📰" },
     { id:"promotions",   label:"Promotions",     icon:"🎟️" },
-    { id:"email_alerts", label:"Email Alerts",    icon:"📧" },
-    { id:"settings",    label:"Settings",        icon:"⚙️" },
+    { id:"email_alerts",    label:"Email Alerts",    icon:"📧" },
+    { id:"partner_details", label:"Partner Details", icon:"🤝" },
+    { id:"settings",        label:"Settings",        icon:"⚙️" },
   ];
 
   const queueBadge = queue.length;
@@ -1098,6 +1120,177 @@ export default function AdminDashboard() {
             onRefresh={() => load("promotions")}
           />
         )}
+
+        {/* PARTNER DETAILS */}
+        {!loading && activeTab==="partner_details" && (() => {
+          const TIERS = [
+            { key:"starter",  label:"Starter",  price:120, color:"#6366f1", bg:"#eef2ff" },
+            { key:"standard", label:"Standard", price:220, color:"#8929bd", bg:"#f5f3ff" },
+            { key:"premium",  label:"Premium",  price:400, color:"#d97706", bg:"#fef3c7" },
+          ];
+          const DEFAULT_BULLETS: Record<string,string[]> = {
+            starter:  ["Published across 200+ media outlets","300-400 word press release","24-48 hour turnaround","Full distribution report included"],
+            standard: ["Published across 400+ premium outlets","500-600 word press release","24 hour turnaround","Distribution report + analytics","Enhanced editorial placement"],
+            premium:  ["Published across 600+ top-tier outlets","800-1000 word press release","Priority same-day processing","Full distribution report + analytics","TV/radio syndication included","Dedicated account support"],
+          };
+          const getBullets = (tier: string) => pdNotes.find(n=>n.tier===tier)?.bullets || DEFAULT_BULLETS[tier] || [];
+
+          const setMainPartner = async (partnerId: string) => {
+            if (!session) return;
+            setPdSettingMain(true);
+            const d = await adminPost("set_default_partner", { partner_id: partnerId || null }, session.access_token);
+            if (d.ok) { setPdDefaultId(partnerId); showToast("Main partner updated ✓"); setDefaultPartnerId(partnerId); }
+            else showToast(d.error || "Failed to update", "error");
+            setPdSettingMain(false);
+          };
+
+          const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} MB`:bytes>1024?`${Math.round(bytes/1024)} KB`:`${bytes} B`;
+
+          return (
+            <div>
+              <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 1.5rem" }}>🤝 Partner Details</h2>
+
+              {/* List of Partners */}
+              <div style={{ marginBottom:"2rem" }}>
+                <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .75rem" }}>List of Partners</h3>
+                {pdPartners.length === 0 ? (
+                  <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"2rem", textAlign:"center", color:"#94a3b8" }}>
+                    No partners yet — create one in Settings
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:".65rem" }}>
+                    {pdPartners.map((p:any) => {
+                      const isMain = pdDefaultId === p.id;
+                      return (
+                        <div key={p.id} style={{ background:"white", borderRadius:".75rem", border:`1.5px solid ${isMain?"#8929bd":"#f1f5f9"}`, padding:"1rem 1.25rem", display:"flex", alignItems:"center", gap:"1rem", flexWrap:"wrap" }}>
+                          {/* Main badge */}
+                          {isMain && <span style={{ background:"linear-gradient(135deg,#8929bd,#6366f1)", color:"white", fontSize:".68rem", fontWeight:800, padding:".25rem .65rem", borderRadius:"99px", whiteSpace:"nowrap" }}>⭐ Main Partner</span>}
+                          {/* Identity */}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontWeight:700, fontSize:".92rem", color:"#1e293b" }}>{p.name || p.email}</div>
+                            <div style={{ fontSize:".76rem", color:"#64748b", marginTop:".1rem" }}>{p.email}{p.company ? ` · ${p.company}` : ""}</div>
+                          </div>
+                          {/* Stripe status */}
+                          <div style={{ flexShrink:0 }}>
+                            {p.stripe_connect_status === "active" ? (
+                              <span style={{ background:"#fef3c7", color:"#92400e", fontSize:".72rem", fontWeight:700, padding:".25rem .65rem", borderRadius:"99px", border:"1px solid #fcd34d" }}>✅ Stripe Connected</span>
+                            ) : (
+                              <span style={{ background:"#f1f5f9", color:"#64748b", fontSize:".72rem", fontWeight:600, padding:".25rem .65rem", borderRadius:"99px" }}>⚠️ No Stripe</span>
+                            )}
+                          </div>
+                          {/* Member since */}
+                          <div style={{ fontSize:".72rem", color:"#94a3b8", flexShrink:0 }}>
+                            Since {new Date(p.created_at).toLocaleDateString("en-US",{month:"short",year:"numeric"})}
+                          </div>
+                          {/* Set as main */}
+                          {!isMain && (
+                            <button onClick={() => setMainPartner(p.id)} disabled={pdSettingMain}
+                              style={{ padding:".4rem .9rem", borderRadius:".45rem", border:"1.5px solid #8929bd", background:"white", color:"#8929bd", fontWeight:700, fontSize:".78rem", cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
+                              {pdSettingMain ? "…" : "Set as Main Partner"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Package Pricing — read-only view of main partner's bullets */}
+              <div style={{ marginBottom:"2rem" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:".75rem", marginBottom:".75rem" }}>
+                  <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:0 }}>Package Pricing</h3>
+                  {pdDefaultId ? (
+                    <span style={{ fontSize:".72rem", color:"#64748b", background:"#f1f5f9", padding:".2rem .6rem", borderRadius:"99px" }}>
+                      From: {pdPartners.find((p:any)=>p.id===pdDefaultId)?.name || "Main Partner"}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize:".72rem", color:"#ef4444", background:"#fff1f2", padding:".2rem .6rem", borderRadius:"99px" }}>No main partner set</span>
+                  )}
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:"1rem" }}>
+                  {TIERS.map(tier => {
+                    const bullets = getBullets(tier.key);
+                    return (
+                      <div key={tier.key} style={{ background:"white", borderRadius:".875rem", border:`1.5px solid ${tier.color}25`, overflow:"hidden" }}>
+                        <div style={{ background:`linear-gradient(135deg,${tier.color}15,${tier.color}05)`, borderBottom:`1px solid ${tier.color}20`, padding:"1rem 1.25rem" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                            <span style={{ fontWeight:800, fontSize:".9rem", color:tier.color }}>{tier.label}</span>
+                            <span style={{ fontWeight:900, fontSize:"1.35rem", color:tier.color }}>${tier.price}</span>
+                          </div>
+                          <div style={{ fontSize:".7rem", color:"#94a3b8", marginTop:".1rem" }}>per press release · partner payout</div>
+                        </div>
+                        <div style={{ padding:"1rem 1.25rem" }}>
+                          <ul style={{ margin:0, padding:0, listStyle:"none", display:"flex", flexDirection:"column", gap:".4rem" }}>
+                            {(bullets as string[]).map((b, i) => (
+                              <li key={i} style={{ fontSize:".8rem", color:"#374151", display:"flex", alignItems:"flex-start", gap:".45rem" }}>
+                                <span style={{ color:tier.color, flexShrink:0 }}>•</span>{b}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Partner Documents — all documents from all partners */}
+              <div>
+                <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .75rem" }}>Partner Documents</h3>
+                {pdDocuments.length === 0 ? (
+                  <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"2.5rem", textAlign:"center" }}>
+                    <div style={{ fontSize:"2rem", marginBottom:".4rem" }}>📁</div>
+                    <div style={{ fontWeight:600, color:"#1e293b" }}>No documents uploaded yet</div>
+                    <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".25rem" }}>Partners can upload documents from their Partner Details tab</div>
+                  </div>
+                ) : (
+                  <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
+                      <thead><tr style={{ background:"#1e1b4b" }}>
+                        {["Partner","Document","Description","File","Uploaded"].map(h=>(
+                          <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {pdDocuments.map((doc:any)=>{
+                          // Try to match partner name from partner_id
+                          const partnerName = doc.partner_id
+                            ? pdPartners.find((p:any)=>p.id===doc.partner_id)?.name || doc.uploaded_by
+                            : doc.uploaded_by || "—";
+                          return (
+                            <tr key={doc.id} style={{ borderTop:"1px solid #f8fafc" }}
+                              onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                              onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                              <td style={{ padding:".75rem 1rem" }}>
+                                <span style={{ fontWeight:600, color:"#8929bd", fontSize:".8rem" }}>{partnerName}</span>
+                              </td>
+                              <td style={{ padding:".75rem 1rem", fontWeight:600, color:"#1e293b" }}>{doc.name}</td>
+                              <td style={{ padding:".75rem 1rem", color:"#64748b", fontSize:".78rem", maxWidth:200 }}>
+                                <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{doc.description||"—"}</div>
+                              </td>
+                              <td style={{ padding:".75rem 1rem" }}>
+                                {doc.file_url?(
+                                  <a href={doc.file_url} target="_blank" rel="noreferrer"
+                                    style={{ color:"#6366f1", fontWeight:600, fontSize:".78rem", textDecoration:"none", display:"flex", alignItems:"center", gap:".3rem" }}>
+                                    📄 {doc.file_name||"View"}{doc.file_size?<span style={{ color:"#94a3b8", fontWeight:400 }}> ({fmtSize(doc.file_size)})</span>:null}
+                                  </a>
+                                ):"—"}
+                              </td>
+                              <td style={{ padding:".75rem 1rem", color:"#64748b", whiteSpace:"nowrap", fontSize:".78rem" }}>
+                                {doc.uploaded_at?new Date(doc.uploaded_at).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}):"—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* EMAIL ALERTS */}
         {!loading && activeTab==="email_alerts" && (() => {
