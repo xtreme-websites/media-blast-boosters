@@ -36,7 +36,7 @@ function AdminLogin({ onLogin, accessDenied }: { onLogin: () => void; accessDeni
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0f0a1e,#1e1b4b)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"system-ui,sans-serif" }}>
       <div style={{ background:"white", borderRadius:"1rem", padding:"2.5rem", width:"100%", maxWidth:380, boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
         <div style={{ textAlign:"center", marginBottom:"2rem" }}>
-          <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:56, height:56, objectFit:"contain", marginBottom:".75rem" }}/>
+          <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:56, height:56, objectFit:"contain", marginBottom:".75rem", display:"block", margin:"0 auto .75rem" }}/>
           <h1 style={{ fontWeight:900, fontSize:"1.3rem", color:"#1e293b", margin:"0 0 .25rem" }}>Admin Command Center</h1>
           <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Media Blast Boosters™</p>
         </div>

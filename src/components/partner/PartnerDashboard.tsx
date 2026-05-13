@@ -38,7 +38,7 @@ function PartnerLogin({ accessDenied }: { accessDenied?: boolean }) {
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0f0a1e,#1a0a2e)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"system-ui,sans-serif" }}>
       <div style={{ background:"white", borderRadius:"1rem", padding:"2.5rem", width:"100%", maxWidth:380, boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
         <div style={{ textAlign:"center", marginBottom:"2rem" }}>
-          <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:56, height:56, objectFit:"contain", marginBottom:".75rem" }}/>
+          <img src="https://mediablast.xlogic.app/logo.png" alt="MBB" style={{ width:56, height:56, objectFit:"contain", display:"block", margin:"0 auto .75rem" }}/>
           <h1 style={{ fontWeight:900, fontSize:"1.3rem", color:"#1e293b", margin:"0 0 .25rem" }}>Partner Portal</h1>
           <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Media Blast Boosters™</p>
         </div>
@@ -103,7 +103,7 @@ export default function PartnerDashboard() {
     try {
       const d = await partnerPost("get_overview", {}, s.access_token);
       if (!d.error) { setIsPartner(true); setOverview(d); }
-      else { setIsPartner(false); setAccessDenied(true); await supabase.auth.signOut(); }
+      else { setIsPartner(false); setAccessDenied(true); }
     } catch { setIsPartner(false); setAccessDenied(true); }
     setAuthCheck(false);
   };
