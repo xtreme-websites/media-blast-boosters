@@ -3,7 +3,7 @@ import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/sup
 import type { Session } from "@supabase/supabase-js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "revenue" | "locations" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "partner_details" | "settings";
+type Tab = "overview" | "locations" | "revenue" | "pipeline" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "partner_details" | "settings";
 interface EmailTemplate { key: string; subject: string; html: string; updated_at?: string; is_custom?: boolean; }
 
 interface Location { location_id: string; company_name?: string; email?: string;
@@ -477,6 +477,9 @@ export default function AdminDashboard() {
   const [promotions,     setPromotions]     = useState<any[]>([]);
   const [locationsList,  setLocationsList]  = useState<any[]>([]);
   const [ordFilter,      setOrdFilter]      = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
+  const [adminPipeline,    setAdminPipeline]    = useState<any[]>([]);
+  const [adminPipeTotal,   setAdminPipeTotal]   = useState(0);
+  const [adminPipeFilter,  setAdminPipeFilter]  = useState<"all"|"scheduled"|"draft"|"unused">("all");
   const [pdPartners,     setPdPartners]     = useState<any[]>([]);
   const [pdDefaultId,    setPdDefaultId]    = useState<string>("");
   const [pdNotes,        setPdNotes]        = useState<any[]>([]);
@@ -593,6 +596,10 @@ export default function AdminDashboard() {
           setPdDocuments(d.documents || []);
         }
       }
+    if (tab === "pipeline") {
+      const d = await adminPost("get_pipeline", {}, session.access_token);
+      if (!d.error) { setAdminPipeline(d.items || []); setAdminPipeTotal(d.total_pipeline || 0); }
+    }
     if (tab === "pr_orders") {
         const d = await adminPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
@@ -714,8 +721,9 @@ export default function AdminDashboard() {
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id:"overview",  label:"Overview",        icon:"📊" },
-    { id:"revenue",   label:"Revenue",         icon:"💰" },
     { id:"locations", label:"Locations",       icon:"🏢" },
+    { id:"revenue",   label:"Revenue",         icon:"💰" },
+    { id:"pipeline",  label:"Pipeline",        icon:"📈" },
     { id:"queue",       label:"Approval Queue",  icon:"📋" },
     { id:"pr_orders",    label:"PR Orders",       icon:"📰" },
     { id:"promotions",   label:"Promotions",     icon:"🎟️" },
@@ -950,6 +958,117 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* PIPELINE */}
+        {!loading && activeTab==="pipeline" && (() => {
+          const PIPE_PAYOUT: Record<string,number> = { starter:120, standard:220, premium:400 };
+          const STATUS_STYLES: Record<string,{bg:string;color:string;label:string}> = {
+            scheduled: { bg:"#fef3c7", color:"#92400e", label:"Scheduled"     },
+            draft:     { bg:"#dbeafe", color:"#1d4ed8", label:"In Draft"      },
+            unused:    { bg:"#f1f5f9", color:"#475569", label:"Unused Credit" },
+          };
+          const TIER_COL: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+          const filtered = adminPipeline.filter(i => adminPipeFilter==="all" || i.status===adminPipeFilter);
+          const filteredTotal = filtered.reduce((s:number,i:any)=>s+i.payout, 0);
+          return (
+            <div>
+              {/* Header */}
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem", marginBottom:"1.5rem" }}>
+                <div>
+                  <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .25rem" }}>📈 Pipeline</h2>
+                  <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Fulfillment forecast across all locations — credits, active drafts, and scheduled PRs.</p>
+                </div>
+                <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)", borderRadius:".875rem", padding:"1rem 1.5rem", textAlign:"right", minWidth:200 }}>
+                  <div style={{ fontSize:".7rem", fontWeight:700, color:"rgba(255,255,255,.5)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:".25rem" }}>Total Pipeline Value</div>
+                  <div style={{ fontSize:"1.75rem", fontWeight:900, color:"white" }}>${adminPipeTotal.toLocaleString("en-US",{minimumFractionDigits:0})}</div>
+                  <div style={{ fontSize:".72rem", color:"rgba(255,255,255,.4)", marginTop:".15rem" }}>{adminPipeline.length} items</div>
+                </div>
+              </div>
+              {/* Filters */}
+              <div style={{ display:"flex", gap:".5rem", marginBottom:"1.25rem", flexWrap:"wrap" }}>
+                {([
+                  { key:"all",       label:"All",          count: adminPipeline.length },
+                  { key:"scheduled", label:"🗓 Scheduled", count: adminPipeline.filter((i:any)=>i.status==="scheduled").length },
+                  { key:"draft",     label:"✏️ In Draft",  count: adminPipeline.filter((i:any)=>i.status==="draft").length },
+                  { key:"unused",    label:"💤 Unused",    count: adminPipeline.filter((i:any)=>i.status==="unused").length },
+                ] as {key:typeof adminPipeFilter;label:string;count:number}[]).map(f=>(
+                  <button key={f.key} onClick={()=>setAdminPipeFilter(f.key)}
+                    style={{ padding:".4rem .9rem", borderRadius:"99px", border:`1.5px solid ${adminPipeFilter===f.key?"#6366f1":"#e2e8f0"}`, background:adminPipeFilter===f.key?"#eef2ff":"white", color:adminPipeFilter===f.key?"#6366f1":"#374151", fontWeight:adminPipeFilter===f.key?700:500, fontSize:".8rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".35rem" }}>
+                    {f.label}
+                    <span style={{ background:adminPipeFilter===f.key?"#6366f1":"#e2e8f0", color:adminPipeFilter===f.key?"white":"#64748b", fontSize:".65rem", fontWeight:800, padding:".1rem .4rem", borderRadius:"99px" }}>{f.count}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Table */}
+              {adminPipeline.length === 0 ? (
+                <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"3rem", textAlign:"center" }}>
+                  <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>📭</div>
+                  <div style={{ fontWeight:700, color:"#1e293b" }}>No pipeline data yet</div>
+                  <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".3rem" }}>Items appear as clients purchase credits and create drafts</div>
+                </div>
+              ) : (
+                <div>
+                  {adminPipeFilter!=="all" && (
+                    <div style={{ marginBottom:".75rem", fontSize:".82rem", color:"#64748b" }}>
+                      <span style={{ fontWeight:700, color:"#1e293b" }}>{filtered.length} items</span> · Est. value: <span style={{ fontWeight:700, color:"#6366f1" }}>${filteredTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div style={{ background:"white", borderRadius:".875rem", border:"1px solid #f1f5f9", overflow:"auto", boxShadow:"0 1px 4px rgba(0,0,0,.04)" }}>
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".83rem" }}>
+                      <thead><tr style={{ background:"#1e1b4b" }}>
+                        {["Location","Tier","Status","Est. Payout","Actionable Date"].map(h=>(
+                          <th key={h} style={{ padding:".75rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.75)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".06em", whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {filtered.map((item:any)=>{
+                          const ss=STATUS_STYLES[item.status];
+                          const tc=TIER_COL[item.tier]||"#6366f1";
+                          return (
+                            <tr key={item.key} style={{ borderTop:"1px solid #f8fafc" }}
+                              onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                              onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                              <td style={{ padding:".8rem 1rem" }}>
+                                <div style={{ fontWeight:600, color:"#1e293b", fontSize:".85rem" }}>{item.company_name}</div>
+                                <div style={{ fontSize:".7rem", color:"#94a3b8", fontFamily:"monospace", marginTop:".1rem" }}>{item.location_id}</div>
+                              </td>
+                              <td style={{ padding:".8rem 1rem" }}>
+                                <span style={{ fontWeight:700, fontSize:".75rem", color:tc, background:tc+"18", padding:".2rem .6rem", borderRadius:"99px", textTransform:"capitalize" as const }}>{item.tier}</span>
+                              </td>
+                              <td style={{ padding:".8rem 1rem" }}>
+                                <span style={{ fontWeight:700, fontSize:".75rem", color:ss.color, background:ss.bg, padding:".25rem .65rem", borderRadius:"99px", whiteSpace:"nowrap" as const }}>
+                                  {ss.label}{item.status==="unused"&&item.credits>1&&<span style={{ marginLeft:".35rem", opacity:.75 }}>×{item.credits}</span>}
+                                </span>
+                              </td>
+                              <td style={{ padding:".8rem 1rem" }}>
+                                <span style={{ fontWeight:800, fontSize:".88rem", color:"#6366f1" }}>${item.payout.toLocaleString()}</span>
+                                {item.status==="unused"&&item.credits>1&&(
+                                  <div style={{ fontSize:".68rem", color:"#94a3b8", marginTop:".1rem" }}>${PIPE_PAYOUT[item.tier]||120} × {item.credits}</div>
+                                )}
+                              </td>
+                              <td style={{ padding:".8rem 1rem", color:"#64748b", fontSize:".78rem", whiteSpace:"nowrap" as const }}>
+                                {item.actionable_date
+                                  ? new Date(item.actionable_date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
+                                  : <span style={{ color:"#cbd5e1" }}>—</span>}
+                                {item.status==="scheduled"&&item.actionable_date&&new Date(item.actionable_date)>new Date()&&(
+                                  <div style={{ fontSize:".68rem", color:"#92400e", marginTop:".1rem" }}>{Math.ceil((new Date(item.actionable_date).getTime()-Date.now())/(1000*60*60*24))}d away</div>
+                                )}
+                                {item.status==="draft"&&item.actionable_date&&(
+                                  <div style={{ fontSize:".68rem", color:"#64748b", marginTop:".1rem" }}>last edited</div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {filtered.length===0&&<div style={{ padding:"2.5rem", textAlign:"center", color:"#94a3b8" }}>No items match this filter</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* APPROVAL QUEUE */}
         {!loading && activeTab==="queue" && (
