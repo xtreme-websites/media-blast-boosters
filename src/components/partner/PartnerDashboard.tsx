@@ -113,8 +113,9 @@ export default function PartnerDashboard() {
   const [ordFilter,   setOrdFilter]   = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
   const [connectId,    setConnectId]    = useState<string|null>(null);
   const [connectStatus,setConnectStatus]= useState("not_connected");
-  const [connectClientId, setConnectClientId] = useState("ca_UVPxtVObJ1J2nUieqPiHROqJn7etM44E");
   const [accountSession, setAccountSession] = useState<string|null>(null);
+  const [partnerName,  setPartnerName]  = useState("");
+  const [showDisconnect, setShowDisconnect] = useState(false);
   const [packageNotes, setPackageNotes] = useState<any[]>([]);
   const [documents,    setDocuments]    = useState<any[]>([]);
   const [editingTier,  setEditingTier]  = useState<string|null>(null);
@@ -179,7 +180,7 @@ export default function PartnerDashboard() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      if (s) checkPartner(s); else { setIsPartner(false); setAuthCheck(false); }
+      if (s) { checkPartner(s); }; else { setIsPartner(false); setAuthCheck(false); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -215,7 +216,7 @@ export default function PartnerDashboard() {
       }
       if (tab === "details") {
         const d = await partnerPost("get_details", {}, session.access_token);
-        if (!d.error) { setPackageNotes(d.notes || []); setDocuments(d.documents || []); setConnectId(d.stripe_connect_id); setConnectStatus(d.stripe_connect_status||"not_connected"); }
+        if (!d.error) { setPackageNotes(d.notes || []); setDocuments(d.documents || []); setConnectId(d.stripe_connect_id); setConnectStatus(d.stripe_connect_status||"not_connected"); if(d.partner_name) setPartnerName(d.partner_name); }
       }
       if (tab === "payouts") {
         const cs = await partnerPost("get_connect_status", {}, session.access_token);
@@ -706,13 +707,26 @@ export default function PartnerDashboard() {
                 <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Stripe Connect</h2>
                 <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Connect your Stripe account to receive automatic payouts when PRs are fulfilled.</p>
                 {connectStatus === "active" && connectId ? (
-                  <div style={{ display:"flex", alignItems:"center", gap:"1rem", padding:"1rem 1.5rem", background:"linear-gradient(135deg,#fffbeb,#fef3c7)", border:"1.5px solid #d97706", borderRadius:".75rem" }}>
-                    <div style={{ fontSize:"1.5rem" }}>✅</div>
-                    <div>
-                      <div style={{ fontWeight:800, fontSize:".95rem", color:"#92400e" }}>Stripe Connected</div>
-                      <div style={{ fontSize:".75rem", color:"#b45309", marginTop:".1rem", fontFamily:"monospace" }}>{connectId}</div>
+                  <div style={{ background:"linear-gradient(135deg,#f5f3ff,#ede9fe)", border:"1.5px solid #635bff40", borderRadius:".875rem", overflow:"hidden" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"1rem", padding:"1rem 1.5rem" }}>
+                      {/* Stripe logo mark */}
+                      <div style={{ width:40, height:40, borderRadius:"50%", background:"linear-gradient(135deg,#635bff,#0a2540)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
+                          <span style={{ fontWeight:800, fontSize:".95rem", color:"#3730a3" }}>Stripe Connected</span>
+                          <span style={{ background:"#635bff", color:"white", fontWeight:700, fontSize:".65rem", padding:".15rem .55rem", borderRadius:"99px", letterSpacing:".04em", textTransform:"uppercase" }}>Active</span>
+                        </div>
+                        <div style={{ fontSize:".78rem", color:"#6366f1", marginTop:".15rem" }}>
+                          {partnerName || "Payouts enabled"} — payouts will be sent automatically
+                        </div>
+                      </div>
+                      <button onClick={() => setShowDisconnect(true)}
+                        style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:".73rem", fontWeight:500, textDecoration:"underline", textUnderlineOffset:2, flexShrink:0, padding:".25rem .5rem" }}>
+                        Disconnect
+                      </button>
                     </div>
-                    <span style={{ marginLeft:"auto", background:"#d97706", color:"white", fontWeight:800, fontSize:".72rem", padding:".3rem .85rem", borderRadius:"99px" }}>Active</span>
                   </div>
                 ) : (
                   <div style={{ padding:"1.5rem", background:"white", borderRadius:".75rem", border:"1.5px solid #e2e8f0", textAlign:"center" }}>
@@ -754,6 +768,44 @@ export default function PartnerDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Disconnect Confirmation Modal */}
+              {showDisconnect && (
+                <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+                  <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:420, boxShadow:"0 24px 80px rgba(0,0,0,.3)", overflow:"hidden" }}>
+                    <div style={{ background:"linear-gradient(135deg,#991b1b,#dc2626)", padding:"1.25rem 1.5rem", display:"flex", alignItems:"center", gap:".75rem" }}>
+                      <span style={{ fontSize:"1.4rem" }}>⚠️</span>
+                      <h3 style={{ fontWeight:900, color:"white", margin:0, fontSize:"1.05rem" }}>Disconnect Stripe?</h3>
+                    </div>
+                    <div style={{ padding:"1.5rem" }}>
+                      <p style={{ color:"#374151", fontSize:".88rem", lineHeight:1.65, margin:"0 0 1rem" }}>
+                        Are you sure? Disconnecting Stripe will <strong>remove your payout method</strong>. You will no longer receive automatic payments for fulfilled PRs until you reconnect.
+                      </p>
+                      <ul style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.5rem", paddingLeft:"1.25rem", lineHeight:1.8 }}>
+                        <li>Your Stripe Express account is <strong>not deleted</strong></li>
+                        <li>You can reconnect at any time</li>
+                        <li>Past payout records remain in Stripe</li>
+                      </ul>
+                      <div style={{ display:"flex", gap:".75rem" }}>
+                        <button onClick={() => setShowDisconnect(false)}
+                          style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, cursor:"pointer", fontSize:".88rem" }}>
+                          Cancel
+                        </button>
+                        <button onClick={async () => {
+                            if (!session) return;
+                            const d = await partnerPost("disconnect_stripe", {}, session.access_token);
+                            if (d.ok) { setConnectId(null); setConnectStatus("not_connected"); setShowDisconnect(false); showToast("Stripe disconnected"); }
+                            else showToast(d.error || "Failed to disconnect", "error");
+                          }}
+                          style={{ flex:1, padding:".65rem", borderRadius:".5rem", border:"none", background:"linear-gradient(135deg,#991b1b,#dc2626)", color:"white", fontWeight:800, cursor:"pointer", fontSize:".88rem" }}>
+                          Yes, Disconnect
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {editingTier && (()=>{
                 const tier=TIERS.find(t=>t.key===editingTier)!;
                 return(
