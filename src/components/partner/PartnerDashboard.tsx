@@ -722,22 +722,35 @@ export default function PartnerDashboard() {
                     </div>
                     <div style={{ color:"#64748b", fontSize:".82rem", marginBottom:"1.25rem" }}>
                       {connectStatus === "pending"
-                        ? "Your account was created but onboarding isn't complete. Click below to continue."
+                        ? "Your account was created but onboarding isn't complete. Click below to continue — or refresh if you already finished."
                         : "You'll be redirected to Stripe to complete Express onboarding. Takes about 2 minutes."}
                     </div>
-                    <button onClick={async () => {
-                        if (!session) return;
-                        const d = await partnerPost("initiate_connect", {}, session.access_token);
-                        if (d.ok && d.url) {
-                          window.location.href = d.url;
-                        } else {
-                          alert(d.error || "Failed to start Stripe onboarding");
-                        }
-                      }}
-                      style={{ display:"inline-flex", alignItems:"center", gap:".5rem", padding:".75rem 1.75rem", borderRadius:".6rem", background:"linear-gradient(135deg,#635bff,#0a2540)", color:"white", fontWeight:800, fontSize:".9rem", border:"none", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,91,255,.35)" }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>
-                      {connectStatus === "pending" ? "Continue Stripe Setup" : "Connect with Stripe"}
-                    </button>
+                    <div style={{ display:"flex", gap:".75rem", justifyContent:"center", flexWrap:"wrap" }}>
+                      <button onClick={async () => {
+                          if (!session) return;
+                          const d = await partnerPost("initiate_connect", {}, session.access_token);
+                          if (d.ok && d.url) window.location.href = d.url;
+                          else alert(d.error || "Failed to start Stripe onboarding");
+                        }}
+                        style={{ display:"inline-flex", alignItems:"center", gap:".5rem", padding:".75rem 1.75rem", borderRadius:".6rem", background:"linear-gradient(135deg,#635bff,#0a2540)", color:"white", fontWeight:800, fontSize:".9rem", border:"none", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,91,255,.35)" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>
+                        {connectStatus === "pending" ? "Continue Stripe Setup" : "Connect with Stripe"}
+                      </button>
+                      {connectStatus === "pending" && (
+                        <button onClick={async () => {
+                            if (!session) return;
+                            const d = await partnerPost("verify_connect", {}, session.access_token);
+                            if (d.ok) {
+                              setConnectStatus(d.status);
+                              if (d.status === "active") setConnectId(connectId);
+                              showToast(d.status === "active" ? "✅ Stripe connected!" : "Setup still pending on Stripe's end");
+                            } else showToast(d.error || "Could not verify status", "error");
+                          }}
+                          style={{ padding:".75rem 1.25rem", borderRadius:".6rem", border:"1.5px solid #e2e8f0", background:"white", color:"#374151", fontWeight:700, fontSize:".9rem", cursor:"pointer" }}>
+                          🔄 Refresh Status
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
