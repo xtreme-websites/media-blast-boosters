@@ -584,14 +584,14 @@ export default function AdminDashboard() {
         if (!d.error) setRevenue(d);
       }
       if (tab === "partner_details") {
-      const d = await adminPost("get_partner_details", {}, s.access_token);
-      if (!d.error) {
-        setPdPartners(d.partners || []);
-        setPdDefaultId(d.default_partner_id || "");
-        setPdNotes(d.notes || []);
-        setPdDocuments(d.documents || []);
+        const d = await adminPost("get_partner_details", {}, session.access_token);
+        if (!d.error) {
+          setPdPartners(d.partners || []);
+          setPdDefaultId(d.default_partner_id || "");
+          setPdNotes(d.notes || []);
+          setPdDocuments(d.documents || []);
+        }
       }
-    }
     if (tab === "pr_orders") {
         const d = await adminPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
