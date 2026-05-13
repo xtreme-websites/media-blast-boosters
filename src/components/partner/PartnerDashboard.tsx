@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, partnerPost } from "../../lib/supabase-partner";
 import type { Session } from "@supabase/supabase-js";
 
-type Tab = "overview" | "revenue" | "queue" | "pr_orders";
+type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "details";
 
 interface Order {
   id: string; location_id: string; pr_title: string; product_name: string;
@@ -75,6 +75,16 @@ export default function PartnerDashboard() {
   const [queue,       setQueue]       = useState<Order[]>([]);
   const [allOrders,   setAllOrders]   = useState<Order[]>([]);
   const [ordFilter,   setOrdFilter]   = useState({ location:"", package:"", status:"", dateFrom:"", dateTo:"" });
+  const [packageNotes, setPackageNotes] = useState<any[]>([]);
+  const [documents,    setDocuments]    = useState<any[]>([]);
+  const [editingTier,  setEditingTier]  = useState<string|null>(null);
+  const [editBullets,  setEditBullets]  = useState<string[]>([]);
+  const [savingNotes,  setSavingNotes]  = useState(false);
+  const [uploadModal,  setUploadModal]  = useState(false);
+  const [uploadName,   setUploadName]   = useState("");
+  const [uploadDesc,   setUploadDesc]   = useState("");
+  const [uploadFile,   setUploadFile]   = useState<File|null>(null);
+  const [uploading,    setUploading]    = useState(false);
 
   // PR preview modal
   const [previewOrder,    setPreviewOrder]    = useState<Order|null>(null);
@@ -128,6 +138,10 @@ export default function PartnerDashboard() {
           })));
         }
       }
+      if (tab === "details") {
+        const d = await partnerPost("get_details", {}, session.access_token);
+        if (!d.error) { setPackageNotes(d.notes || []); setDocuments(d.documents || []); }
+      }
       if (tab === "pr_orders") {
         const d = await partnerPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
@@ -180,6 +194,7 @@ export default function PartnerDashboard() {
     { id:"revenue",   label:"Revenue",        icon:"💰" },
     { id:"queue",     label:"Approval Queue", icon:"📋" },
     { id:"pr_orders", label:"PR Orders",      icon:"📰" },
+    { id:"details",   label:"Partner Details", icon:"🤝" },
   ];
 
   const queueBadge = queue.length;
@@ -446,6 +461,245 @@ export default function PartnerDashboard() {
           </div>
         )}
       </div>
+
+      {/* PARTNER DETAILS */}
+      {!loading && activeTab==="details" && (() => {
+          const TIERS = [
+            { key:"starter",  label:"Starter",  price:120, color:"#6366f1", bg:"#eef2ff" },
+            { key:"standard", label:"Standard", price:220, color:"#8929bd", bg:"#f5f3ff" },
+            { key:"premium",  label:"Premium",  price:400, color:"#d97706", bg:"#fef3c7" },
+          ];
+          const DEFAULT_BULLETS: Record<string,string[]> = {
+            starter:  ["Published across 200+ media outlets","300-400 word press release","24-48 hour turnaround","Full distribution report included"],
+            standard: ["Published across 400+ premium outlets","500-600 word press release","24 hour turnaround","Distribution report + analytics","Enhanced editorial placement"],
+            premium:  ["Published across 600+ top-tier outlets","800-1000 word press release","Priority same-day processing","Full distribution report + analytics","TV/radio syndication included","Dedicated account support"],
+          };
+          const getBullets = (tier: string) => packageNotes.find((n:any)=>n.tier===tier)?.bullets || DEFAULT_BULLETS[tier] || [];
+          const openEdit = (tier: string) => { setEditingTier(tier); setEditBullets([...getBullets(tier)]); };
+          const saveNotes = async () => {
+            if (!editingTier || !session) return;
+            setSavingNotes(true);
+            const d = await partnerPost("save_package_notes", { tier: editingTier, bullets: editBullets }, session.access_token);
+            if (d.ok) {
+              showToast("Package details updated — admin notified ✓");
+              setPackageNotes((prev:any[]) => { const idx=prev.findIndex((n:any)=>n.tier===editingTier); const next=[...prev]; if(idx>=0) next[idx]={...next[idx],bullets:editBullets.filter(b=>b.trim())}; else next.push({tier:editingTier,bullets:editBullets.filter(b=>b.trim())}); return next; });
+              setEditingTier(null);
+            } else showToast(d.error||"Save failed","error");
+            setSavingNotes(false);
+          };
+          const uploadDoc = async () => {
+            if (!uploadFile || !uploadName || !session) return;
+            setUploading(true);
+            try {
+              const { supabase: partnerSupa } = await import("../../lib/supabase-partner");
+              const path = `${Date.now()}-${uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;
+              const { data: storageData, error: storageErr } = await partnerSupa.storage.from("partner-docs").upload(path, uploadFile, { contentType: uploadFile.type });
+              if (storageErr || !storageData) { showToast(storageErr?.message||"Upload failed","error"); setUploading(false); return; }
+              const { data: { publicUrl } } = partnerSupa.storage.from("partner-docs").getPublicUrl(storageData.path);
+              const d = await partnerPost("save_document_metadata", { name:uploadName, description:uploadDesc, file_url:publicUrl, file_name:uploadFile.name, file_size:uploadFile.size }, session.access_token);
+              if (d.ok) {
+                showToast("Document uploaded — admin notified ✓");
+                if (d.document) setDocuments((prev:any[]) => [d.document, ...prev]);
+                setUploadModal(false); setUploadName(""); setUploadDesc(""); setUploadFile(null);
+              } else showToast(d.error||"Save failed","error");
+            } catch (e: any) { showToast(e.message,"error"); }
+            setUploading(false);
+          };
+          const deleteDoc = async (doc: any) => {
+            if (!confirm(`Delete "${doc.name}"?`) || !session) return;
+            const d = await partnerPost("delete_document", { id:doc.id, file_url:doc.file_url }, session.access_token);
+            if (d.ok) { showToast("Document deleted"); setDocuments((prev:any[])=>prev.filter((x:any)=>x.id!==doc.id)); }
+            else showToast(d.error,"error");
+          };
+          const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} MB`:bytes>1024?`${Math.round(bytes/1024)} KB`:`${bytes} B`;
+
+          return (
+            <div style={{ padding:"0 0 2rem" }}>
+              {/* Package Pricing */}
+              <div style={{ marginBottom:"2.5rem" }}>
+                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Package Pricing</h2>
+                <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Partner payout rates per press release. Click "Edit &amp; Send" to update features — admin will be notified by email.</p>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:"1rem" }}>
+                  {TIERS.map(tier => {
+                    const bullets = getBullets(tier.key);
+                    return (
+                      <div key={tier.key} style={{ background:"white", borderRadius:".875rem", border:`1.5px solid ${tier.color}30`, overflow:"hidden", display:"flex", flexDirection:"column", boxShadow:"0 2px 8px rgba(0,0,0,.05)" }}>
+                        <div style={{ background:`linear-gradient(135deg,${tier.color}15,${tier.color}05)`, borderBottom:`1px solid ${tier.color}20`, padding:"1rem 1.25rem" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:".2rem" }}>
+                            <span style={{ fontWeight:800, fontSize:".9rem", color:tier.color }}>{tier.label}</span>
+                            <span style={{ fontWeight:900, fontSize:"1.4rem", color:tier.color }}>${tier.price}</span>
+                          </div>
+                          <div style={{ fontSize:".7rem", color:"#94a3b8" }}>per press release</div>
+                        </div>
+                        <div style={{ padding:"1rem 1.25rem", flex:1 }}>
+                          <ul style={{ margin:0, padding:0, listStyle:"none", display:"flex", flexDirection:"column", gap:".4rem" }}>
+                            {(bullets as string[]).map((b, i) => (
+                              <li key={i} style={{ fontSize:".8rem", color:"#374151", display:"flex", alignItems:"flex-start", gap:".45rem" }}>
+                                <span style={{ color:tier.color, flexShrink:0 }}>•</span>{b}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div style={{ padding:".75rem 1.25rem", borderTop:`1px solid ${tier.color}15` }}>
+                          <button onClick={() => openEdit(tier.key)}
+                            style={{ width:"100%", padding:".55rem", borderRadius:".5rem", border:`1.5px solid ${tier.color}`, background:"white", color:tier.color, fontWeight:700, fontSize:".8rem", cursor:"pointer" }}>
+                            ✏️ Edit &amp; Send
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Partner Documents */}
+              <div>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
+                  <div>
+                    <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .2rem" }}>Partner Documents</h2>
+                    <p style={{ color:"#64748b", fontSize:".82rem", margin:0 }}>Upload reports, contracts, and other files. Admin is notified on each upload.</p>
+                  </div>
+                  <button onClick={()=>setUploadModal(true)}
+                    style={{ padding:".65rem 1.5rem", borderRadius:".55rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".85rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                    📎 Upload &amp; Send
+                  </button>
+                </div>
+                {documents.length === 0 ? (
+                  <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"3rem", textAlign:"center" }}>
+                    <div style={{ fontSize:"2rem", marginBottom:".5rem" }}>📁</div>
+                    <div style={{ fontWeight:600, color:"#1e293b" }}>No documents yet</div>
+                    <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".25rem" }}>Upload documents to share with the admin team</div>
+                  </div>
+                ) : (
+                  <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
+                      <thead><tr style={{ background:"#1a0a2e" }}>
+                        {["Document","Description","File","Uploaded",""].map(h=>(
+                          <th key={h} style={{ padding:".65rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {(documents as any[]).map((doc)=>(
+                          <tr key={doc.id} style={{ borderTop:"1px solid #f8fafc" }}
+                            onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
+                            onMouseOut={e=>(e.currentTarget.style.background="white")}>
+                            <td style={{ padding:".75rem 1rem", fontWeight:600, color:"#1e293b" }}>{doc.name}</td>
+                            <td style={{ padding:".75rem 1rem", color:"#64748b", fontSize:".78rem", maxWidth:200 }}>
+                              <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{doc.description||"—"}</div>
+                            </td>
+                            <td style={{ padding:".75rem 1rem" }}>
+                              {doc.file_url?(
+                                <a href={doc.file_url} target="_blank" rel="noreferrer"
+                                  style={{ color:"#8929bd", fontWeight:600, fontSize:".78rem", textDecoration:"none", display:"flex", alignItems:"center", gap:".3rem" }}>
+                                  📄 {doc.file_name||"View"}{doc.file_size?<span style={{ color:"#94a3b8", fontWeight:400 }}> ({fmtSize(doc.file_size)})</span>:null}
+                                </a>
+                              ):"—"}
+                            </td>
+                            <td style={{ padding:".75rem 1rem", color:"#64748b", whiteSpace:"nowrap", fontSize:".78rem" }}>
+                              {doc.uploaded_at?new Date(doc.uploaded_at).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}):"—"}
+                            </td>
+                            <td style={{ padding:".75rem 1rem" }}>
+                              <button onClick={()=>deleteDoc(doc)}
+                                style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #fee2e2", background:"white", color:"#991b1b", cursor:"pointer", fontWeight:600 }}>
+                                🗑 Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Edit Bullets Modal */}
+              {editingTier && (()=>{
+                const tier=TIERS.find(t=>t.key===editingTier)!;
+                return(
+                  <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+                    <div style={{background:"white",borderRadius:"1rem",width:"100%",maxWidth:500,maxHeight:"85vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
+                      <div style={{padding:"1.25rem 1.5rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"white",zIndex:1}}>
+                        <div>
+                          <h3 style={{fontWeight:900,margin:"0 0 .15rem",fontSize:"1.05rem"}}>✏️ Edit {tier.label} Package</h3>
+                          <div style={{fontSize:".75rem",color:"#94a3b8"}}>Changes will be emailed to admin</div>
+                        </div>
+                        <button onClick={()=>setEditingTier(null)} style={{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#94a3b8",lineHeight:1}}>✕</button>
+                      </div>
+                      <div style={{padding:"1.5rem",display:"flex",flexDirection:"column",gap:".5rem"}}>
+                        {editBullets.map((bullet,i)=>(
+                          <div key={i} style={{display:"flex",gap:".5rem",alignItems:"center"}}>
+                            <span style={{color:tier.color,fontWeight:700,fontSize:"1rem",flexShrink:0}}>•</span>
+                            <input value={bullet} onChange={e=>{const n=[...editBullets];n[i]=e.target.value;setEditBullets(n);}} placeholder={`Feature ${i+1}`}
+                              style={{flex:1,padding:".45rem .7rem",borderRadius:".4rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",outline:"none"}}/>
+                            <button onClick={()=>setEditBullets(editBullets.filter((_,j)=>j!==i))}
+                              style={{background:"none",border:"none",cursor:"pointer",color:"#ef4444",fontSize:"1rem",lineHeight:1,flexShrink:0}}>✕</button>
+                          </div>
+                        ))}
+                        <button onClick={()=>setEditBullets([...editBullets,""])}
+                          style={{alignSelf:"flex-start",padding:".4rem .9rem",borderRadius:".4rem",border:`1.5px dashed ${tier.color}60`,background:tier.bg,color:tier.color,fontWeight:600,fontSize:".8rem",cursor:"pointer",marginTop:".25rem"}}>
+                          + Add bullet
+                        </button>
+                        <div style={{display:"flex",gap:".75rem",marginTop:".75rem"}}>
+                          <button onClick={()=>setEditingTier(null)} style={{flex:1,padding:".65rem",borderRadius:".5rem",border:"1px solid #e2e8f0",background:"white",fontWeight:600,cursor:"pointer"}}>Cancel</button>
+                          <button onClick={saveNotes} disabled={savingNotes}
+                            style={{flex:2,padding:".65rem",borderRadius:".5rem",border:"none",background:savingNotes?"#e2e8f0":`linear-gradient(135deg,${tier.color},${tier.color}bb)`,color:savingNotes?"#94a3b8":"white",fontWeight:800,cursor:savingNotes?"not-allowed":"pointer",fontSize:".9rem"}}>
+                            {savingNotes?"Saving…":"✏️ Edit & Send"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Upload Document Modal */}
+              {uploadModal&&(
+                <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+                  <div style={{background:"white",borderRadius:"1rem",width:"100%",maxWidth:460,boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
+                    <div style={{padding:"1.25rem 1.5rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <h3 style={{fontWeight:900,margin:"0 0 .15rem",fontSize:"1.05rem"}}>📎 Upload Document</h3>
+                        <div style={{fontSize:".75rem",color:"#94a3b8"}}>Admin will receive an email notification</div>
+                      </div>
+                      <button onClick={()=>{setUploadModal(false);setUploadName("");setUploadDesc("");setUploadFile(null);}} style={{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#94a3b8",lineHeight:1}}>✕</button>
+                    </div>
+                    <div style={{padding:"1.5rem",display:"flex",flexDirection:"column",gap:".85rem"}}>
+                      <div>
+                        <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>Document Name *</label>
+                        <input value={uploadName} onChange={e=>setUploadName(e.target.value)} placeholder="e.g. Q2 Distribution Report"
+                          style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const}}/>
+                      </div>
+                      <div>
+                        <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>Description <span style={{color:"#94a3b8",fontWeight:400}}>(optional)</span></label>
+                        <textarea value={uploadDesc} onChange={e=>setUploadDesc(e.target.value)} placeholder="Brief description…" rows={2}
+                          style={{width:"100%",padding:".5rem .75rem",borderRadius:".45rem",border:"1.5px solid #e2e8f0",fontSize:".84rem",boxSizing:"border-box" as const,resize:"vertical" as const}}/>
+                      </div>
+                      <div>
+                        <label style={{fontSize:".75rem",fontWeight:700,color:"#374151",display:"block",marginBottom:".3rem"}}>File *</label>
+                        <div onClick={()=>document.getElementById("partner-file-input")?.click()}
+                          style={{border:`2px dashed ${uploadFile?"#10b981":"#e2e8f0"}`,borderRadius:".55rem",padding:"1.25rem",textAlign:"center",cursor:"pointer",background:uploadFile?"#f0fdf4":"#fafafa",transition:"all .15s"}}>
+                          {uploadFile?(
+                            <div><div style={{fontSize:"1.5rem",marginBottom:".25rem"}}>📄</div><div style={{fontWeight:600,fontSize:".84rem",color:"#166534"}}>{uploadFile.name}</div><div style={{fontSize:".72rem",color:"#94a3b8",marginTop:".15rem"}}>{fmtSize(uploadFile.size)}</div></div>
+                          ):(
+                            <div><div style={{fontSize:"1.5rem",marginBottom:".25rem"}}>📂</div><div style={{fontSize:".84rem",color:"#64748b"}}>Click to select a file</div><div style={{fontSize:".72rem",color:"#94a3b8",marginTop:".1rem"}}>PDF, Word, Excel, images…</div></div>
+                          )}
+                          <input id="partner-file-input" type="file" onChange={e=>setUploadFile(e.target.files?.[0]||null)} style={{display:"none"}}/>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:".75rem"}}>
+                        <button onClick={()=>{setUploadModal(false);setUploadName("");setUploadDesc("");setUploadFile(null);}} style={{flex:1,padding:".65rem",borderRadius:".5rem",border:"1px solid #e2e8f0",background:"white",fontWeight:600,cursor:"pointer"}}>Cancel</button>
+                        <button onClick={uploadDoc} disabled={uploading||!uploadFile||!uploadName}
+                          style={{flex:2,padding:".65rem",borderRadius:".5rem",border:"none",background:uploading||!uploadFile||!uploadName?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)",color:uploading||!uploadFile||!uploadName?"#94a3b8":"white",fontWeight:800,cursor:uploading?"not-allowed":"pointer",fontSize:".9rem"}}>
+                          {uploading?"Uploading…":"📎 Upload & Send"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+      })()}
 
       {/* PR Preview Modal */}
       {previewOrder && (
