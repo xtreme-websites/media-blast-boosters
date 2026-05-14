@@ -53,6 +53,7 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
   const CRAWL_STEPS = [
     "Fetching sitemap & homepage…",
     "Discovering service pages…",
+    "Discovering location pages…",
     "Reading contact & about pages…",
     "Extracting company data with AI…",
     "Finalizing your profile…",
@@ -181,11 +182,12 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
               {[
                 "Fetching sitemap & homepage",
                 "Discovering service pages",
+                "Discovering location pages",
                 "Reading contact & about pages",
                 "Extracting data with AI",
                 "Finalizing profile",
               ].map((step, i) => {
-                const stepMsgIdx = ["Fetching","Discovering","Reading","Extracting","Finalizing"].findIndex(s => crawlMsg.startsWith(s));
+                const stepMsgIdx = ["Fetching","Discovering service","Discovering location","Reading","Extracting","Finalizing"].findIndex(s => crawlMsg.startsWith(s));
                 const done   = i < stepMsgIdx;
                 const active = i === stepMsgIdx;
                 return (
