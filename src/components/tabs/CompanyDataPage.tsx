@@ -50,15 +50,32 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
     });
   };
 
+  const CRAWL_STEPS = [
+    "Fetching sitemap & homepage…",
+    "Discovering service pages…",
+    "Reading contact & about pages…",
+    "Extracting company data with AI…",
+    "Finalizing your profile…",
+  ];
+
   const crawl = async () => {
     const url = crawlUrl.trim().replace(/\/$/, "");
     if (!url) { showToast("Please enter a website URL", "error"); return; }
-    setCrawling(true); setCrawlMsg("Fetching sitemap & pages…");
+    setCrawling(true); setCrawlMsg(CRAWL_STEPS[0]);
+
+    // Cycle through progress messages while waiting
+    let stepIdx = 0;
+    const stepInterval = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, CRAWL_STEPS.length - 1);
+      setCrawlMsg(CRAWL_STEPS[stepIdx]);
+    }, 6000);
+
     try {
       const res  = await fetch(CRAWL_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ website_url: url, company_name: draft.name }) });
       const data = await res.json();
+      clearInterval(stepInterval);
       if (!data.success) throw new Error(data.error || "Crawl failed");
-      setCrawlMsg("Extracting company data…");
+      setCrawlMsg("Saving profile…");
       const merged = (crawled: string, existing: string) => crawled?.trim() ? crawled : existing;
       const mergedAddress = data.address ? data.address : prev => [data.address, data.city, data.state, data.zip].filter(Boolean).join(", ") || prev;
 
@@ -73,20 +90,18 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
           differentiators:  merged(data.differentiators,   prev.differentiators),
           quoteAttribution: merged(data.quote_attribution, prev.quoteAttribution),
           websiteUrl:       url,
-          // Contact: only override if crawl found complete data OR existing is empty
           address: (data.address?.trim() && data.address.length > 5) ? data.address : prev.address,
           phone:   (data.phone?.trim()   && data.phone.length > 4)   ? data.phone   : prev.phone,
           email:   (data.email?.trim()   && data.email.includes('@')) ? data.email   : prev.email,
-          // Services/locations: always use crawl results (they're discovered, not guessed)
           servicePages:  Array.isArray(data.services)  && data.services.length  > 0 ? data.services  : prev.servicePages,
           locationPages: Array.isArray(data.locations) && data.locations.length > 0 ? data.locations : prev.locationPages,
         };
-        // Auto-save immediately after crawl
         setTimeout(() => onSave(updated), 100);
         return updated;
       });
       showToast(`✓ Profile saved — ${(data.services||[]).length} services, ${(data.locations||[]).length} locations found`);
     } catch (e: any) {
+      clearInterval(stepInterval);
       showToast("Crawl failed: " + (e.message || "unknown error"), "error");
     }
     setCrawling(false); setCrawlMsg("");
@@ -132,7 +147,65 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
         </button>
       </div>
 
-      {/* Crawl bar */}
+      {/* Crawl progress overlay */}
+      {crawling && (
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(15,10,40,.82)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
+          <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95)", borderRadius:"1.25rem", padding:"2.5rem 2rem", width:"100%", maxWidth:420, textAlign:"center", boxShadow:"0 32px 80px rgba(99,102,241,.4)" }}>
+            {/* Animated logo mark */}
+            <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(255,255,255,.1)", margin:"0 auto 1.5rem", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.75rem" }}>
+              🤖
+            </div>
+            <h3 style={{ color:"white", fontWeight:900, fontSize:"1.15rem", margin:"0 0 .5rem" }}>
+              AI Website Crawl
+            </h3>
+            <p style={{ color:"rgba(255,255,255,.6)", fontSize:".82rem", margin:"0 0 2rem" }}>
+              Analyzing <span style={{ color:"#a5b4fc", fontWeight:600 }}>{crawlUrl}</span>
+            </p>
+
+            {/* Pulsing step message */}
+            <div style={{ background:"rgba(255,255,255,.08)", borderRadius:".65rem", padding:"1rem 1.25rem", marginBottom:"1.75rem" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:".65rem" }}>
+                <div style={{ display:"flex", gap:".3rem", alignItems:"center" }}>
+                  {[0,1,2].map(i => (
+                    <div key={i} style={{ width:6, height:6, borderRadius:"50%", background:"#a5b4fc",
+                      animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`,
+                    }}/>
+                  ))}
+                </div>
+                <span style={{ color:"white", fontWeight:600, fontSize:".88rem" }}>{crawlMsg}</span>
+              </div>
+            </div>
+
+            {/* Progress steps */}
+            <div style={{ display:"flex", flexDirection:"column", gap:".5rem", textAlign:"left" }}>
+              {[
+                "Fetching sitemap & homepage",
+                "Discovering service pages",
+                "Reading contact & about pages",
+                "Extracting data with AI",
+                "Finalizing profile",
+              ].map((step, i) => {
+                const stepMsgIdx = ["Fetching","Discovering","Reading","Extracting","Finalizing"].findIndex(s => crawlMsg.startsWith(s));
+                const done   = i < stepMsgIdx;
+                const active = i === stepMsgIdx;
+                return (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:".6rem", opacity: done||active ? 1 : 0.35 }}>
+                    <div style={{ width:18, height:18, borderRadius:"50%", flexShrink:0, background: done ? "#22c55e" : active ? "#6366f1" : "rgba(255,255,255,.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:".65rem", fontWeight:900, color:"white" }}>
+                      {done ? "✓" : i+1}
+                    </div>
+                    <span style={{ color: done ? "#86efac" : active ? "white" : "rgba(255,255,255,.5)", fontSize:".78rem", fontWeight: active ? 700 : 400 }}>{step}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p style={{ color:"rgba(255,255,255,.35)", fontSize:".72rem", marginTop:"1.5rem", marginBottom:0 }}>
+              Large sites may take 25–45 seconds. Please wait…
+            </p>
+          </div>
+          <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
+        </div>
+      )}
       <div style={{ background:"linear-gradient(135deg,#1e1b4b,#312e81)", borderRadius:".75rem", padding:"1rem 1.25rem", marginBottom:"1.5rem", display:"flex", gap:".75rem", alignItems:"center", flexWrap:"wrap" }}>
         <div style={{ flex:1, minWidth:220 }}>
           <div style={{ fontSize:".72rem", fontWeight:600, color:"#a5b4fc", letterSpacing:".06em", marginBottom:".3rem" }}>🤖 AI CRAWL WEBSITE</div>
