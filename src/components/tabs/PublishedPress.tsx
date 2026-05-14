@@ -74,6 +74,21 @@ function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
     const parts = label.split("/").filter(Boolean);
     label = parts[parts.length - 1]?.replace(/-/g," ") || type;
   }
+
+  // Manual keywords (own type) — split by comma and render as stacked pills
+  if (type === "own" && label.includes(",")) {
+    const keywords = label.split(",").map(k => k.trim()).filter(Boolean);
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:".25rem", alignItems:"flex-start" }}>
+        {keywords.map((kw, i) => (
+          <span key={i} style={{ fontSize:".68rem", fontWeight:600, color:"#64748b", background:"#f1f5f9", padding:".15rem .5rem", borderRadius:"99px", display:"inline-flex", alignItems:"center", gap:".25rem", whiteSpace:"nowrap", border:"1px solid #e2e8f0" }}>
+            ✍️ {kw}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <span style={{ fontSize:".68rem", fontWeight:700, color:s.color, background:s.bg, padding:".15rem .5rem", borderRadius:"99px", display:"inline-flex", alignItems:"center", gap:".25rem", whiteSpace:"nowrap" }}>
       {s.icon} {label}
@@ -273,9 +288,9 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
 
             {/* Submitted lock banner */}
             {articleModal.status === "submitted" && (
-              <div style={{ background:"#f8fafc", borderBottom:"1px solid #e2e8f0", padding:".6rem 1.25rem", display:"flex", alignItems:"center", gap:".5rem", flexShrink:0 }}>
-                <span>🔒</span>
-                <span style={{ fontSize:".78rem", color:"#64748b" }}>This PR has been submitted for distribution and cannot be edited.</span>
+              <div style={{ background:"#f0fdf4", borderBottom:"1px solid #bbf7d0", padding:".6rem 1.25rem", display:"flex", alignItems:"center", gap:".5rem", flexShrink:0 }}>
+                <span>✅</span>
+                <span style={{ fontSize:".78rem", fontWeight:600, color:"#15803d" }}>This PR has been submitted for distribution and cannot be edited.</span>
               </div>
             )}
 
