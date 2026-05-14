@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, partnerPost } from "../../lib/supabase-partner";
 import type { Session } from "@supabase/supabase-js";
-import RichEditor from "../RichEditor";
+import RichEditor, { RichToolbar } from "../RichEditor";
 
 // ── Stripe Connect Embedded Payouts ───────────────────────────────────────────
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51QRk7nKWRQxDCjAzFSFjlNJRBK9ORKpxB0k4eP4nH5gCi8mBFkmpNm9OxupGbJnKlQ6TU0X4CQxLDXW1dHFf3Ns00oJlasEdZS";
@@ -139,7 +139,17 @@ export default function PartnerDashboard() {
   // PR preview modal
   const [previewOrder,    setPreviewOrder]    = useState<Order|null>(null);
   const [editedContent,   setEditedContent]   = useState("");
+  const partnerEditorRef = useRef<HTMLDivElement>(null);
+  const isPartnerTypingRef = useRef(false);
   const [originalContent, setOriginalContent] = useState("");
+  // Hydrate partner editor imperatively when a new order is opened (prevents scroll reset)
+  useEffect(() => {
+    if (previewOrder && partnerEditorRef.current) {
+      isPartnerTypingRef.current = false;
+      partnerEditorRef.current.innerHTML = previewOrder.pr_content || "<p>No content</p>";
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(previewOrder as any)?.id]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const showToast = (msg: string, type: "success"|"error" = "success") => {
@@ -1167,11 +1177,30 @@ export default function PartnerDashboard() {
                   style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
               </div>
             </div>
+            {/* Toolbar pinned above scroll area */}
+            <div style={{ padding:".5rem 1.25rem", background:"#f8fafc", borderBottom:"1px solid #e2e8f0", flexShrink:0 }}>
+              <RichToolbar editorRef={partnerEditorRef} />
+            </div>
+            {/* Scrollable PR content — no border */}
             <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
-              <RichEditor
-                initialHTML={editedContent || previewOrder.pr_content || "<p>No content</p>"}
-                onChange={setEditedContent}
-                minHeight="300px"
+              <style>{`
+                .partner-pr-preview { font-family: Georgia, 'Times New Roman', serif; color: #1e293b; line-height: 1.7; }
+                .partner-pr-preview h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem; line-height: 1.25; font-family: system-ui, sans-serif; }
+                .partner-pr-preview h2 { font-size: 1.05rem; font-weight: 700; color: #374151; margin: 1.5rem 0 .5rem; font-family: system-ui, sans-serif; }
+                .partner-pr-preview p { margin: 0 0 1rem; font-size: .93rem; }
+                .partner-pr-preview strong { font-weight: 700; }
+                .partner-pr-preview em { font-style: italic; }
+                .partner-pr-preview a { color: #8929bd; }
+              `}</style>
+              <div
+                ref={partnerEditorRef}
+                className="partner-pr-preview"
+                contentEditable
+                suppressContentEditableWarning
+                onFocus={() => { isPartnerTypingRef.current = true; }}
+                onBlur={() => { isPartnerTypingRef.current = false; setEditedContent(partnerEditorRef.current?.innerHTML || ""); }}
+                onInput={() => setEditedContent(partnerEditorRef.current?.innerHTML || "")}
+                style={{ outline:"none", minHeight:"300px" }}
               />
             </div>
             <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"flex-end", flexShrink:0 }}>

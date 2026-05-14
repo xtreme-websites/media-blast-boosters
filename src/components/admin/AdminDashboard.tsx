@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/supabase-admin";
 import type { Session } from "@supabase/supabase-js";
-import RichEditor from "../RichEditor";
+import RichEditor, { RichToolbar } from "../RichEditor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = "overview" | "locations" | "revenue" | "pipeline" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "partner_details" | "settings";
@@ -515,6 +515,8 @@ export default function AdminDashboard() {
   const [previewOrder, setPreviewOrder] = useState<Order|null>(null);
   const [editedContent, setEditedContent] = useState<string>("");
   const [originalContent, setOriginalContent] = useState<string>("");
+  const adminEditorRef = useRef<HTMLDivElement>(null);
+  const isAdminTypingRef = useRef(false);
 
   const showToast = (msg: string, type: "success"|"error" = "success") => {
     setToast({ msg, type });
@@ -527,6 +529,15 @@ export default function AdminDashboard() {
     const tab = params.get("tab") as Tab | null;
     if (tab) { setActiveTab(tab); window.history.replaceState({}, "", "/admin"); }
   }, []);
+
+  // Populate admin PR editor imperatively when a new order is opened (prevents scroll reset)
+  useEffect(() => {
+    if (previewOrder && adminEditorRef.current) {
+      isAdminTypingRef.current = false;
+      adminEditorRef.current.innerHTML = previewOrder.pr_content || "<p>No content</p>";
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewOrder?.id]);
 
   // Auth check
   useEffect(() => {
@@ -1889,22 +1900,34 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Editable PR content with full client-style formatting */}
-            <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
-              <style>{`
-                .admin-pr-preview { font-family: Georgia, 'Times New Roman', serif; color: #1e293b; line-height: 1.7; }
-                .admin-pr-preview h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem; line-height: 1.25; font-family: system-ui, sans-serif; }
-                .admin-pr-preview h2 { font-size: 1.05rem; font-weight: 700; color: #374151; margin: 1.5rem 0 .5rem; font-family: system-ui, sans-serif; border-bottom: 1px solid #f1f5f9; padding-bottom: .3rem; }
-                .admin-pr-preview p { margin: 0 0 1rem; font-size: .93rem; }
-                .admin-pr-preview strong { font-weight: 700; color: #1e293b; }
-                .admin-pr-preview em { font-style: italic; color: #374151; }
-                .admin-pr-preview a { color: #6366f1; }
-              `}</style>
-              <div className="admin-pr-preview">
-                <RichEditor
-                  initialHTML={editedContent || previewOrder.pr_content || "<p>No content</p>"}
-                  onChange={setEditedContent}
-                  minHeight="240px"
+            {/* Editable PR content — toolbar pinned, content scrolls */}
+            <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
+              {/* Toolbar row — always visible, never scrolls away */}
+              <div style={{ padding:".5rem 1.25rem", background:"#f8fafc", borderBottom:"1px solid #e2e8f0", flexShrink:0 }}>
+                <RichToolbar editorRef={adminEditorRef} />
+              </div>
+              {/* Scrollable PR text */}
+              <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
+                <style>{`
+                  .admin-pr-preview { font-family: Georgia, 'Times New Roman', serif; color: #1e293b; line-height: 1.7; }
+                  .admin-pr-preview h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem; line-height: 1.25; font-family: system-ui, sans-serif; }
+                  .admin-pr-preview h2 { font-size: 1.05rem; font-weight: 700; color: #374151; margin: 1.5rem 0 .5rem; font-family: system-ui, sans-serif; border-bottom: 1px solid #f1f5f9; padding-bottom: .3rem; }
+                  .admin-pr-preview p { margin: 0 0 1rem; font-size: .93rem; }
+                  .admin-pr-preview strong { font-weight: 700; color: #1e293b; }
+                  .admin-pr-preview em { font-style: italic; color: #374151; }
+                  .admin-pr-preview a { color: #6366f1; }
+                  [contenteditable] ul { margin: 0 0 .85rem; padding-left: 1.5rem; }
+                  [contenteditable] li { margin-bottom: .25rem; }
+                `}</style>
+                <div
+                  ref={adminEditorRef}
+                  className="admin-pr-preview"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onFocus={() => { isAdminTypingRef.current = true; }}
+                  onBlur={() => { isAdminTypingRef.current = false; setEditedContent(adminEditorRef.current?.innerHTML || ""); }}
+                  onInput={() => setEditedContent(adminEditorRef.current?.innerHTML || "")}
+                  style={{ outline:"none", minHeight:"240px" }}
                 />
               </div>
             </div>

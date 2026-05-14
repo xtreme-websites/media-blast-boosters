@@ -553,7 +553,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
 
             {/* Footer */}
             <div style={{ display:"flex", gap:".75rem" }}>
-              <button onClick={() => copyHTML(draft)} className="btn-secondary" style={{ flex:1, justifyContent:"center" }}><CopyIcon size={14}/> Copy Script Tag</button>
+              <button onClick={() => copyScript(draft)} className="btn-secondary" style={{ flex:1, justifyContent:"center" }}><CopyIcon size={14}/> Copy Script Tag</button>
               <button onClick={saveVariation} disabled={!draft.name.trim()} className="btn-primary" style={{ flex:1, justifyContent:"center" }}><CheckIcon size={14}/> {editingId ? "Update" : "Save variation"}</button>
             </div>
           </div>
