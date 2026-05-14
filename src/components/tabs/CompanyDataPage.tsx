@@ -171,7 +171,7 @@ export default function CompanyDataPage({ companyData, onSave, showToast }: Prop
           })}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
             {field("Tagline / Slogan", "tagline", { placeholder:"Serving homeowners in the DMV area since 2005." })}
-            {field("Quote Attribution", "quoteAttribution", { placeholder:"Carlos Medina — Owner, Breezall Window Cleaning" })}
+            {field("Quote Attribution", "quoteAttribution", { placeholder:"Jane Smith — Owner, Your Company Name" })}
           </div>
           {textarea("Target Audience", "targetAudience", { placeholder:"Homeowners and property managers in the DC metro area seeking professional exterior cleaning services.", hint:"Who are your ideal clients?" })}
           {textarea("Unique Differentiators", "differentiators", {
