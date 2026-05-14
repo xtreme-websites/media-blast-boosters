@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Partner from "./pages/Partner";
 import NotFound from "./pages/NotFound";
+import PublicReport from "./components/PublicReport";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/partner" element={<Partner />} />
           <Route path="/partner/*" element={<Partner />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/report/:orderId" element={<PublicReport />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

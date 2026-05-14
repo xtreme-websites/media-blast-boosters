@@ -39,12 +39,12 @@ function PayoutsEmbed({ clientSecret }: { clientSecret: string }) {
   return <div ref={containerRef} style={{ minHeight:400 }}/>;
 }
 
-type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "pipeline" | "details" | "payouts";
+type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "pipeline" | "report_pending" | "details" | "payouts";
 
 interface Order {
   id: string; location_id: string; pr_title: string; product_name: string;
   status: string; created_at: string; pr_content?: string; pr_content_original?: string;
-  company_name?: string; ready_for_partner?: boolean;
+  company_name?: string; ready_for_partner?: boolean; report_data?: any;
 }
 
 const TIER_COLORS: Record<string, string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
@@ -135,6 +135,14 @@ export default function PartnerDashboard() {
   const [uploadDesc,   setUploadDesc]   = useState("");
   const [uploadFile,   setUploadFile]   = useState<File|null>(null);
   const [uploading,    setUploading]    = useState(false);
+
+  // Report Pending
+  const [reportPending, setReportPending] = useState<Order[]>([]);
+  const [reportUploadModal, setReportUploadModal] = useState<Order|null>(null);
+  const [reportCsvFile,     setReportCsvFile]     = useState<File|null>(null);
+  const [reportCsvPreview,  setReportCsvPreview]  = useState<{count:number}|null>(null);
+  const [reportConfirmed,   setReportConfirmed]   = useState(false);
+  const [reportUploading,   setReportUploading]   = useState(false);
 
   // PR preview modal
   const [previewOrder,    setPreviewOrder]    = useState<Order|null>(null);
@@ -256,6 +264,10 @@ export default function PartnerDashboard() {
         const d = await partnerPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
       }
+      if (tab === "report_pending") {
+        const d = await partnerPost("get_report_pending", {}, session.access_token);
+        if (!d.error) setReportPending(d.orders || []);
+      }
     } catch {}
     setLoading(false);
   }, [session]);
@@ -299,14 +311,52 @@ export default function PartnerDashboard() {
 
   if (!session || !isPartner) return <PartnerLogin accessDenied={accessDenied} />;
 
+  const parseReportCsv = (text: string): {domain:string;status:string;published_url:string;published_at:string;da:number}[] => {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    return lines.slice(1).map(line => {
+      const cols = line.split(",");
+      return { domain: cols[0]?.trim()||"", status: cols[1]?.trim()||"", published_url: cols[2]?.trim()||"", published_at: cols[3]?.trim()||"", da: parseInt(cols[5]?.trim()||"0")||0 };
+    }).filter(r => r.domain && r.status?.toLowerCase() === "published");
+  };
+
+  const handleReportCsvSelect = (file: File) => {
+    setReportCsvFile(file);
+    setReportCsvPreview(null);
+    const reader = new FileReader();
+    reader.onload = e => {
+      const rows = parseReportCsv(e.target?.result as string);
+      setReportCsvPreview({ count: rows.length });
+    };
+    reader.readAsText(file);
+  };
+
+  const submitReport = async () => {
+    if (!reportUploadModal || !reportCsvFile || !reportConfirmed || !session) return;
+    setReportUploading(true);
+    try {
+      const text = await reportCsvFile.text();
+      const csv_rows = parseReportCsv(text);
+      if (csv_rows.length === 0) { showToast("No published rows found in CSV", "error"); return; }
+      const d = await partnerPost("upload_report", { order_id: reportUploadModal.id, csv_rows }, session.access_token);
+      if (!d.error) {
+        showToast("Report uploaded — PR marked as Published ✓");
+        setReportUploadModal(null); setReportCsvFile(null); setReportCsvPreview(null); setReportConfirmed(false);
+        load("report_pending"); load("pr_orders");
+      } else showToast(d.error, "error");
+    } catch { showToast("Upload failed", "error"); }
+    setReportUploading(false);
+  };
+
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id:"overview",  label:"Overview",       icon:"📊" },
-    { id:"revenue",   label:"Revenue",        icon:"💰" },
-    { id:"queue",     label:"Approval Queue", icon:"📋" },
-    { id:"pr_orders", label:"PR Orders",      icon:"📰" },
-    { id:"pipeline",  label:"Pipeline",        icon:"📈" },
-    { id:"details",   label:"Partner Details", icon:"🤝" },
-    { id:"payouts",   label:"Payouts",         icon:"💸" },
+    { id:"overview",       label:"Overview",        icon:"📊" },
+    { id:"revenue",        label:"Revenue",         icon:"💰" },
+    { id:"queue",          label:"Approval Queue",  icon:"📋" },
+    { id:"pr_orders",      label:"PR Orders",       icon:"📰" },
+    { id:"pipeline",       label:"Pipeline",        icon:"📈" },
+    { id:"report_pending", label:"Report Pending",  icon:"📤" },
+    { id:"details",        label:"Partner Details", icon:"🤝" },
+    { id:"payouts",        label:"Payouts",         icon:"💸" },
   ];
 
   const navigateTab = (tab: Tab) => {
@@ -315,6 +365,7 @@ export default function PartnerDashboard() {
   };
 
   const queueBadge = queue.length;
+  const reportPendingBadge = reportPending.length;
 
   // PR Orders filtered
   const STATUSES = ["","draft","scheduled","submitted","published","rejected","draft_pending_review"];
@@ -357,6 +408,9 @@ export default function PartnerDashboard() {
               {t.icon} {t.label}
               {t.id==="queue" && queueBadge > 0 && (
                 <span style={{ background:"#ef4444", color:"white", fontSize:".6rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px" }}>{queueBadge}</span>
+              )}
+              {t.id==="report_pending" && reportPendingBadge > 0 && (
+                <span style={{ background:"#8929bd", color:"white", fontSize:".6rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px" }}>{reportPendingBadge}</span>
               )}
             </button>
           ))}
@@ -540,7 +594,7 @@ export default function PartnerDashboard() {
             <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
                 <thead><tr style={{ background:"#1a0a2e" }}>
-                  {["Company","PR Title","Package","Status","Date","Ready"].map(h=>(
+                  {["Company","PR Title","Package","Status","Date","Report"].map(h=>(
                     <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -567,7 +621,15 @@ export default function PartnerDashboard() {
                         <td style={{ padding:".7rem 1rem", color:"#64748b", whiteSpace:"nowrap" }}>
                           {order.created_at ? new Date(order.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}
                         </td>
-                        <td style={{ padding:".7rem 1rem", textAlign:"center" }}>{order.ready_for_partner ? "✅" : "⏳"}</td>
+                        <td style={{ padding:".7rem 1rem", textAlign:"center" }}>
+                          {order.report_data ? (
+                            <a href={`/report/${order.id}`} target="_blank" rel="noopener noreferrer"
+                              style={{ fontSize:".75rem", fontWeight:700, color:"#8929bd", textDecoration:"none", display:"inline-flex", alignItems:"center", gap:".2rem" }}
+                              onClick={e=>e.stopPropagation()}>
+                              See Report ↗
+                            </a>
+                          ) : <span style={{ color:"#cbd5e1", fontSize:".72rem" }}>—</span>}
+                        </td>
                       </tr>
                     );
                   })}
@@ -711,6 +773,102 @@ export default function PartnerDashboard() {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* REPORT PENDING */}
+      {!loading && activeTab==="report_pending" && (
+        <div>
+          <div style={{ display:"flex", alignItems:"center", marginBottom:"1.25rem" }}>
+            <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:0 }}>
+              Report Pending
+              {reportPendingBadge > 0 && <span style={{ marginLeft:".5rem", background:"#8929bd", color:"white", fontSize:".65rem", fontWeight:900, padding:".15rem .5rem", borderRadius:"99px" }}>{reportPendingBadge}</span>}
+            </h2>
+          </div>
+          <p style={{ color:"#64748b", fontSize:".82rem", margin:"-.5rem 0 1.25rem" }}>Orders that have been submitted for distribution and are awaiting a distribution report upload.</p>
+          {reportPending.length === 0 ? (
+            <div style={{ background:"white", borderRadius:".75rem", padding:"3rem", textAlign:"center", border:"1px solid #f1f5f9" }}>
+              <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>📤</div>
+              <div style={{ fontWeight:700, color:"#1e293b" }}>No reports pending</div>
+              <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".3rem" }}>All submitted PRs have reports uploaded</div>
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:"1rem" }}>
+              {reportPending.map(order => (
+                <div key={order.id} style={{ background:"white", borderRadius:".75rem", border:"1px solid #e2e8f0", padding:"1.25rem" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"1rem", flexWrap:"wrap" }}>
+                    <div>
+                      <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".3rem" }}>
+                        <span style={{ fontSize:".7rem", fontWeight:800, color:"white", background:TIER_COLORS[order.product_name?.toLowerCase()]||"#6366f1", padding:".2rem .6rem", borderRadius:"99px", textTransform:"uppercase" }}>{order.product_name}</span>
+                        <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{new Date(order.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                      </div>
+                      <div style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", marginBottom:".2rem" }}>{order.pr_title||"Untitled PR"}</div>
+                      <div style={{ fontSize:".78rem", color:"#8929bd" }}>{order.company_name||order.location_id}</div>
+                    </div>
+                    <button onClick={()=>{ setReportUploadModal(order); setReportCsvFile(null); setReportCsvPreview(null); setReportConfirmed(false); }}
+                      style={{ padding:".5rem 1.1rem", borderRadius:".45rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontSize:".8rem", fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                      📤 Add Report
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* REPORT UPLOAD MODAL */}
+      {reportUploadModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:480, padding:"2rem", boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
+            <h3 style={{ fontWeight:900, fontSize:"1.1rem", color:"#1e293b", margin:"0 0 .3rem" }}>Upload Distribution Report</h3>
+            <p style={{ color:"#64748b", fontSize:".8rem", margin:"0 0 1.25rem" }}>
+              Upload the CSV from your distribution service (Newswirejet, BrandPush, etc.) for:<br/>
+              <strong style={{ color:"#1e293b" }}>{reportUploadModal.pr_title}</strong>
+            </p>
+
+            {/* CSV upload zone */}
+            <label style={{ display:"block", border:"2px dashed #e2e8f0", borderRadius:".65rem", padding:"1.5rem", textAlign:"center", cursor:"pointer", background:"#f8fafc", marginBottom:"1rem", transition:"border-color .15s" }}
+              onDragOver={e=>{e.preventDefault();(e.currentTarget as HTMLElement).style.borderColor="#8929bd";}}
+              onDragLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor="#e2e8f0";}}
+              onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleReportCsvSelect(f);(e.currentTarget as HTMLElement).style.borderColor="#e2e8f0";}}>
+              <input type="file" accept=".csv" style={{ display:"none" }} onChange={e=>{const f=e.target.files?.[0];if(f)handleReportCsvSelect(f);}}/>
+              {reportCsvFile ? (
+                <div>
+                  <div style={{ fontSize:"1.5rem", marginBottom:".3rem" }}>📄</div>
+                  <div style={{ fontWeight:700, color:"#1e293b", fontSize:".85rem" }}>{reportCsvFile.name}</div>
+                  {reportCsvPreview && <div style={{ color:"#22c55e", fontWeight:700, fontSize:".78rem", marginTop:".3rem" }}>✓ {reportCsvPreview.count} published sites found</div>}
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize:"1.5rem", marginBottom:".3rem" }}>📂</div>
+                  <div style={{ fontWeight:600, color:"#64748b", fontSize:".82rem" }}>Click or drag to upload CSV report</div>
+                  <div style={{ color:"#94a3b8", fontSize:".72rem", marginTop:".2rem" }}>Accepts .csv files</div>
+                </div>
+              )}
+            </label>
+
+            {/* Confirmation checkbox */}
+            <label style={{ display:"flex", alignItems:"flex-start", gap:".6rem", cursor:"pointer", marginBottom:"1.5rem" }}>
+              <input type="checkbox" checked={reportConfirmed} onChange={e=>setReportConfirmed(e.target.checked)}
+                style={{ marginTop:".15rem", accentColor:"#8929bd", width:15, height:15, flexShrink:0 }}/>
+              <span style={{ color:"#475569", fontSize:".78rem", lineHeight:1.5 }}>
+                I confirm I have reviewed this report for accuracy.
+                <span style={{ color:"#ef4444", fontWeight:700 }}> Note: Reports cannot be resubmitted once uploaded.</span>
+              </span>
+            </label>
+
+            <div style={{ display:"flex", gap:".75rem" }}>
+              <button onClick={submitReport} disabled={!reportCsvFile||!reportConfirmed||reportUploading}
+                style={{ flex:1, padding:".7rem", borderRadius:".5rem", border:"none", background: (!reportCsvFile||!reportConfirmed||reportUploading) ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: (!reportCsvFile||!reportConfirmed||reportUploading) ? "#94a3b8" : "white", fontWeight:700, fontSize:".85rem", cursor: (!reportCsvFile||!reportConfirmed||reportUploading) ? "not-allowed" : "pointer" }}>
+                {reportUploading ? "Uploading…" : "📤 Upload Report"}
+              </button>
+              <button onClick={()=>{setReportUploadModal(null);setReportCsvFile(null);setReportCsvPreview(null);setReportConfirmed(false);}}
+                style={{ padding:".7rem 1.25rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".85rem", cursor:"pointer", color:"#64748b" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

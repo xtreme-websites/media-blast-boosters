@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import RichEditor, { RichToolbar } from "../RichEditor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "locations" | "revenue" | "pipeline" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "partner_details" | "settings";
+type Tab = "overview" | "locations" | "revenue" | "pipeline" | "queue" | "pr_orders" | "report_pending" | "promotions" | "email_alerts" | "partner_details" | "settings";
 interface EmailTemplate { key: string; subject: string; html: string; updated_at?: string; is_custom?: boolean; }
 
 interface Location { location_id: string; company_name?: string; email?: string;
@@ -504,6 +504,14 @@ export default function AdminDashboard() {
   const [partnersList,    setPartnersList]    = useState<any[]>([]);
   const [toast,       setToast]       = useState<{msg:string;type:"success"|"error"}|null>(null);
 
+  // Report Pending
+  const [adminReportPending, setAdminReportPending] = useState<Order[]>([]);
+  const [adminReportUploadModal, setAdminReportUploadModal] = useState<Order|null>(null);
+  const [adminReportCsvFile,     setAdminReportCsvFile]     = useState<File|null>(null);
+  const [adminReportCsvPreview,  setAdminReportCsvPreview]  = useState<{count:number}|null>(null);
+  const [adminReportConfirmed,   setAdminReportConfirmed]   = useState(false);
+  const [adminReportUploading,   setAdminReportUploading]   = useState(false);
+
   // Override modal
   const [overrideTarget, setOverrideTarget] = useState<Location|null>(null);
   const [overrideAmt,    setOverrideAmt]    = useState("");
@@ -618,6 +626,10 @@ export default function AdminDashboard() {
     if (tab === "pr_orders") {
         const d = await adminPost("get_all_orders", {}, session.access_token);
         if (!d.error) setAllOrders(d.orders || []);
+      }
+      if (tab === "report_pending") {
+        const d = await adminPost("get_report_pending", {}, session.access_token);
+        if (!d.error) setAdminReportPending(d.orders || []);
       }
       if (tab === "promotions") {
         const d = await adminPost("get_promotions", {}, session.access_token);
@@ -747,16 +759,17 @@ export default function AdminDashboard() {
   if (!session || !isAdmin) return <AdminLogin onLogin={() => {}} accessDenied={accessDenied} />;
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id:"overview",  label:"Overview",        icon:"📊" },
-    { id:"locations", label:"Locations",       icon:"🏢" },
-    { id:"revenue",   label:"Revenue",         icon:"💰" },
-    { id:"pipeline",  label:"Pipeline",        icon:"📈" },
-    { id:"queue",       label:"Approval Queue",  icon:"📋" },
-    { id:"pr_orders",    label:"PR Orders",       icon:"📰" },
-    { id:"promotions",   label:"Promotions",     icon:"🎟️" },
-    { id:"email_alerts",    label:"Email Alerts",    icon:"📧" },
-    { id:"partner_details", label:"Partner Details", icon:"🤝" },
-    { id:"settings",        label:"Settings",        icon:"⚙️" },
+    { id:"overview",       label:"Overview",        icon:"📊" },
+    { id:"locations",      label:"Locations",       icon:"🏢" },
+    { id:"revenue",        label:"Revenue",         icon:"💰" },
+    { id:"pipeline",       label:"Pipeline",        icon:"📈" },
+    { id:"queue",          label:"Approval Queue",  icon:"📋" },
+    { id:"pr_orders",      label:"PR Orders",       icon:"📰" },
+    { id:"report_pending", label:"Report Pending",  icon:"📤" },
+    { id:"promotions",     label:"Promotions",      icon:"🎟️" },
+    { id:"email_alerts",   label:"Email Alerts",    icon:"📧" },
+    { id:"partner_details",label:"Partner Details", icon:"🤝" },
+    { id:"settings",       label:"Settings",        icon:"⚙️" },
   ];
 
   const navigateTab = (tab: Tab) => {
@@ -765,6 +778,7 @@ export default function AdminDashboard() {
   };
 
   const queueBadge = queue.length;
+  const adminReportPendingBadge = adminReportPending.length;
 
   return (
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"system-ui,-apple-system,sans-serif" }}>
@@ -802,6 +816,9 @@ export default function AdminDashboard() {
                   <span style={{ flex:1 }}>{t.label}</span>
                   {t.id==="queue" && queueBadge > 0 && (
                     <span style={{ background:"#ef4444", color:"white", fontSize:".58rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px", flexShrink:0 }}>{queueBadge}</span>
+                  )}
+                  {t.id==="report_pending" && adminReportPendingBadge > 0 && (
+                    <span style={{ background:"#8929bd", color:"white", fontSize:".58rem", fontWeight:900, padding:".1rem .4rem", borderRadius:"99px", flexShrink:0 }}>{adminReportPendingBadge}</span>
                   )}
                 </button>
               );
@@ -1228,7 +1245,7 @@ export default function AdminDashboard() {
               <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
                   <thead><tr style={{ background:"#1e1b4b" }}>
-                    {["Company","PR Title","Package","Status","Date","Ready"].map(h=>(
+                    {["Company","PR Title","Package","Status","Date","Report"].map(h=>(
                       <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -1261,7 +1278,13 @@ export default function AdminDashboard() {
                             {order.created_at ? new Date(order.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}
                           </td>
                           <td style={{ padding:".7rem 1rem", textAlign:"center" }}>
-                            {order.ready_for_partner ? "✅" : "⏳"}
+                            {order.report_data ? (
+                              <a href={`/report/${order.id}`} target="_blank" rel="noopener noreferrer"
+                                style={{ fontSize:".75rem", fontWeight:700, color:"#8929bd", textDecoration:"none", display:"inline-flex", alignItems:"center", gap:".2rem" }}
+                                onClick={e=>e.stopPropagation()}>
+                                See Report ↗
+                              </a>
+                            ) : <span style={{ color:"#cbd5e1", fontSize:".72rem" }}>—</span>}
                           </td>
                         </tr>
                       );
@@ -1270,6 +1293,130 @@ export default function AdminDashboard() {
                 </table>
                 {filtered.length===0 && <div style={{ padding:"3rem", textAlign:"center", color:"#94a3b8" }}>No orders match the filters</div>}
               </div>
+            </div>
+          );
+        })()}
+
+        {/* REPORT PENDING */}
+        {!loading && activeTab==="report_pending" && (() => {
+          const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+
+          const parseAdminCsv = (text: string) =>
+            text.trim().split(/\r?\n/).slice(1).map(line => {
+              const cols = line.split(",");
+              return { domain:cols[0]?.trim()||"", status:cols[1]?.trim()||"", published_url:cols[2]?.trim()||"", published_at:cols[3]?.trim()||"", da:parseInt(cols[5]?.trim()||"0")||0 };
+            }).filter(r => r.domain && r.status?.toLowerCase()==="published");
+
+          const handleAdminCsvSelect = (file: File) => {
+            setAdminReportCsvFile(file);
+            const reader = new FileReader();
+            reader.onload = e => {
+              const rows = parseAdminCsv(e.target?.result as string);
+              setAdminReportCsvPreview({ count: rows.length });
+            };
+            reader.readAsText(file);
+          };
+
+          const submitAdminReport = async () => {
+            if (!adminReportUploadModal || !adminReportCsvFile || !adminReportConfirmed || !session) return;
+            setAdminReportUploading(true);
+            try {
+              const text = await adminReportCsvFile.text();
+              const csv_rows = parseAdminCsv(text);
+              if (csv_rows.length === 0) { showToast("No published rows found in CSV", "error"); return; }
+              const d = await adminPost("upload_report", { order_id: adminReportUploadModal.id, csv_rows }, session.access_token);
+              if (!d.error) {
+                showToast("Report uploaded — PR marked as Published ✓");
+                setAdminReportUploadModal(null); setAdminReportCsvFile(null); setAdminReportCsvPreview(null); setAdminReportConfirmed(false);
+                load("report_pending"); load("pr_orders");
+              } else showToast(d.error, "error");
+            } catch { showToast("Upload failed", "error"); }
+            setAdminReportUploading(false);
+          };
+
+          return (
+            <div>
+              <div style={{ display:"flex", alignItems:"center", marginBottom:"1.25rem" }}>
+                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:0 }}>
+                  Report Pending
+                  {adminReportPendingBadge > 0 && <span style={{ marginLeft:".5rem", background:"#8929bd", color:"white", fontSize:".65rem", fontWeight:900, padding:".15rem .5rem", borderRadius:"99px" }}>{adminReportPendingBadge}</span>}
+                </h2>
+              </div>
+              <p style={{ color:"#64748b", fontSize:".82rem", margin:"-.5rem 0 1.25rem" }}>Submitted orders awaiting distribution report upload.</p>
+              {adminReportPending.length === 0 ? (
+                <div style={{ background:"white", borderRadius:".75rem", padding:"3rem", textAlign:"center", border:"1px solid #f1f5f9" }}>
+                  <div style={{ fontSize:"2.5rem", marginBottom:".75rem" }}>📤</div>
+                  <div style={{ fontWeight:700, color:"#1e293b" }}>No reports pending</div>
+                  <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".3rem" }}>All submitted PRs have reports uploaded</div>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:"1rem" }}>
+                  {adminReportPending.map(order => (
+                    <div key={order.id} style={{ background:"white", borderRadius:".75rem", border:"1px solid #e2e8f0", padding:"1.25rem" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"1rem", flexWrap:"wrap" }}>
+                        <div>
+                          <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".3rem" }}>
+                            <span style={{ fontSize:".7rem", fontWeight:800, color:"white", background:TIER_COLORS[order.product_name?.toLowerCase()]||"#6366f1", padding:".2rem .6rem", borderRadius:"99px", textTransform:"uppercase" as const }}>{order.product_name}</span>
+                            <span style={{ fontSize:".72rem", color:"#94a3b8" }}>{new Date(order.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+                          </div>
+                          <div style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", marginBottom:".2rem" }}>{order.pr_title||"Untitled PR"}</div>
+                          <div style={{ fontSize:".78rem", color:"#8929bd" }}>{(order as any).company_name||order.location_id}</div>
+                        </div>
+                        <button onClick={()=>{ setAdminReportUploadModal(order); setAdminReportCsvFile(null); setAdminReportCsvPreview(null); setAdminReportConfirmed(false); }}
+                          style={{ padding:".5rem 1.1rem", borderRadius:".45rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontSize:".8rem", fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                          📤 Add Report
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload modal */}
+              {adminReportUploadModal && (
+                <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+                  <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:480, padding:"2rem", boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
+                    <h3 style={{ fontWeight:900, fontSize:"1.1rem", color:"#1e293b", margin:"0 0 .3rem" }}>Upload Distribution Report</h3>
+                    <p style={{ color:"#64748b", fontSize:".8rem", margin:"0 0 1.25rem" }}>
+                      Upload the CSV from the distribution service for:<br/>
+                      <strong style={{ color:"#1e293b" }}>{adminReportUploadModal.pr_title}</strong>
+                    </p>
+                    <label style={{ display:"block", border:"2px dashed #e2e8f0", borderRadius:".65rem", padding:"1.5rem", textAlign:"center", cursor:"pointer", background:"#f8fafc", marginBottom:"1rem" }}>
+                      <input type="file" accept=".csv" style={{ display:"none" }} onChange={e=>{ const f=e.target.files?.[0]; if(f) handleAdminCsvSelect(f); }}/>
+                      {adminReportCsvFile ? (
+                        <div>
+                          <div style={{ fontSize:"1.5rem", marginBottom:".3rem" }}>📄</div>
+                          <div style={{ fontWeight:700, color:"#1e293b", fontSize:".85rem" }}>{adminReportCsvFile.name}</div>
+                          {adminReportCsvPreview && <div style={{ color:"#22c55e", fontWeight:700, fontSize:".78rem", marginTop:".3rem" }}>✓ {adminReportCsvPreview.count} published sites found</div>}
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize:"1.5rem", marginBottom:".3rem" }}>📂</div>
+                          <div style={{ fontWeight:600, color:"#64748b", fontSize:".82rem" }}>Click to upload CSV report</div>
+                          <div style={{ color:"#94a3b8", fontSize:".72rem", marginTop:".2rem" }}>Accepts .csv files</div>
+                        </div>
+                      )}
+                    </label>
+                    <label style={{ display:"flex", alignItems:"flex-start", gap:".6rem", cursor:"pointer", marginBottom:"1.5rem" }}>
+                      <input type="checkbox" checked={adminReportConfirmed} onChange={e=>setAdminReportConfirmed(e.target.checked)} style={{ marginTop:".15rem", accentColor:"#8929bd", width:15, height:15, flexShrink:0 }}/>
+                      <span style={{ color:"#475569", fontSize:".78rem", lineHeight:1.5 }}>
+                        I confirm I have reviewed this report for accuracy.
+                        <span style={{ color:"#ef4444", fontWeight:700 }}> Reports cannot be resubmitted once uploaded.</span>
+                      </span>
+                    </label>
+                    <div style={{ display:"flex", gap:".75rem" }}>
+                      <button onClick={submitAdminReport} disabled={!adminReportCsvFile||!adminReportConfirmed||adminReportUploading}
+                        style={{ flex:1, padding:".7rem", borderRadius:".5rem", border:"none", background:(!adminReportCsvFile||!adminReportConfirmed||adminReportUploading)?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:(!adminReportCsvFile||!adminReportConfirmed||adminReportUploading)?"#94a3b8":"white", fontWeight:700, fontSize:".85rem", cursor:(!adminReportCsvFile||!adminReportConfirmed||adminReportUploading)?"not-allowed":"pointer" }}>
+                        {adminReportUploading ? "Uploading…" : "📤 Upload Report"}
+                      </button>
+                      <button onClick={()=>{setAdminReportUploadModal(null);setAdminReportCsvFile(null);setAdminReportCsvPreview(null);setAdminReportConfirmed(false);}}
+                        style={{ padding:".7rem 1.25rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".85rem", cursor:"pointer", color:"#64748b" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}

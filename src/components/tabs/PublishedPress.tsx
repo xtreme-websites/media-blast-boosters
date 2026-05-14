@@ -175,9 +175,11 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                       <td style={c()}><span style={{ fontSize:".72rem", color:"#94a3b8", whiteSpace:"nowrap" }}>{publishedDt ? publishedDt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}</span></td>
                       <td style={c()}><span style={{ fontSize:".72rem", fontWeight:700, color:sc.color, background:sc.bg, padding:".2rem .55rem", borderRadius:"99px", whiteSpace:"nowrap", display:"inline-block" }}>{sc.label}</span></td>
                       <td style={cl()}>
-                        {(order as any).report_link
-                          ? <a href={(order as any).report_link} target="_blank" rel="noopener noreferrer" style={{ background:"#f0fdf4", color:"#16a34a", border:"1px solid #bbf7d0", borderRadius:".4rem", padding:".3rem .65rem", fontSize:".72rem", fontWeight:600, textDecoration:"none", display:"inline-block" }}>Report</a>
-                          : <span style={{ fontSize:".72rem", color:"#94a3b8" }}>—</span>
+                        {(order as any).report_data
+                          ? <a href={`/report/${order.id}`} target="_blank" rel="noopener noreferrer" style={{ background:"#f5f3ff", color:"#8929bd", border:"1px solid #ddd6fe", borderRadius:".4rem", padding:".3rem .65rem", fontSize:".72rem", fontWeight:700, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:".2rem", whiteSpace:"nowrap" }}>See Report ↗</a>
+                          : (order as any).report_link
+                            ? <a href={(order as any).report_link} target="_blank" rel="noopener noreferrer" style={{ background:"#f0fdf4", color:"#16a34a", border:"1px solid #bbf7d0", borderRadius:".4rem", padding:".3rem .65rem", fontSize:".72rem", fontWeight:600, textDecoration:"none", display:"inline-block" }}>Report</a>
+                            : <span style={{ fontSize:".72rem", color:"#94a3b8" }}>—</span>
                         }
                       </td>
                     </tr>
