@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/supabase-admin";
 import type { Session } from "@supabase/supabase-js";
+import RichEditor from "../RichEditor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = "overview" | "locations" | "revenue" | "pipeline" | "queue" | "pr_orders" | "promotions" | "email_alerts" | "partner_details" | "settings";
@@ -1898,15 +1899,14 @@ export default function AdminDashboard() {
                 .admin-pr-preview strong { font-weight: 700; color: #1e293b; }
                 .admin-pr-preview em { font-style: italic; color: #374151; }
                 .admin-pr-preview a { color: #6366f1; }
-                .admin-pr-preview [contenteditable]:focus { outline: 2px dashed #6366f1; outline-offset: 4px; border-radius: 4px; }
               `}</style>
-              <div
-                className="admin-pr-preview"
-                contentEditable
-                suppressContentEditableWarning
-                onInput={e => setEditedContent((e.target as HTMLDivElement).innerHTML)}
-                dangerouslySetInnerHTML={{ __html: editedContent || previewOrder.pr_content || "<p>No content</p>" }}
-              />
+              <div className="admin-pr-preview">
+                <RichEditor
+                  initialHTML={editedContent || previewOrder.pr_content || "<p>No content</p>"}
+                  onChange={setEditedContent}
+                  minHeight="240px"
+                />
+              </div>
             </div>
 
             {/* 3-button footer */}

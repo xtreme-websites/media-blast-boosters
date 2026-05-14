@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, partnerPost } from "../../lib/supabase-partner";
 import type { Session } from "@supabase/supabase-js";
+import RichEditor from "../RichEditor";
 
 // ── Stripe Connect Embedded Payouts ───────────────────────────────────────────
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51QRk7nKWRQxDCjAzFSFjlNJRBK9ORKpxB0k4eP4nH5gCi8mBFkmpNm9OxupGbJnKlQ6TU0X4CQxLDXW1dHFf3Ns00oJlasEdZS";
@@ -1167,11 +1168,11 @@ export default function PartnerDashboard() {
               </div>
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
-              <style>{`.partner-pr h1{font-size:1.5rem;font-weight:800;color:#0f172a;margin:0 0 1rem;font-family:system-ui,sans-serif}.partner-pr h2{font-size:1.05rem;font-weight:700;color:#374151;margin:1.5rem 0 .5rem;font-family:system-ui,sans-serif;border-bottom:1px solid #f1f5f9;padding-bottom:.3rem}.partner-pr p{margin:0 0 1rem;font-size:.93rem;line-height:1.7}.partner-pr [contenteditable]:focus{outline:2px dashed #8929bd;outline-offset:4px;border-radius:4px}`}</style>
-              <div className="partner-pr" contentEditable suppressContentEditableWarning
-                onInput={e => setEditedContent((e.target as HTMLDivElement).innerHTML)}
-                dangerouslySetInnerHTML={{ __html: editedContent || previewOrder.pr_content || "<p>No content</p>" }}
-                style={{ fontFamily:"Georgia,serif", color:"#1e293b", lineHeight:1.7 }}/>
+              <RichEditor
+                initialHTML={editedContent || previewOrder.pr_content || "<p>No content</p>"}
+                onChange={setEditedContent}
+                minHeight="300px"
+              />
             </div>
             <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"flex-end", flexShrink:0 }}>
               <button onClick={()=>rejectOrder(previewOrder.id)}

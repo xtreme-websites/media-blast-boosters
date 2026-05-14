@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import RichEditor from "../RichEditor";
 import { callClaude } from "../../lib/ai";
 import { scanForProhibitedContent } from "../../lib/prohibitedContent";
 import type { ProhibitedMatch } from "../../lib/prohibitedContent";
@@ -536,21 +537,12 @@ RULES:
               const isSubmitted = currentDraftId && (propOrders || [])?.find?.((o: any) => o.id === currentDraftId)?.status === "submitted";
               return (
                 <>
-                  <div
-                    contentEditable={!isSubmitted}
-                    suppressContentEditableWarning
-                    onInput={e => setGeneratedPR((e.currentTarget as HTMLDivElement).innerHTML)}
-                    style={{ padding: "1.25rem 1.5rem", background: "#f8fafc", borderRadius: ".6rem", border: `1px solid ${isSubmitted ? "#e2e8f0" : "#c7d2fe"}`, outline: "none", cursor: isSubmitted ? "default" : "text", lineHeight: 1.75, color: "#1e293b", fontSize: "0.875rem" }}
-                    dangerouslySetInnerHTML={{ __html: generatedPR }}
+                  <RichEditor
+                    initialHTML={generatedPR}
+                    onChange={setGeneratedPR}
+                    readOnly={isSubmitted}
+                    minHeight="220px"
                   />
-                  <style>{`
-                    [contenteditable][style*="cursor: text"] h1 { font-size:1.45rem; font-weight:800; color:#0f172a; margin:0 0 1rem; line-height:1.25; }
-                    [contenteditable] h2 { font-size:1rem; font-weight:700; color:#1e293b; margin:1.25rem 0 .35rem; }
-                    [contenteditable] p  { margin:0 0 .85rem; line-height:1.75; }
-                    [contenteditable] em { font-style:italic; }
-                    [contenteditable] strong { font-weight:700; }
-                    [contenteditable] a  { color:#6366f1; text-decoration:underline; }
-                  `}</style>
                   {isSubmitted && (
                     <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginTop:".5rem", fontSize:".75rem", color:"#94a3b8" }}>
                       <span>🔒</span> This PR has been submitted and cannot be edited.
@@ -558,7 +550,7 @@ RULES:
                   )}
                   {!isSubmitted && (
                     <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".4rem" }}>
-                      💡 Click anywhere in the text above to edit inline before ordering.
+                      💡 Click anywhere in the text above to edit inline. Use the toolbar for formatting.
                     </div>
                   )}
                 </>
