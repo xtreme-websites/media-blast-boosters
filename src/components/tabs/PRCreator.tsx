@@ -317,6 +317,14 @@ export default function PRCreator({
     setShowGeneratedView(false);
   }, [authorityPayload]);
 
+  // When arriving from Trending Topics: auto-select Starter tier + Trending Topic media type
+  useEffect(() => {
+    if (!selectedTopic) return;
+    setPrFormData(p => ({ ...p, mediaType: "topic" }));
+    setSelectedTier("Starter");
+    setShowGeneratedView(false);
+  }, [selectedTopic]);
+
   // Fetch credits on mount
   useEffect(() => {
     if (!locationId) return;

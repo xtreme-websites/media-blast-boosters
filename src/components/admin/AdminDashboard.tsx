@@ -1728,22 +1728,6 @@ export default function AdminDashboard() {
             </div>
 
             {/* Admin notification email */}
-            {/* Default Partner for Payouts */}
-            <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.25rem", marginBottom:"1.25rem" }}>
-              <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".25rem" }}>💸 Default Payout Partner</div>
-              <div style={{ fontSize:".8rem", color:"#64748b", marginBottom:".75rem", lineHeight:1.5 }}>
-                Partner who receives automatic Stripe payouts when PRs are fulfilled. Only partners with an active Stripe Connect account will receive funds.
-              </div>
-              <select value={defaultPartnerId} onChange={e=>setDefaultPartnerId(e.target.value)}
-                style={{ width:"100%", padding:".55rem .85rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", background:"white" }}>
-                <option value="">No default partner</option>
-                {partnersList.map((p:any)=>(
-                  <option key={p.id} value={p.id}>
-                    {p.name||p.email} {p.stripe_connect_id?"🟣 Stripe Connected":"⚠️ No Stripe"}
-                  </option>
-                ))}
-              </select>
-            </div>
 
             <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.25rem", marginBottom:"1.25rem" }}>
               <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".25rem" }}>📧 Admin Alert Emails</div>
