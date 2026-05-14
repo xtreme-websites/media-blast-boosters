@@ -1,4 +1,4 @@
-import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 
 export interface RichEditorHandle {
   getHTML: () => string;
@@ -29,15 +29,12 @@ const ULIcon = () => (
 
 const OLIcon = () => (
   <svg width="15" height="12" viewBox="0 0 15 12" fill="currentColor" style={{ display:"block" }}>
-    {/* 1. */}
     <text x="0" y="3" fontSize="3.8" fontFamily="system-ui,sans-serif" fontWeight="700">1</text>
     <text x="2.2" y="3" fontSize="3.8" fontFamily="system-ui,sans-serif">.</text>
     <rect x="5" y="0.4" width="10" height="2.2" rx="0.8"/>
-    {/* 2. */}
     <text x="0" y="7.5" fontSize="3.8" fontFamily="system-ui,sans-serif" fontWeight="700">2</text>
     <text x="2.2" y="7.5" fontSize="3.8" fontFamily="system-ui,sans-serif">.</text>
     <rect x="5" y="4.9" width="10" height="2.2" rx="0.8"/>
-    {/* 3. */}
     <text x="0" y="12" fontSize="3.8" fontFamily="system-ui,sans-serif" fontWeight="700">3</text>
     <text x="2.2" y="12" fontSize="3.8" fontFamily="system-ui,sans-serif">.</text>
     <rect x="5" y="9.4" width="10" height="2.2" rx="0.8"/>
@@ -54,6 +51,15 @@ const LinkIcon = () => (
 
 // ── Shared toolbar ────────────────────────────────────────────────────────────
 export function RichToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
+  const [linkDialog, setLinkDialog] = useState<{
+    url: string;
+    newTab: boolean;
+    editingLink: HTMLAnchorElement | null;
+  } | null>(null);
+
+  // Saved selection so we can restore it after focus moves to the dialog
+  const savedRange = useRef<Range | null>(null);
+
   const exec = (cmd: string, val?: string) => {
     editorRef.current?.focus();
     document.execCommand(cmd, false, val);
@@ -85,40 +91,169 @@ export function RichToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivE
     </button>
   );
 
-  const insertLink = () => {
-    editorRef.current?.focus();
-    const url = window.prompt("Enter URL:", "https://");
-    if (url && url !== "https://") {
-      document.execCommand("createLink", false, url);
-      // Make sure the link opens in a new tab
-      const links = editorRef.current?.querySelectorAll("a:not([target])");
-      links?.forEach(a => { a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer"); });
+  // Detect if the current selection/cursor is inside an <a> element
+  const getSelectedLink = (): HTMLAnchorElement | null => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    let node: Node | null = sel.getRangeAt(0).startContainer;
+    while (node && node !== editorRef.current) {
+      if ((node as Element).nodeName === "A") return node as HTMLAnchorElement;
+      node = node.parentNode;
     }
+    return null;
+  };
+
+  const openLinkDialog = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Save current selection before dialog steals focus
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
+    const existing = getSelectedLink();
+    setLinkDialog({
+      url: existing?.getAttribute("href") || "https://",
+      newTab: existing?.target === "_blank",
+      editingLink: existing,
+    });
+  };
+
+  const applyLink = () => {
+    if (!linkDialog) return;
+    const { url, newTab, editingLink } = linkDialog;
+    const cleanUrl = url.trim();
+    if (!cleanUrl || cleanUrl === "https://") { setLinkDialog(null); return; }
+
+    if (editingLink) {
+      // Edit existing <a>
+      editingLink.href = cleanUrl;
+      if (newTab) { editingLink.target = "_blank"; editingLink.rel = "noopener noreferrer"; }
+      else { editingLink.removeAttribute("target"); editingLink.removeAttribute("rel"); }
+      editorRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      // Restore saved selection then createLink
+      editorRef.current?.focus();
+      if (savedRange.current) {
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(savedRange.current);
+      }
+      document.execCommand("createLink", false, cleanUrl);
+      // Apply target to the newly created link(s)
+      editorRef.current?.querySelectorAll(`a[href="${CSS.escape(cleanUrl)}"]`).forEach(a => {
+        if (newTab) { a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer"); }
+        else { a.removeAttribute("target"); a.removeAttribute("rel"); }
+      });
+    }
+    setLinkDialog(null);
+  };
+
+  const removeLink = () => {
+    if (linkDialog?.editingLink) {
+      // Replace <a> with its text content
+      const a = linkDialog.editingLink;
+      const text = document.createTextNode(a.textContent || "");
+      a.replaceWith(text);
+      editorRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    setLinkDialog(null);
   };
 
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:".2rem", flexWrap:"wrap" }}>
-      {btn("B", "Bold", "bold")}
-      {btn("I", "Italic", "italic")}
+    <div style={{ position:"relative", display:"flex", alignItems:"center", gap:".2rem", flexWrap:"wrap" }}>
+      {btn("B", "Bold",        "bold")}
+      {btn("I", "Italic",      "italic")}
       {SEP}
-      {btn("H1", "Heading 1", "formatBlock", "h1")}
-      {btn("H2", "Heading 2", "formatBlock", "h2")}
-      {btn("¶",  "Paragraph", "formatBlock", "p")}
+      {btn("H1", "Heading 1",  "formatBlock", "h1")}
+      {btn("H2", "Heading 2",  "formatBlock", "h2")}
       {SEP}
-      {btn("ul", "Bullet list",    "insertUnorderedList", undefined, <ULIcon/>)}
-      {btn("ol", "Numbered list",  "insertOrderedList",   undefined, <OLIcon/>)}
+      {btn("ul", "Bullet list",   "insertUnorderedList", undefined, <ULIcon/>)}
+      {btn("ol", "Numbered list", "insertOrderedList",   undefined, <OLIcon/>)}
       {SEP}
+      {/* Link button */}
       <button
-        key="link"
-        title="Insert link"
-        onMouseDown={e => { e.preventDefault(); insertLink(); }}
-        style={btnStyle}
-        onMouseOver={e => (e.currentTarget.style.background="#eef2ff")}
-        onMouseOut={e => (e.currentTarget.style.background="white")}
+        title="Insert / edit link"
+        onMouseDown={openLinkDialog}
+        style={{
+          ...btnStyle,
+          background: linkDialog ? "#eef2ff" : "white",
+          borderColor: linkDialog ? "#6366f1" : "#e2e8f0",
+        }}
+        onMouseOver={e => { if (!linkDialog) e.currentTarget.style.background="#eef2ff"; }}
+        onMouseOut={e => { if (!linkDialog) e.currentTarget.style.background="white"; }}
       >
         <LinkIcon/>
       </button>
+      {SEP}
       {btn("✕", "Clear format", "removeFormat")}
+
+      {/* Link dialog — drops below toolbar */}
+      {linkDialog && (
+        <div style={{
+          position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:200,
+          background:"white", border:"1.5px solid #c7d2fe", borderRadius:".55rem",
+          padding:"1rem", boxShadow:"0 8px 24px rgba(99,102,241,.15)",
+          minWidth:320, display:"flex", flexDirection:"column", gap:".65rem",
+        }}>
+          <div style={{ fontSize:".75rem", fontWeight:700, color:"#4338ca" }}>
+            {linkDialog.editingLink ? "✏️ Edit Link" : "🔗 Insert Link"}
+          </div>
+
+          {/* URL input */}
+          <div>
+            <label style={{ display:"block", fontSize:".72rem", fontWeight:600, color:"#374151", marginBottom:".3rem" }}>URL</label>
+            <input
+              type="url"
+              autoFocus
+              value={linkDialog.url}
+              onChange={e => setLinkDialog(d => d ? { ...d, url: e.target.value } : d)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); applyLink(); } if (e.key === "Escape") setLinkDialog(null); }}
+              placeholder="https://example.com"
+              style={{ width:"100%", padding:".45rem .65rem", borderRadius:".4rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", outline:"none", boxSizing:"border-box" }}
+            />
+          </div>
+
+          {/* Open in new tab toggle */}
+          <label style={{ display:"flex", alignItems:"center", gap:".5rem", cursor:"pointer", fontSize:".82rem", color:"#374151" }}>
+            <input
+              type="checkbox"
+              checked={linkDialog.newTab}
+              onChange={e => setLinkDialog(d => d ? { ...d, newTab: e.target.checked } : d)}
+              style={{ width:15, height:15, cursor:"pointer" }}
+            />
+            Open in new tab
+          </label>
+
+          {/* Action buttons */}
+          <div style={{ display:"flex", gap:".5rem", justifyContent:"space-between" }}>
+            {linkDialog.editingLink && (
+              <button
+                onMouseDown={e => { e.preventDefault(); removeLink(); }}
+                style={{ padding:".4rem .75rem", borderRadius:".4rem", border:"1px solid #fecaca", background:"#fff1f2", color:"#b91c1c", fontWeight:600, fontSize:".78rem", cursor:"pointer" }}>
+                Remove
+              </button>
+            )}
+            <div style={{ display:"flex", gap:".4rem", marginLeft:"auto" }}>
+              <button
+                onMouseDown={e => { e.preventDefault(); setLinkDialog(null); }}
+                style={{ padding:".4rem .75rem", borderRadius:".4rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".78rem", cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button
+                onMouseDown={e => { e.preventDefault(); applyLink(); }}
+                style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#6366f1,#4338ca)", color:"white", fontWeight:700, fontSize:".78rem", cursor:"pointer" }}>
+                {linkDialog.editingLink ? "Save" : "Insert"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Click-outside to close */}
+      {linkDialog && (
+        <div
+          style={{ position:"fixed", inset:0, zIndex:199 }}
+          onMouseDown={() => setLinkDialog(null)}
+        />
+      )}
     </div>
   );
 }
@@ -181,7 +316,7 @@ const RichEditor = forwardRef<RichEditorHandle, Props>(
           [contenteditable] p      { margin:0 0 .85rem; line-height:1.75; }
           [contenteditable] em     { font-style:italic; }
           [contenteditable] strong { font-weight:700; }
-          [contenteditable] a      { color:#6366f1; text-decoration:underline; }
+          [contenteditable] a      { color:#6366f1; text-decoration:underline; cursor:pointer; }
           [contenteditable] ul     { list-style-type:disc !important; margin:0 0 .85rem; padding-left:1.5rem; }
           [contenteditable] ol     { list-style-type:decimal !important; margin:0 0 .85rem; padding-left:1.5rem; }
           [contenteditable] li     { display:list-item !important; margin-bottom:.25rem; }
