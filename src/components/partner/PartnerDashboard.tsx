@@ -1191,6 +1191,9 @@ export default function PartnerDashboard() {
                 .partner-pr-preview strong { font-weight: 700; }
                 .partner-pr-preview em { font-style: italic; }
                 .partner-pr-preview a { color: #8929bd; }
+                [contenteditable] ul { list-style-type:disc !important; margin:0 0 .85rem; padding-left:1.5rem; }
+                [contenteditable] ol { list-style-type:decimal !important; margin:0 0 .85rem; padding-left:1.5rem; }
+                [contenteditable] li { display:list-item !important; margin-bottom:.25rem; }
               `}</style>
               <div
                 ref={partnerEditorRef}

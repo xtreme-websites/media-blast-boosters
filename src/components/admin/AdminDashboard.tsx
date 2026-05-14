@@ -1916,8 +1916,9 @@ export default function AdminDashboard() {
                   .admin-pr-preview strong { font-weight: 700; color: #1e293b; }
                   .admin-pr-preview em { font-style: italic; color: #374151; }
                   .admin-pr-preview a { color: #6366f1; }
-                  [contenteditable] ul { margin: 0 0 .85rem; padding-left: 1.5rem; }
-                  [contenteditable] li { margin-bottom: .25rem; }
+                  [contenteditable] ul { list-style-type:disc !important; margin:0 0 .85rem; padding-left:1.5rem; }
+                  [contenteditable] ol { list-style-type:decimal !important; margin:0 0 .85rem; padding-left:1.5rem; }
+                  [contenteditable] li { display:list-item !important; margin-bottom:.25rem; }
                 `}</style>
                 <div
                   ref={adminEditorRef}
