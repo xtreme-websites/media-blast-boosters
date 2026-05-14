@@ -352,9 +352,9 @@ export default function PartnerDashboard() {
     { id:"overview",       label:"Overview",        icon:"📊" },
     { id:"revenue",        label:"Revenue",         icon:"💰" },
     { id:"queue",          label:"Approval Queue",  icon:"📋" },
+    { id:"report_pending", label:"Report Pending",  icon:"📤" },
     { id:"pr_orders",      label:"PR Orders",       icon:"📰" },
     { id:"pipeline",       label:"Pipeline",        icon:"📈" },
-    { id:"report_pending", label:"Report Pending",  icon:"📤" },
     { id:"details",        label:"Partner Details", icon:"🤝" },
     { id:"payouts",        label:"Payouts",         icon:"💸" },
   ];
@@ -778,7 +778,7 @@ export default function PartnerDashboard() {
 
       {/* REPORT PENDING */}
       {!loading && activeTab==="report_pending" && (
-        <div>
+        <div style={{ padding:"1.5rem", maxWidth:1200, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", marginBottom:"1.25rem" }}>
             <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:0 }}>
               Report Pending

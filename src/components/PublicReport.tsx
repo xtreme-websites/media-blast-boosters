@@ -87,7 +87,9 @@ export default function PublicReport() {
     return !Object.keys(POWER5).some(p5 => d?.includes(p5.replace("finance.", "").replace("www.", "")) || p5.includes(d || "!!!"));
   });
 
-  const maxDA = published.reduce((mx, r) => Math.max(mx, r.da || 0), 0);
+  // Max DA: only from the Power 5 publishers (authoritative top outlets)
+  const power5DA = power5InReport.map(([domain]) => POWER5[domain].da);
+  const maxDA = power5DA.length > 0 ? Math.max(...power5DA) : tierStats.authority;
 
   return (
     <div style={{ minHeight:"100vh", background:"#080514", fontFamily:"-apple-system, 'Segoe UI', sans-serif" }}>
@@ -202,7 +204,7 @@ export default function PublicReport() {
 
           <div style={{ background:"rgba(255,255,255,.03)", border:"1px solid rgba(139,92,246,.15)", borderRadius:"1rem", overflow:"hidden" }}>
             {/* Table header */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 2fr auto auto", gap:"1rem", padding:".65rem 1.25rem", background:"rgba(137,41,189,.12)", borderBottom:"1px solid rgba(139,92,246,.15)" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"minmax(120px,auto) 1fr 44px 80px", gap:"1rem", padding:".65rem 1.25rem", background:"rgba(137,41,189,.12)", borderBottom:"1px solid rgba(139,92,246,.15)" }}>
               {["Publication", "Article Link", "DA", "Status"].map(h => (
                 <div key={h} style={{ color:"#8929bd", fontSize:".65rem", fontWeight:800, textTransform:"uppercase", letterSpacing:".08em" }}>{h}</div>
               ))}
@@ -212,7 +214,7 @@ export default function PublicReport() {
             {power5InReport.map(([domain, info]) => {
               const row = published.find(r => r.domain?.toLowerCase().includes(domain));
               return (
-                <div key={domain} style={{ display:"grid", gridTemplateColumns:"1fr 2fr auto auto", gap:"1rem", padding:".7rem 1.25rem", borderBottom:"1px solid rgba(255,255,255,.04)", alignItems:"center", background:"rgba(137,41,189,.05)" }}>
+                <div key={domain} style={{ display:"grid", gridTemplateColumns:"minmax(120px,auto) 1fr 44px 80px", gap:"1rem", padding:".7rem 1.25rem", borderBottom:"1px solid rgba(255,255,255,.04)", alignItems:"center", background:"rgba(137,41,189,.05)" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
                     <Favicon domain={domain} />
                     <div>
@@ -238,7 +240,7 @@ export default function PublicReport() {
 
             {/* Other sites */}
             {otherSites.map((row, i) => (
-              <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 2fr auto auto", gap:"1rem", padding:".65rem 1.25rem", borderBottom:"1px solid rgba(255,255,255,.03)", alignItems:"center" }}
+              <div key={i} style={{ display:"grid", gridTemplateColumns:"minmax(120px,auto) 1fr 44px 80px", gap:"1rem", padding:".65rem 1.25rem", borderBottom:"1px solid rgba(255,255,255,.03)", alignItems:"center" }}
                 onMouseOver={e=>(e.currentTarget.style.background="rgba(255,255,255,.03)")}
                 onMouseOut={e=>(e.currentTarget.style.background="")}>
                 <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
@@ -271,17 +273,10 @@ export default function PublicReport() {
 
       {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
       <div style={{ background:"#040210", borderTop:"1px solid rgba(139,92,246,.15)", padding:"2rem", textAlign:"center" }}>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:".5rem", background:"rgba(137,41,189,.12)", border:"1px solid rgba(137,41,189,.3)", borderRadius:"99px", padding:".4rem 1rem", marginBottom:"1rem" }}>
+        <a href="https://xtremewebsites.com/press-release-marketing/" target="_blank" rel="noopener noreferrer" style={{ textDecoration:"none", display:"inline-flex", alignItems:"center", gap:".5rem", background:"rgba(137,41,189,.12)", border:"1px solid rgba(137,41,189,.3)", borderRadius:"99px", padding:".4rem 1rem" }}>
           <span style={{ color:"#8929bd", fontWeight:900, fontSize:".75rem" }}>✓</span>
           <span style={{ color:"#c4b5fd", fontWeight:700, fontSize:".75rem" }}>Verified by Media Blast Boosters™</span>
-        </div>
-        <div style={{ color:"#334155", fontSize:".75rem" }}>
-          Powered by{" "}
-          <a href="https://xtremewebsites.com/press-release-marketing/" target="_blank" rel="noopener noreferrer" style={{ color:"#6366f1", textDecoration:"none", fontWeight:600 }}>
-            Xtreme Websites
-          </a>
-          {" "}· Report generated {pubDate}
-        </div>
+        </a>
       </div>
     </div>
   );
