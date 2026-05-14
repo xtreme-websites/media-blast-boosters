@@ -496,6 +496,9 @@ export default function AdminDashboard() {
   const [sendingTest,     setSendingTest]     = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [adminNotifEmail, setAdminNotifEmail] = useState("");
+  const [adminUsers,     setAdminUsers]     = useState<any[]>([]);
+  const [notifEmails,    setNotifEmails]    = useState<string[]>([]);
+  const [newNotifEmail,  setNewNotifEmail]  = useState("");
   const [defaultPartnerId, setDefaultPartnerId] = useState("");
   const [partnersList,    setPartnersList]    = useState<any[]>([]);
   const [toast,       setToast]       = useState<{msg:string;type:"success"|"error"}|null>(null);
@@ -626,7 +629,16 @@ export default function AdminDashboard() {
       }
       if (tab === "settings") {
         const d = await adminPost("get_settings", {}, session.access_token);
-        if (!d.error) setSettings(d.settings);
+        if (!d.error) {
+          setSettings(d.settings);
+          setAdminUsers(d.admin_users || []);
+          // Parse additional emails (excluding primary admin's email)
+          const primary = (d.admin_users || []).sort((a:any,b:any)=>new Date(a.created_at).getTime()-new Date(b.created_at).getTime())[0]?.email || "";
+          const stored = (d.settings?.admin_notification_email || "").split(",").map((e:string)=>e.trim()).filter(Boolean);
+          const extras = stored.filter((e:string) => e.toLowerCase() !== primary.toLowerCase());
+          setNotifEmails(extras);
+          setAdminNotifEmail(d.settings?.admin_notification_email || primary);
+        }
       }
     } catch {}
     setLoading(false);
@@ -680,7 +692,10 @@ export default function AdminDashboard() {
 
   const saveSettings = async () => {
     if (!session) return;
-    const d = await adminPost("save_settings", { review_mode_global: settings.review_mode_global, review_mode_overrides: settings.review_mode_overrides, admin_notification_email: adminNotifEmail, default_partner_id: defaultPartnerId||null }, session.access_token);
+    const primaryEmail = adminUsers.sort((a:any,b:any)=>new Date(a.created_at).getTime()-new Date(b.created_at).getTime())[0]?.email || "";
+    const allEmails = [primaryEmail, ...notifEmails.filter(e=>e.toLowerCase()!==primaryEmail.toLowerCase())].filter(Boolean).join(",");
+    setAdminNotifEmail(allEmails);
+    const d = await adminPost("save_settings", { review_mode_global: settings.review_mode_global, review_mode_overrides: settings.review_mode_overrides, admin_notification_email: allEmails, default_partner_id: defaultPartnerId||null }, session.access_token);
     if (!d.error) showToast("Settings saved");
     else showToast(d.error, "error");
   };
@@ -1731,13 +1746,47 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.25rem", marginBottom:"1.25rem" }}>
-              <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".25rem" }}>📧 Admin Alert Email</div>
-              <div style={{ fontSize:".8rem", color:"#64748b", marginBottom:".75rem", lineHeight:1.5 }}>
-                Email address(es) that receive admin alerts (new purchases, new PR orders, approval needed). Separate multiple with commas.
+              <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".25rem" }}>📧 Admin Alert Emails</div>
+              <div style={{ fontSize:".8rem", color:"#64748b", marginBottom:"1rem", lineHeight:1.5 }}>
+                These addresses receive admin alerts — new purchases, PR orders, and approvals needed.
               </div>
-              <input type="email" value={adminNotifEmail} onChange={e=>setAdminNotifEmail(e.target.value)}
-                placeholder="roberto@xtremewebsites.com"
-                style={{ width:"100%", padding:".55rem .85rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", fontSize:".85rem", outline:"none", boxSizing:"border-box" }}/>
+              <div style={{ display:"flex", flexDirection:"column", gap:".5rem" }}>
+                {/* Primary admin — locked */}
+                {adminUsers.length > 0 && (() => {
+                  const primary = adminUsers.sort((a:any,b:any)=>new Date(a.created_at).getTime()-new Date(b.created_at).getTime())[0];
+                  return (
+                    <div style={{ display:"flex", alignItems:"center", gap:".75rem", padding:".55rem .85rem", borderRadius:".5rem", background:"#f8fafc", border:"1.5px solid #e2e8f0" }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:".85rem", color:"#1e293b", fontWeight:600 }}>{primary.email}</div>
+                        <div style={{ fontSize:".7rem", color:"#94a3b8", marginTop:".1rem" }}>{primary.name} · Primary admin</div>
+                      </div>
+                      <span style={{ fontSize:".68rem", fontWeight:700, color:"#6366f1", background:"#eef2ff", padding:".2rem .6rem", borderRadius:"99px", flexShrink:0 }}>🔒 Required</span>
+                    </div>
+                  );
+                })()}
+                {/* Additional emails */}
+                {notifEmails.map((email, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:".75rem", padding:".55rem .85rem", borderRadius:".5rem", background:"white", border:"1.5px solid #e2e8f0" }}>
+                    <div style={{ flex:1, fontSize:".85rem", color:"#374151" }}>{email}</div>
+                    <button onClick={() => setNotifEmails(prev => prev.filter((_,j)=>j!==i))}
+                      style={{ background:"none", border:"none", cursor:"pointer", color:"#ef4444", fontSize:".8rem", fontWeight:700, padding:".1rem .4rem", borderRadius:".3rem", flexShrink:0 }}>
+                      ✕ Remove
+                    </button>
+                  </div>
+                ))}
+                {/* Add new email row */}
+                <div style={{ display:"flex", gap:".5rem", marginTop:".25rem" }}>
+                  <input type="email" value={newNotifEmail} onChange={e=>setNewNotifEmail(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==="Enter"&&newNotifEmail.trim()){ setNotifEmails(p=>[...p,newNotifEmail.trim()]); setNewNotifEmail(""); } }}
+                    placeholder="Add another email address…"
+                    style={{ flex:1, padding:".5rem .75rem", borderRadius:".45rem", border:"1.5px solid #e2e8f0", fontSize:".84rem", outline:"none" }}/>
+                  <button onClick={()=>{ if(newNotifEmail.trim()){ setNotifEmails(p=>[...p,newNotifEmail.trim()]); setNewNotifEmail(""); } }}
+                    disabled={!newNotifEmail.trim()}
+                    style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"none", background:newNotifEmail.trim()?"#6366f1":"#e2e8f0", color:newNotifEmail.trim()?"white":"#94a3b8", fontWeight:700, fontSize:".82rem", cursor:newNotifEmail.trim()?"pointer":"not-allowed" }}>
+                    + Add
+                  </button>
+                </div>
+              </div>
             </div>
             <button onClick={saveSettings}
               style={{ padding:".75rem 2rem", borderRadius:".65rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,.3)" }}>
