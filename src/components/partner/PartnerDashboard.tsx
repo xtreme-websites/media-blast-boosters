@@ -154,7 +154,10 @@ export default function PartnerDashboard() {
   useEffect(() => {
     if (previewOrder && partnerEditorRef.current) {
       isPartnerTypingRef.current = false;
-      partnerEditorRef.current.innerHTML = previewOrder.pr_content || "<p>No content</p>";
+      const content = previewOrder.pr_content || "<p>No content</p>";
+      partnerEditorRef.current.innerHTML = content;
+      setOriginalContent(content);  // must be set here — button handler compares against it
+      setEditedContent(content);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(previewOrder as any)?.id]);
@@ -291,13 +294,14 @@ export default function PartnerDashboard() {
 
   const approveWithChanges = async () => {
     if (!previewOrder || !session) return;
-    const changed = editedContent && editedContent !== originalContent;
-    if (!changed) { approveOrder(previewOrder.id); setPreviewOrder(null); return; }
+    // Read directly from DOM ref — avoids stale-closure issue where onBlur sets
+    // editedContent state but the click handler reads the previous render's value.
+    const currentContent = partnerEditorRef.current?.innerHTML || originalContent;
     const d = await partnerPost("approve_with_changes", {
       order_id: previewOrder.id, original_content: originalContent,
-      new_content: editedContent, location_id: previewOrder.location_id
+      new_content: currentContent, location_id: previewOrder.location_id
     }, session.access_token);
-    if (!d.error) { showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); load("queue"); }
+    if (!d.error) { showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
     else showToast(d.error, "error");
   };
 

@@ -542,7 +542,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (previewOrder && adminEditorRef.current) {
       isAdminTypingRef.current = false;
-      adminEditorRef.current.innerHTML = previewOrder.pr_content || "<p>No content</p>";
+      const content = previewOrder.pr_content || "<p>No content</p>";
+      adminEditorRef.current.innerHTML = content;
+      setOriginalContent(content);  // must be set here — button handler compares against it
+      setEditedContent(content);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewOrder?.id]);
@@ -2121,9 +2124,11 @@ export default function AdminDashboard() {
                 </button>
                 <button onClick={async()=>{
                     if(!session)return;
-                    const changed = editedContent && editedContent !== originalContent;
-                    if(!changed){ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); return; }
-                    const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContent, new_content:editedContent, location_id:previewOrder.location_id }, session.access_token);
+                    // Always read from DOM ref — avoids stale-closure issue where
+                    // onBlur sets editedContent state but the click handler reads the
+                    // previous render's value before the batch update flushes.
+                    const currentContent = adminEditorRef.current?.innerHTML || originalContent;
+                    const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContent, new_content:currentContent, location_id:previewOrder.location_id }, session.access_token);
                     if(!d.error){ showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
                     else showToast(d.error,"error");
                   }}
