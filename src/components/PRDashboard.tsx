@@ -305,13 +305,17 @@ export default function PRDashboard() {
     const newOrder: Order = { id: crypto.randomUUID(), prTitle, productName: packageType, price: pkg.price, date: new Date().toLocaleDateString("en-US"), prContent };
     setOrders(prev => [newOrder, ...prev]);
     setShowThankYou(true);
-    // Decrement 1 credit for the chosen tier
-    try {
-      await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table:"profiles", operation:"decrement_credits", location_id: locationId, tier: packageType.toLowerCase(), reason: `PR Launch — ${prTitle.slice(0,60)}` }),
-      });
-    } catch {}
+    // Rejected resubmissions: skip credit deduction — user already paid
+    const isRejectedResubmit = !!(orderId && orders.find(o => o.id === orderId)?.status === "rejected");
+    // Decrement 1 credit for the chosen tier (skip for rejected resubmits)
+    if (!isRejectedResubmit) {
+      try {
+        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ table:"profiles", operation:"decrement_credits", location_id: locationId, tier: packageType.toLowerCase(), reason: `PR Launch — ${prTitle.slice(0,60)}` }),
+        });
+      } catch {}
+    }
     if (locationId !== "preview-mode") {
       // Confirm pending credit if this was a reserved (auto-generated) order
     try {
@@ -325,10 +329,10 @@ export default function PRDashboard() {
     } catch {}
     try {
         if (orderId) {
-          // Update existing draft/scheduled
+          // Update existing draft/scheduled/rejected
           await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
             method:"POST", headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: orderId }, data:{ pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="submitted" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} } })
+            body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: orderId }, data:{ pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="submitted" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{}, ...(isRejectedResubmit ? { rejection_reason: null } : {}) } })
           });
         } else {
           await supabase.from("orders").insert({ location_id: locationId, pr_title: prTitle, product_name: packageType, package_type: packageType, price: parseFloat(pkg.price.replace("$","")), pr_content: prContent, seo_focus: seoFocus, status, scheduled_date: scheduledDate || null, submitted_at: status==="submitted" ? new Date().toISOString() : null, last_edited_at: new Date().toISOString(), form_data: formData||{} });

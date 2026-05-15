@@ -496,6 +496,17 @@ export default function AdminDashboard() {
   const [savingTmpl,      setSavingTmpl]      = useState(false);
   const [sendingTest,     setSendingTest]     = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const execEmailCmd = (cmd: string, val?: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    if (cmd === "createLink") {
+      const url = window.prompt("Enter link URL:", "https://");
+      if (url) doc.execCommand("createLink", false, url);
+    } else {
+      doc.execCommand(cmd, false, val ?? undefined);
+    }
+    setTimeout(() => { if (doc) setEditHtml(doc.documentElement.outerHTML); }, 80);
+  };
   const [adminNotifEmail, setAdminNotifEmail] = useState("");
   const [adminUsers,     setAdminUsers]     = useState<any[]>([]);
   const [notifEmails,    setNotifEmails]    = useState<string[]>([]);
@@ -1812,19 +1823,46 @@ export default function AdminDashboard() {
                         <div style={{ fontWeight:800, fontSize:".95rem", color:"#1e293b" }}>✏️ Edit Email Template</div>
                         <div style={{ fontSize:".73rem", color:"#94a3b8", marginTop:".1rem" }}>key: <code style={{ background:"#f1f5f9", padding:"0 .3rem", borderRadius:".2rem" }}>{editingTemplate.key}</code></div>
                       </div>
-                      {/* Variables reference */}
-                      <div style={{ display:"flex", gap:".35rem", alignItems:"center" }}>
-                        <span style={{ fontSize:".68rem", color:"#94a3b8", fontWeight:600 }}>Variables:</span>
-                        {VARS.map(v => (
-                          <code key={v} onClick={() => { const ta = document.getElementById("tmpl-editor") as HTMLTextAreaElement; if(ta){const s=ta.selectionStart; const newVal=editHtml.slice(0,s)+v+editHtml.slice(ta.selectionEnd); setEditHtml(newVal); setTimeout(()=>{ta.selectionStart=ta.selectionEnd=s+v.length;ta.focus();},0);} }}
-                            style={{ fontSize:".68rem", background:"#eef2ff", color:"#6366f1", padding:".15rem .4rem", borderRadius:".25rem", cursor:"pointer", fontFamily:"monospace" }} title="Click to insert">
-                            {v}
-                          </code>
-                        ))}
+                      {/* Toolbar: formatting in visual mode, variable chips in source mode */}
+                      <div style={{ display:"flex", gap:".35rem", alignItems:"center", flexWrap:"wrap" }}>
+                        {showPreview ? (
+                          // Visual editor: formatting toolbar
+                          <>
+                            {[
+                              { label:"B", cmd:"bold",       title:"Bold",           style:{ fontWeight:800 } },
+                              { label:"I", cmd:"italic",     title:"Italic",         style:{ fontStyle:"italic" } },
+                              { label:"U", cmd:"underline",  title:"Underline",      style:{ textDecoration:"underline" } },
+                              { label:"H1",cmd:"formatBlock",title:"Heading 1",      val:"h1" },
+                              { label:"H2",cmd:"formatBlock",title:"Heading 2",      val:"h2" },
+                              { label:"¶", cmd:"formatBlock",title:"Paragraph",      val:"p" },
+                              { label:"•", cmd:"insertUnorderedList",title:"Bullet list" },
+                              { label:"🔗",cmd:"createLink", title:"Insert link"     },
+                              { label:"⛓️✕",cmd:"unlink",   title:"Remove link"     },
+                            ].map(btn => (
+                              <button key={btn.label} type="button"
+                                title={btn.title}
+                                onClick={() => execEmailCmd(btn.cmd, (btn as any).val)}
+                                style={{ padding:".2rem .45rem", border:"1px solid #e2e8f0", borderRadius:".3rem", fontSize:".75rem", cursor:"pointer", background:"white", lineHeight:1.4, ...(btn.style||{}) }}>
+                                {btn.label}
+                              </button>
+                            ))}
+                          </>
+                        ) : (
+                          // Source mode: variable insertion chips
+                          <>
+                            <span style={{ fontSize:".68rem", color:"#94a3b8", fontWeight:600 }}>Variables:</span>
+                            {VARS.map(v => (
+                              <code key={v} onClick={() => { const ta = document.getElementById("tmpl-editor") as HTMLTextAreaElement; if(ta){const s=ta.selectionStart; const newVal=editHtml.slice(0,s)+v+editHtml.slice(ta.selectionEnd); setEditHtml(newVal); setTimeout(()=>{ta.selectionStart=ta.selectionEnd=s+v.length;ta.focus();},0);} }}
+                                style={{ fontSize:".68rem", background:"#eef2ff", color:"#6366f1", padding:".15rem .4rem", borderRadius:".25rem", cursor:"pointer", fontFamily:"monospace" }} title="Click to insert">
+                                {v}
+                              </code>
+                            ))}
+                          </>
+                        )}
                       </div>
                       <button onClick={() => setShowPreview(p=>!p)}
-                        style={{ padding:".4rem .9rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background: showPreview?"#eef2ff":"white", color: showPreview?"#6366f1":"#374151", fontWeight:600, fontSize:".78rem", cursor:"pointer" }}>
-                        {showPreview?"◀ Editor":"👁 Preview"}
+                        style={{ padding:".4rem .9rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background: showPreview?"white":"#eef2ff", color: showPreview?"#374151":"#6366f1", fontWeight:600, fontSize:".78rem", cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+                        {showPreview ? "< > HTML Source" : "◀ Visual Editor"}
                       </button>
                       <button onClick={() => setEditingTemplate(null)} style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
                     </div>

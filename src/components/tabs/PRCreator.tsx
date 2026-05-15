@@ -228,6 +228,22 @@ export default function PRCreator({
   selectedTopic, onClearTopic, onNavigateToTopics,
   onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, draftToLoad, onDraftLoaded, onSaveDraft, onScheduleOrder, orders: propOrders, locationId, showToast,
 }: PRCreatorProps) {
+  // Dev access autofill — only active when ?dev_access or &dev_access in URL
+  const devAccess = typeof window !== "undefined" && window.location.search.includes("dev_access");
+  const SERENITY_ARTICLE_HTML = `<h2>Serenity Psychotherapy Group Launches New Digital Experience to Expand Access to Affordable, Inclusive Online Therapy</h2><p><em>Rockville MD, February 24, 2026</em></p><p>Serenity Psychotherapy Group, a virtual psychotherapy practice serving clients across Washington, DC, Maryland, Virginia, and Delaware, is announcing the launch of its newly enhanced digital experience and website: <a href="https://www.serenitypsychotherapygroup.com/">https://www.serenitypsychotherapygroup.com/</a>. The update represents a major step in the practice's digital transformation, designed to make high quality clinical therapy easier to discover, understand, and access for individuals, couples, and families.</p><p>Built in collaboration with Xtreme Websites, a renowned <a href="https://xtremewebsites.com/">digital marketing agency</a>, revamped the entire website to introduce a calmer, more modern user experience with clearer service pathways and improved client tools. Visitors can quickly explore therapy options such as Individual Therapy, Youth Counseling, Couples Counseling, Family Counseling, and Group Therapy, then take action through prominent scheduling and contact entry points.</p><p>A key focus of the transformation is removing friction from the first step: getting help. The new site emphasizes Serenity's online care model, including a guided process that takes clients from booking to secure sessions and personalized care planning.</p><p>Sarah Charmchi, Founder, and Owner of Serenity Psychotherapy Group, shared:</p><p><em>"At Serenity Psychotherapy Group, we strongly believe that mental health care should feel inclusive, safe, and personalized. Our redesigned website reflects our commitment to our mission and making high-quality therapy more accessible for all communities, including the Persian community in DC, Maryland, Virginia, and Delaware. Seeking support is courageous, and we are honored to support our clients throughout their journey.."</em></p><p>The upgraded experience also highlights Serenity's inclusive care approach, including culturally sensitive support and services available in both English and Farsi, as well as an affirming environment for LGBTQ+ and minority communities.</p><p>The practice also expanded clarity around the financial side of care. The Insurance and Billing section outlines in network acceptance for CareFirst, reimbursement options via superbills for out of network clients, and payment flexibility including HSA and FSA. The page also includes key policy details such as Good Faith Estimates under the No Surprises Act and a transparent cancellation policy.</p><p>Robert Diaz, Founder of Xtreme Websites, added: <em>"Clinicians like Sarah need a digital presence that establishes trust quickly and makes it easy for prospective clients to take the next step. Serenity's new website delivers a calm, credible, and intuitive experience that helps visitors find the right care in minutes. We are honored to support Sarah's mission and help scale her practice with the latest technology."</em></p><p>With this launch, Serenity Psychotherapy Group is strengthening its digital foundation to better support clients seeking online therapy across the region, while continuing to publish educational resources and therapy guidance through its blog and service pages. Learn more at Serenity Psychotherapy Group's website and view the practice's <a href="https://share.google/Wztno8wRSBfNJwxDb">Google Business Profile</a> for reviews and updates.</p><h2>About Serenity Psychotherapy Group</h2><p>Serenity Psychotherapy Group is a virtual psychotherapy practice providing affordable clinical therapy to individuals, couples, and families across Washington, DC, Maryland, Virginia, and Delaware. Founded in December 2021, the practice is led by Sarah Charmchi, LCSW, and offers culturally sensitive, inclusive care with services available in English and Farsi.</p><h2>Media Contact</h2><p>Company Name: Serenity Psychotherapy Group<br/>Contact Person: Sarah Charmchi, Founder and Director<br/>Phone: 202-990-2707<br/>Email: info@serenitypsychotherapygroup.com<br/>Website: <a href="https://www.serenitypsychotherapygroup.com/">https://www.serenitypsychotherapygroup.com/</a><br/>Marketing Partner: <a href="https://www.XtremeWebsites.com">www.XtremeWebsites.com</a></p>`;
+  const handleDevAccessFill = () => {
+    setPrFormData(p => ({
+      ...p,
+      about: "The business is launching their new website and brand new online image. New website is modern, user friendly and it better conveys their expertise with specific service pages. Use the attached reference PR to create a PR for this client mentioning their new website and online features. Specific features include...",
+      includePartnerQuote: "yes",
+      partnerQuote: "Clinicians like Sarah need a digital presence that establishes trust quickly and makes it easy for prospective clients to take the next step. Serenity's new website delivers a calm, credible, and intuitive experience that helps visitors find the right care in minutes. We are honored to support Sarah's mission and help scale her practice with the latest technology.",
+      partnerAttribution: "Robert Diaz, Founder of Xtreme Websites",
+      mediaType: "article",
+    }));
+    setExternalRef(SERENITY_ARTICLE_HTML);
+    setTimeout(() => { if (externalRefEl.current) externalRefEl.current.innerHTML = SERENITY_ARTICLE_HTML; }, 50);
+  };
+
   const [prFormData,           setPrFormData]           = useState<PRFormData>({ about: "", quote: "", keywords: [], wordCount: "500", mainFocus: "Company News", theme: "thought-provoking", videoUrl: "", mapsEmbed: "", featuredImage: null, includePartnerQuote: "no", partnerQuote: "", partnerAttribution: "", mediaType: "authority" });
   const [orderConfirm,         setOrderConfirm]         = useState<{ tier: PRTier; title: string } | null>(null);
   const [ctaPulse,             setCtaPulse]             = useState(false);
@@ -971,7 +987,15 @@ RULES:
             {/* About field with AI enhance */}
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: ".35rem" }}>
-                <label className="field-label" style={{ margin: 0 }}>What is the Press Release About? <span style={{ color: "#ef4444" }}>*</span></label>
+                <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
+                  <label className="field-label" style={{ margin: 0 }}>What is the Press Release About? <span style={{ color: "#ef4444" }}>*</span></label>
+                  {devAccess && (
+                    <button type="button" onClick={handleDevAccessFill}
+                      style={{ padding:".15rem .55rem", border:"1px solid #d1d5db", borderRadius:"99px", background:"#f3f4f6", color:"#6b7280", fontSize:".68rem", fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", lineHeight:1.4 }}>
+                      🌐 Website Launch
+                    </button>
+                  )}
+                </div>
                 <button type="button" disabled={enhancingAbout || !prFormData.about.trim()} onClick={async () => {
                   setEnhancingAbout(true);
                   try {
