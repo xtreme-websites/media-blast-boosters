@@ -415,17 +415,26 @@ export default function PRCreator({
             .replace(/{quote}/g, quote).replace(/{quoteAttribution}/g, quoteAttribution)
         : `Write a professional press release for ${companyName || "our company"} in the ${industry || "business"} industry.
 REQUIREMENTS: ~${wordCount} words, focus: ${mainFocus}, tone: ${theme}, keywords: ${kwText}, website: ${siteUrl || "N/A"}.${topicRef}${extRef}${coAbout}
-CONTENT: ${about}
-${videoUrl ? `VIDEO REFERENCE: ${videoUrl}` : ""}
 
-HEADLINE RULE: The <h1> title must be 10 words or fewer. Be punchy and newsworthy.
+⚠️ HEADLINE — READ THIS FIRST:
+The <h1> must be 8 words or fewer. Count every word. Hard limit, no exceptions.
+The CONTENT section below describes what the PR is about — do NOT copy it as the headline.
+Convert it into a short, punchy news headline like a wire service would write.
+BAD (too long, copied from brief): "The Launch of Breezall's Website and New Service Offerings for Customers"
+GOOD (short, newsworthy): "Breezall Window Cleaning Launches New Website"
+GOOD (short, newsworthy): "Apex Roofing Expands Into Commercial Services"
+The headline must name the company and state the news in plain language — under 8 words.
+
+CONTENT (use as context for the PR body, NOT as the headline):
+${about}
+${videoUrl ? `VIDEO REFERENCE: ${videoUrl}` : ""}
 
 KEYWORD LINKS: ${kwLinkInstruction || "No keywords specified."}
 
 HYPERLINKS: Any mention of the company website (${siteUrl || "N/A"}) must be a clickable <a href="${siteUrl || "#"}" target="_blank"> link.
 
 MANDATORY STRUCTURE — output exactly this HTML, preserving paragraph order:
-<h1>[Compelling headline — MAX 10 WORDS]</h1>
+<h1>[Short headline — MAX 8 WORDS, name the company + the news]</h1>
 <p><strong>FOR IMMEDIATE RELEASE</strong></p>
 <p>[City, State] — [Dateline intro paragraph about the news]</p>
 <p>[2nd body paragraph expanding on the news — include keyword hyperlinks here]</p>
@@ -439,11 +448,11 @@ ${hasPartner ? "<p>[6th paragraph: call to action or closing detail]</p>" : ""}
 ${contactHTML}
 
 RULES:
-- Title MUST be 10 words or fewer — no exceptions.
+- Headline MUST be 8 words or fewer — count them before writing.
 - Keep the owner's quote as paragraph 3${hasPartner ? " and partner's quote as paragraph 5" : ""}.
 - All h2 headings (About, Contact, and quote attributions) use <h2> tags.
 - Contact details: output each one as its own <p> tag — NO labels like "Email:", "Phone:", "Address:", "Website:". Just the raw value.
-- Do NOT add "Learn more at...", "Visit our website", "Visit ${siteUrl}", or ANY website URL or link inside the About section paragraph. The website appears only in Contact Information.
+- Do NOT add "Learn more at...", "Visit our website", "Visit ${siteUrl}", or ANY website URL or link inside the About section paragraph.
 - Make it genuinely newsworthy and professionally written.`;
 
       const text = await callClaude(prompt, "You are an expert PR writer at a top agency. Write polished, publish-ready HTML press releases.", 2000);
@@ -483,8 +492,14 @@ RULES:
     if (prMatches.length > 0) { setProhibitedMatches(prMatches); return; }
 
     const pkg = packageType ?? selectedTier;
-    const h1Match = generatedPR.match(/<h1[^>]*>(.*?)<\/h1>/i);
-    const prTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, "") : prFormData.about.slice(0, 80) || "Press Release";
+    // [\s\S]*? instead of .*? so multiline h1 titles don't cause null match
+    const h1Match = generatedPR.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    let prTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim() : "";
+    // If extraction failed, build a clean fallback — never use raw about text
+    if (!prTitle) prTitle = companyName ? `${companyName} Press Release` : "Press Release";
+    // Enforce max 10 words (catches any AI overage that slips through)
+    const titleWords = prTitle.split(/\s+/);
+    if (titleWords.length > 10) prTitle = titleWords.slice(0, 10).join(" ");
     // Build seoFocus
     let seoFocus = "";
     if (authorityFocus) {
