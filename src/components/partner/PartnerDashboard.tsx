@@ -279,15 +279,6 @@ export default function PartnerDashboard() {
 
   useEffect(() => { if (isPartner) load(activeTab); }, [isPartner, activeTab]);
 
-  // ── Auto-refresh: poll active tab every 30s ───────────────────────────────
-  useEffect(() => {
-    if (!isPartner) return;
-    const AUTO_REFRESH_TABS = ["queue","pr_orders","report_pending","overview"];
-    if (!AUTO_REFRESH_TABS.includes(activeTab)) return;
-    const interval = setInterval(() => { load(activeTab); }, 30_000);
-    return () => clearInterval(interval);
-  }, [isPartner, activeTab, load]);
-
   const approveOrder = async (order_id: string) => {
     if (!session) return;
     const d = await partnerPost("approve_order", { order_id }, session.access_token);
@@ -420,10 +411,6 @@ export default function PartnerDashboard() {
           <button onClick={() => supabase.auth.signOut()}
             style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .85rem", fontSize:".78rem", cursor:"pointer" }}>
             Sign out
-          </button>
-          <button onClick={() => load(activeTab)} title="Refresh current tab"
-            style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .65rem", fontSize:".88rem", cursor:"pointer", lineHeight:1 }}>
-            ⟳
           </button>
         </div>
       </div>
