@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { createPortal } from "react-dom";
 import { store } from "../lib/ai";
 import { supabase, SUPABASE_URL, SUPABASE_ANON } from "../lib/supabase";
@@ -182,7 +183,60 @@ export default function PRDashboard() {
     })();
   }, [locationId]);
 
-  // ── Save company data to Supabase + store ─────────────────────────────────
+  // ── Refresh orders (callable on-demand) ───────────────────────────────────
+  const refreshOrders = useCallback(async () => {
+    if (!locationId || locationId === "preview-mode") return;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?location_id=eq.${locationId}&order=created_at.desc`, {
+        headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setOrders(data.map(o => ({
+        id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`,
+        date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content,
+        status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date,
+        submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link,
+        lastEditedAt: o.last_edited_at, formData: o.form_data,
+        prContentOriginal: o.pr_content_original, rejectionReason: o.rejection_reason
+      })));
+    } catch {}
+  }, [locationId]);
+
+  // ── Supabase Realtime: live order status updates ───────────────────────────
+  useEffect(() => {
+    if (!locationId || locationId === "preview-mode") return;
+    const rt = createClient(SUPABASE_URL, SUPABASE_ANON);
+    const channel = rt
+      .channel(`orders-live-${locationId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "orders",
+        filter: `location_id=eq.${locationId}`,
+      }, (payload: any) => {
+        if (payload.eventType === "UPDATE") {
+          const u = payload.new;
+          setOrders(prev => prev.map(o => o.id !== u.id ? o : {
+            ...o,
+            status: u.status,
+            prContent: u.pr_content ?? o.prContent,
+            prTitle: u.pr_title ?? o.prTitle,
+            publishedDate: u.published_date ?? o.publishedDate,
+            reportLink: u.report_link ?? o.reportLink,
+            rejectionReason: u.rejection_reason ?? null,
+            prContentOriginal: u.pr_content_original ?? o.prContentOriginal,
+            submittedAt: u.submitted_at ?? o.submittedAt,
+            lastEditedAt: u.last_edited_at ?? o.lastEditedAt,
+            formData: u.form_data ?? o.formData,
+          }));
+        } else if (payload.eventType === "INSERT") {
+          // New order inserted externally — refresh full list
+          refreshOrders();
+        }
+      })
+      .subscribe();
+    return () => { rt.removeChannel(channel); };
+  }, [locationId, refreshOrders]);
   const saveCompanyData = async (data: CompanyData) => {
     setCompanyData(data);
     try { await store.set(`mbb:companyData:${locationId}`, JSON.stringify(data)); } catch {}
@@ -533,7 +587,7 @@ export default function PRDashboard() {
           {activeTab === "topics"     && <TrendingTopics companyData={companyData} showToast={showToast} onTopicSelect={handleTopicSelect}/>}
           {activeTab === "competitor" && <CompetitorAnalysis companyName={companyData.name} industry={companyData.industry} locationId={locationId} showToast={showToast}/>}
           {activeTab === "widgets"    && <TrustAssets orders={orders} locationId={locationId} showToast={showToast} isDevAccess={IS_DEV} hasCompanyData={hasCompanyData} onNavigateToCompanyProfile={() => setActiveTab("company_data" as any)}/>}
-          {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast}/>}
+          {activeTab === "pr"         && <PRCreator companyData={companyData} customPRPrompt={customPRPrompt} selectedTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} onNavigateToTopics={() => setActiveTab("topics")} onOpenCompanyData={() => setShowCompanyData(true)} onPlaceOrder={placeOrder} onOpenCheckout={(type,title,content) => setCheckoutPackage({type,title,content})} onOpenCredits={() => setActiveTab("orders")} onNavigateToPublished={() => setActiveTab("press")} onOpenHelp={() => setActiveTab("help")} onNavigateToAuthorityBuilder={() => setActiveTab("authority")} authorityPayload={authorityPayload} draftToLoad={draftToLoad} onDraftLoaded={() => setDraftToLoad(null)} onSaveDraft={saveDraft} onScheduleOrder={scheduleOrder} orders={orders} locationId={locationId} showToast={showToast} onOrdersRefresh={refreshOrders}/>}
           {activeTab === "press"      && <PublishedPress orders={orders} locationId={locationId}
             onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}
             onApproveAndSubmit={async (o) => {

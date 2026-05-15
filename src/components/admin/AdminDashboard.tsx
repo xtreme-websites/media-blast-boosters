@@ -686,6 +686,16 @@ export default function AdminDashboard() {
 
   useEffect(() => { if (isAdmin) load(activeTab); }, [isAdmin, activeTab]);
 
+  // ── Auto-refresh: poll active tab every 30s for live updates ──────────────
+  useEffect(() => {
+    if (!isAdmin) return;
+    // Only auto-refresh data-heavy tabs that change frequently
+    const AUTO_REFRESH_TABS = ["queue","pr_orders","report_pending","overview"];
+    if (!AUTO_REFRESH_TABS.includes(activeTab)) return;
+    const interval = setInterval(() => { load(activeTab); }, 30_000);
+    return () => clearInterval(interval);
+  }, [isAdmin, activeTab, load]);
+
   const impersonate = async (location_id: string) => {
     if (!session) return;
     const d = await adminPost("create_impersonation_token", { location_id }, session.access_token);
@@ -823,6 +833,10 @@ export default function AdminDashboard() {
           <button onClick={() => supabase.auth.signOut()}
             style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .85rem", fontSize:".78rem", cursor:"pointer" }}>
             Sign out
+          </button>
+          <button onClick={() => load(activeTab)} title="Refresh current tab"
+            style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.7)", borderRadius:".4rem", padding:".35rem .65rem", fontSize:".88rem", cursor:"pointer", lineHeight:1 }}>
+            ⟳
           </button>
         </div>
       </div>

@@ -204,6 +204,7 @@ interface PRCreatorProps {
   onOpenCredits: () => void;
   onNavigateToPublished?: () => void;
   onOpenHelp?: () => void;
+  onOrdersRefresh?: () => void;
   onNavigateToAuthorityBuilder?: () => void;
   authorityPayload?: import("./AuthorityBuilder").ExecutePayload | null;
   draftToLoad?: import("../../lib/constants").Order | null;
@@ -226,7 +227,7 @@ type PRTier = keyof typeof TIER_CONFIG;
 export default function PRCreator({
   companyData, customPRPrompt,
   selectedTopic, onClearTopic, onNavigateToTopics,
-  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, draftToLoad, onDraftLoaded, onSaveDraft, onScheduleOrder, orders: propOrders, locationId, showToast,
+  onOpenCompanyData, onPlaceOrder, onOpenCheckout, onOpenCredits, onNavigateToPublished, onOpenHelp, onNavigateToAuthorityBuilder, authorityPayload, draftToLoad, onDraftLoaded, onSaveDraft, onScheduleOrder, orders: propOrders, locationId, showToast, onOrdersRefresh,
 }: PRCreatorProps) {
   // Dev access autofill — only active when ?dev_access or &dev_access in URL
   const devAccess = typeof window !== "undefined" && window.location.search.includes("dev_access");
@@ -1301,10 +1302,10 @@ RULES:
                 </div>
               </div>
               <div style={{ display:"flex", gap:".75rem" }}>
-                <button onClick={() => { setOrderConfirm(null); onNavigateToPublished?.(); }} style={{ flex:1, padding:".7rem", borderRadius:".6rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".85rem", background:`linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)`, color:"white", boxShadow:`0 4px 14px ${cfg.color}40` }}>
+                <button onClick={() => { setOrderConfirm(null); onOrdersRefresh?.(); onNavigateToPublished?.(); }} style={{ flex:1, padding:".7rem", borderRadius:".6rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".85rem", background:`linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)`, color:"white", boxShadow:`0 4px 14px ${cfg.color}40` }}>
                   Check Order Status
                 </button>
-                <button onClick={() => setOrderConfirm(null)} style={{ padding:".7rem 1rem", borderRadius:".6rem", border:"1px solid #e2e8f0", cursor:"pointer", fontWeight:600, fontSize:".85rem", background:"white", color:"#64748b" }}>
+                <button onClick={() => { setOrderConfirm(null); onOrdersRefresh?.(); }} style={{ padding:".7rem 1rem", borderRadius:".6rem", border:"1px solid #e2e8f0", cursor:"pointer", fontWeight:600, fontSize:".85rem", background:"white", color:"#64748b" }}>
                   Close
                 </button>
               </div>
