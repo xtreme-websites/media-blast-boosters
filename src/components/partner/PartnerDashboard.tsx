@@ -1318,7 +1318,9 @@ export default function PartnerDashboard() {
       )}
 
       {/* PR Preview Modal */}
-      {previewOrder && (
+      {previewOrder && (() => {
+        const isPublished = previewOrder.status === "published";
+        return (
         <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
           <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:780, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
             <div style={{ padding:"1rem 1.5rem", borderBottom:"1px solid #f1f5f9", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
@@ -1330,16 +1332,27 @@ export default function PartnerDashboard() {
                 </div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
-                <span style={{ fontSize:".72rem", color:"#8929bd", fontWeight:600 }}>✏️ Click content to edit</span>
+                {!isPublished && <span style={{ fontSize:".72rem", color:"#8929bd", fontWeight:600 }}>✏️ Click content to edit</span>}
                 <button onClick={()=>{ setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
                   style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
               </div>
             </div>
-            {/* Toolbar pinned above scroll area */}
-            <div style={{ padding:".5rem 1.25rem", background:"#f8fafc", borderBottom:"1px solid #e2e8f0", flexShrink:0 }}>
-              <RichToolbar editorRef={partnerEditorRef} />
-            </div>
-            {/* Scrollable PR content — no border */}
+
+            {/* Published lock banner */}
+            {isPublished && (
+              <div style={{ background:"#f0fdf4", borderBottom:"1px solid #bbf7d0", padding:".6rem 1.25rem", display:"flex", alignItems:"center", gap:".5rem", flexShrink:0 }}>
+                <span>✅</span>
+                <span style={{ fontSize:".78rem", fontWeight:600, color:"#15803d" }}>This PR has been published and cannot be edited.</span>
+              </div>
+            )}
+
+            {/* Toolbar pinned above scroll area — hidden when published */}
+            {!isPublished && (
+              <div style={{ padding:".5rem 1.25rem", background:"#f8fafc", borderBottom:"1px solid #e2e8f0", flexShrink:0 }}>
+                <RichToolbar editorRef={partnerEditorRef} />
+              </div>
+            )}
+            {/* Scrollable PR content */}
             <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
               <style>{`
                 .partner-pr-preview { font-family: Georgia, 'Times New Roman', serif; color: #1e293b; line-height: 1.7; }
@@ -1356,31 +1369,39 @@ export default function PartnerDashboard() {
               <div
                 ref={partnerEditorRef}
                 className="partner-pr-preview"
-                contentEditable
+                contentEditable={!isPublished}
                 suppressContentEditableWarning
-                onFocus={() => { isPartnerTypingRef.current = true; }}
-                onBlur={() => { isPartnerTypingRef.current = false; setEditedContent(partnerEditorRef.current?.innerHTML || ""); }}
-                onInput={() => setEditedContent(partnerEditorRef.current?.innerHTML || "")}
-                style={{ outline:"none", minHeight:"300px" }}
+                onFocus={() => { if (!isPublished) isPartnerTypingRef.current = true; }}
+                onBlur={() => { isPartnerTypingRef.current = false; if (!isPublished) setEditedContent(partnerEditorRef.current?.innerHTML || ""); }}
+                onInput={() => { if (!isPublished) setEditedContent(partnerEditorRef.current?.innerHTML || ""); }}
+                style={{ outline:"none", minHeight:"300px", cursor: isPublished ? "default" : undefined }}
               />
             </div>
             <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"flex-end", flexShrink:0 }}>
-              <button onClick={()=>rejectOrder(previewOrder.id)}
-                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
-                ✕ Reject
-              </button>
-              <button onClick={approveWithChanges}
-                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fef3c7", color:"#92400e", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
-                ✏️ Approve with Changes
-              </button>
-              <button onClick={()=>{ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
-                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
-                ✅ Approve
-              </button>
+              {isPublished ? (
+                <button onClick={()=>{ setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
+                  style={{ padding:".6rem 1.25rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".83rem", cursor:"pointer", color:"#64748b" }}>
+                  Close
+                </button>
+              ) : (<>
+                <button onClick={()=>rejectOrder(previewOrder.id)}
+                  style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                  ✕ Reject
+                </button>
+                <button onClick={approveWithChanges}
+                  style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fef3c7", color:"#92400e", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                  ✏️ Approve with Changes
+                </button>
+                <button onClick={()=>{ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
+                  style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                  ✅ Approve
+                </button>
+              </>)}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Toast */}
       {toast && (

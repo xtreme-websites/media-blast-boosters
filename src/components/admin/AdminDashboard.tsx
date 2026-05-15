@@ -2028,7 +2028,9 @@ export default function AdminDashboard() {
       )}
 
       {/* PR Preview Modal — formatted, inline-editable, 3-button approval */}
-      {previewOrder && (
+      {previewOrder && (() => {
+        const isPublished = previewOrder.status === "published";
+        return (
         <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1.5rem" }}>
           <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:780, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,.4)" }}>
             {/* Header */}
@@ -2041,18 +2043,28 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
-                <span style={{ fontSize:".72rem", color:"#6366f1", fontWeight:600 }}>✏️ Click content to edit</span>
+                {!isPublished && <span style={{ fontSize:".72rem", color:"#6366f1", fontWeight:600 }}>✏️ Click content to edit</span>}
                 <button onClick={()=>{ setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
                   style={{ background:"none", border:"none", fontSize:"1.2rem", cursor:"pointer", color:"#94a3b8", lineHeight:1 }}>✕</button>
               </div>
             </div>
 
+            {/* Published lock banner */}
+            {isPublished && (
+              <div style={{ background:"#f0fdf4", borderBottom:"1px solid #bbf7d0", padding:".6rem 1.25rem", display:"flex", alignItems:"center", gap:".5rem", flexShrink:0 }}>
+                <span>✅</span>
+                <span style={{ fontSize:".78rem", fontWeight:600, color:"#15803d" }}>This PR has been published and cannot be edited.</span>
+              </div>
+            )}
+
             {/* Editable PR content — toolbar pinned, content scrolls */}
             <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-              {/* Toolbar row — always visible, never scrolls away */}
-              <div style={{ padding:".5rem 1.25rem", background:"#f8fafc", borderBottom:"1px solid #e2e8f0", flexShrink:0 }}>
-                <RichToolbar editorRef={adminEditorRef} />
-              </div>
+              {/* Toolbar row — only shown when editable */}
+              {!isPublished && (
+                <div style={{ padding:".5rem 1.25rem", background:"#f8fafc", borderBottom:"1px solid #e2e8f0", flexShrink:0 }}>
+                  <RichToolbar editorRef={adminEditorRef} />
+                </div>
+              )}
               {/* Scrollable PR text */}
               <div style={{ flex:1, overflowY:"auto", padding:"1.5rem 2rem" }}>
                 <style>{`
@@ -2070,41 +2082,49 @@ export default function AdminDashboard() {
                 <div
                   ref={adminEditorRef}
                   className="admin-pr-preview"
-                  contentEditable
+                  contentEditable={!isPublished}
                   suppressContentEditableWarning
-                  onFocus={() => { isAdminTypingRef.current = true; }}
-                  onBlur={() => { isAdminTypingRef.current = false; setEditedContent(adminEditorRef.current?.innerHTML || ""); }}
-                  onInput={() => setEditedContent(adminEditorRef.current?.innerHTML || "")}
-                  style={{ outline:"none", minHeight:"240px" }}
+                  onFocus={() => { if (!isPublished) isAdminTypingRef.current = true; }}
+                  onBlur={() => { isAdminTypingRef.current = false; if (!isPublished) setEditedContent(adminEditorRef.current?.innerHTML || ""); }}
+                  onInput={() => { if (!isPublished) setEditedContent(adminEditorRef.current?.innerHTML || ""); }}
+                  style={{ outline:"none", minHeight:"240px", cursor: isPublished ? "default" : undefined }}
                 />
               </div>
             </div>
 
-            {/* 3-button footer */}
+            {/* Footer — action buttons hidden when published */}
             <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid #f1f5f9", display:"flex", gap:".65rem", justifyContent:"flex-end", flexShrink:0, flexWrap:"wrap" }}>
-              <button onClick={()=>rejectOrder(previewOrder.id)}
-                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
-                ✕ Reject
-              </button>
-              <button onClick={async()=>{
-                  if(!session)return;
-                  const changed = editedContent && editedContent !== originalContent;
-                  if(!changed){ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); return; }
-                  const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContent, new_content:editedContent, location_id:previewOrder.location_id }, session.access_token);
-                  if(!d.error){ showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
-                  else showToast(d.error,"error");
-                }}
-                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fef3c7", color:"#92400e", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
-                ✏️ Approve with Changes
-              </button>
-              <button onClick={()=>{ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
-                style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
-                ✅ Approve
-              </button>
+              {isPublished ? (
+                <button onClick={()=>{ setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
+                  style={{ padding:".6rem 1.25rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".83rem", cursor:"pointer", color:"#64748b" }}>
+                  Close
+                </button>
+              ) : (<>
+                <button onClick={()=>rejectOrder(previewOrder.id)}
+                  style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                  ✕ Reject
+                </button>
+                <button onClick={async()=>{
+                    if(!session)return;
+                    const changed = editedContent && editedContent !== originalContent;
+                    if(!changed){ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); return; }
+                    const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContent, new_content:editedContent, location_id:previewOrder.location_id }, session.access_token);
+                    if(!d.error){ showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
+                    else showToast(d.error,"error");
+                  }}
+                  style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fef3c7", color:"#92400e", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                  ✏️ Approve with Changes
+                </button>
+                <button onClick={()=>{ approveOrder(previewOrder.id); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); }}
+                  style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
+                  ✅ Approve
+                </button>
+              </>)}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Toast */}
       {toast && (
