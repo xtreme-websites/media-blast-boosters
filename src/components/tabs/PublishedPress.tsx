@@ -1,26 +1,41 @@
 import { useState, useEffect } from "react";
 
 // Simple word-level diff for PR content comparison
+// Block-level HTML-aware diff — preserves h1/h2/p/bold/italic/links
 function buildDiffHtml(original: string, modified: string): string {
-  const strip = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  const orig = strip(original).split(" ");
-  const mod  = strip(modified).split(" ");
-  const m = orig.length, n = mod.length;
+  // Extract block-level HTML elements preserving full tags
+  const getBlocks = (html: string): string[] => {
+    const blocks: string[] = [];
+    const re = /<(h[1-6]|p|div|blockquote|ul|ol)[^>]*>[\s\S]*?<\/\1>/gi;
+    let match;
+    while ((match = re.exec(html)) !== null) blocks.push(match[0]);
+    return blocks.length > 0 ? blocks : [html];
+  };
+  // Compare blocks by plain text content
+  const textOf = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+  const oB = getBlocks(original), mB = getBlocks(modified);
+  const oT = oB.map(textOf), mT = mB.map(textOf);
+  const m = oB.length, n = mB.length;
+
+  // LCS table
   const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
   for (let i = m-1; i >= 0; i--)
     for (let j = n-1; j >= 0; j--)
-      dp[i][j] = orig[i]===mod[j] ? 1+dp[i+1][j+1] : Math.max(dp[i+1][j], dp[i][j+1]);
+      dp[i][j] = oT[i] === mT[j] ? 1+dp[i+1][j+1] : Math.max(dp[i+1][j], dp[i][j+1]);
+
   const parts: string[] = [];
   let i = 0, j = 0;
   while (i < m || j < n) {
-    if (i < m && j < n && orig[i]===mod[j]) { parts.push(orig[i]); i++; j++; }
-    else if (j < n && (i >= m || dp[i][j+1] >= dp[i+1][j])) {
-      parts.push(`<ins style="background:#dcfce7;color:#166534;text-decoration:none;padding:1px 3px;border-radius:3px;font-style:normal">${mod[j]}</ins>`); j++;
+    if (i < m && j < n && oT[i] === mT[j]) {
+      parts.push(mB[j]); i++; j++; // unchanged — full HTML preserved
+    } else if (j < n && (i >= m || dp[i][j+1] >= dp[i+1][j])) {
+      parts.push(`<div style="background:#f0fdf4;border-left:4px solid #22c55e;padding-left:.6rem;margin:.3rem 0">${mB[j]}</div>`); j++;
     } else {
-      parts.push(`<del style="background:#fee2e2;color:#991b1b;padding:1px 3px;border-radius:3px">${orig[i]}</del>`); i++;
+      parts.push(`<div style="background:#fef2f2;border-left:4px solid #ef4444;padding-left:.6rem;margin:.3rem 0;opacity:.65">${oB[i]}</div>`); i++;
     }
   }
-  return `<p style="font-size:.85rem;line-height:1.9;font-family:system-ui,sans-serif">${parts.join(" ")}</p>`;
+  return `<div>${parts.join("")}</div>`;
 }
 import { createPortal } from "react-dom";
 import { XIcon } from "../icons";

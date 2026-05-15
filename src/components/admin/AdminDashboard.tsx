@@ -1749,8 +1749,21 @@ export default function AdminDashboard() {
             if (!d.error) { setEditHtml(d.default_template || defaultTmpl); setEmailTemplates(prev=>prev.filter(t=>t.key!==editingTemplate.key)); showToast("Reset to default"); }
           };
 
-          const VARS = ["{{badge}}","{{title}}","{{message}}","{{dashUrl}}"];
-          const previewHtml = editHtml.replace(/\{\{badge\}\}/g,"Media Creator").replace(/\{\{title\}\}/g,"Test Email Subject").replace(/\{\{message\}\}/g,"This is a preview of your email notification.").replace(/\{\{dashUrl\}\}/g,"https://mediablast.xlogic.app");
+          const KEY_PREVIEWS: Record<string, { badge:string; title:string; message:string; dashUrl:string }> = {
+            mc_scheduled:   { badge:"Media Creator",      title:"Your PR Has Been Scheduled 📅",          message:"Your press release has been scheduled for distribution. We'll notify you when it goes live.", dashUrl:"https://mediablast.xlogic.app" },
+            mc_submitted:   { badge:"Media Creator",      title:"Your PR Has Been Approved ✅",           message:"Your press release was approved by your account manager with some changes. Go to \"Published Press\" and click on the latest PR Document — once opened, you will be able to see the changes made.", dashUrl:"https://mediablast.xlogic.app" },
+            mc_published:   { badge:"Media Creator",      title:"🎉 Your PR is Published!",              message:"Your press release \"Acme Co Launches New Service\" has been published across hundreds of news outlets. View your full distribution report now.", dashUrl:"https://mediablast.xlogic.app/report/example-order-id" },
+            mc_rejected:    { badge:"Action Required",    title:"PR Requires Revision",                  message:"Your press release \"Acme Co Launches New Service\" requires some changes before it can be approved.\n\nFeedback: Please revise the second paragraph to be more specific about the target area.\n\nPlease log in to your dashboard to review and revise your PR.", dashUrl:"https://mediablast.xlogic.app" },
+            ab_approval:    { badge:"Authority Builder",  title:"Your AI Draft Is Ready for Review",     message:"A new Authority Builder press release has been generated for your review. Log in to approve or request changes.", dashUrl:"https://mediablast.xlogic.app" },
+            tt_digest:      { badge:"Trending Topics",    title:"Your Weekly Trending Topics Digest",    message:"Here are this week's top trending topics in your industry. Use these insights to create timely, relevant press releases.", dashUrl:"https://mediablast.xlogic.app" },
+            ca_digest:      { badge:"Competitor Analysis",title:"Your Competitor Activity Report",       message:"We've detected new activity from competitors in your space. Log in to review the full analysis and identify opportunities.", dashUrl:"https://mediablast.xlogic.app" },
+            tw_not_created: { badge:"Action Needed",      title:"Set Up Your Trust Widget",              message:"Your Trust Widget hasn't been created yet. Set it up today to display your press release credibility directly on your website.", dashUrl:"https://mediablast.xlogic.app" },
+            tw_not_verified:{ badge:"Action Needed",      title:"Verify Your Trust Widget",              message:"Your Trust Widget was set up but hasn't been verified yet. Complete verification to activate it on your website.", dashUrl:"https://mediablast.xlogic.app" },
+            credits_low:    { badge:"Low Credits",        title:"⚠️ Your Media Credits Are Running Low", message:"You have only 1 media credit remaining. Purchase more credits to keep your PR momentum going.", dashUrl:"https://mediablast.xlogic.app" },
+            credits_promotion:{ badge:"Special Offer",   title:"🎁 Limited-Time Credit Offer",          message:"For a limited time, get bonus media credits with your next purchase. Log in to view the offer before it expires.", dashUrl:"https://mediablast.xlogic.app" },
+          };
+          const pv = KEY_PREVIEWS[editingTemplate?.key || ""] || { badge:"Media Creator", title:"Email Notification", message:"This is a preview of your email notification.", dashUrl:"https://mediablast.xlogic.app" };
+          const previewHtml = editHtml.replace(/\{\{badge\}\}/g, pv.badge).replace(/\{\{title\}\}/g, pv.title).replace(/\{\{message\}\}/g, pv.message).replace(/\{\{dashUrl\}\}/g, pv.dashUrl);
 
           return (
             <div>
