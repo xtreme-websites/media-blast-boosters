@@ -1307,11 +1307,31 @@ export default function AdminDashboard() {
                           </td>
                           <td style={{ padding:".7rem 1rem", textAlign:"center" }}>
                             {order.report_data ? (
-                              <a href={`/report/${order.id}`} target="_blank" rel="noopener noreferrer"
-                                style={{ fontSize:".75rem", fontWeight:700, color:"#8929bd", textDecoration:"none", display:"inline-flex", alignItems:"center", gap:".2rem" }}
-                                onClick={e=>e.stopPropagation()}>
-                                See Report ↗
-                              </a>
+                              <div style={{ display:"inline-flex", alignItems:"center", gap:".4rem" }}>
+                                <a href={`/report/${order.id}`} target="_blank" rel="noopener noreferrer"
+                                  style={{ fontSize:".75rem", fontWeight:700, color:"#8929bd", textDecoration:"none", display:"inline-flex", alignItems:"center", gap:".2rem" }}
+                                  onClick={e=>e.stopPropagation()}>
+                                  See Report ↗
+                                </a>
+                                <button
+                                  title="Resend"
+                                  onClick={async e => {
+                                    e.stopPropagation();
+                                    if (!session) return;
+                                    const d = await adminPost("resend_report_notification", { order_id: order.id }, session.access_token);
+                                    if (!d.error) showToast("📧 Report email resent to client ✓");
+                                    else showToast(d.error, "error");
+                                  }}
+                                  style={{ background:"none", border:"none", cursor:"pointer", padding:".15rem", color:"#94a3b8", display:"inline-flex", alignItems:"center", borderRadius:".25rem", transition:"color .15s" }}
+                                  onMouseEnter={e=>(e.currentTarget.style.color="#8929bd")}
+                                  onMouseLeave={e=>(e.currentTarget.style.color="#94a3b8")}
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"/>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                  </svg>
+                                </button>
+                              </div>
                             ) : <span style={{ color:"#cbd5e1", fontSize:".72rem" }}>—</span>}
                           </td>
                         </tr>
