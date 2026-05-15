@@ -258,6 +258,7 @@ export default function PRCreator({
   const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
   const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
   const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
+  const [isRejectedDraft,      setIsRejectedDraft]      = useState(false);
 
   // Load draft data when coming from Drafts tab
   useEffect(() => {
@@ -280,6 +281,7 @@ export default function PRCreator({
     }));
     if (draftToLoad.prContent) { setGeneratedPR(draftToLoad.prContent); setShowGeneratedView(true); }
     if (draftToLoad.status === "scheduled" && draftToLoad.scheduledDate) setScheduleDate(draftToLoad.scheduledDate.split("T")[0]);
+    setIsRejectedDraft(draftToLoad.status === "rejected"); // track for free resubmit
     setCurrentDraftId(draftToLoad.id);
     setSelectedTier((draftToLoad.productName as PRTier) || "Standard");
     onDraftLoaded?.();
@@ -661,8 +663,14 @@ RULES:
                     <div>
                       <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".2rem" }}>Ready to Publish?</div>
                       <div style={{ fontSize:".82rem", color:"#64748b" }}>
-                        <span style={{ fontWeight:700, color:cfg.color }}>{selectedTier} Package</span> · {bal > 0 ? <span style={{ color:"#16a34a", fontWeight:600 }}>{bal} credit{bal>1?"s":""} available</span> : <span style={{ color:"#ef4444", fontWeight:600 }}>No credits</span>}
-                        {currentDraftId && <span style={{ marginLeft:".5rem", fontSize:".72rem", color:"#6366f1", background:"#eef2ff", padding:".1rem .45rem", borderRadius:"99px" }}>Draft</span>}
+                        <span style={{ fontWeight:700, color:cfg.color }}>{selectedTier} Package</span>
+                        {isRejectedDraft
+                          ? <span style={{ marginLeft:".5rem", color:"#d97706", fontWeight:600 }}>↩ Resubmit — no credit charge</span>
+                          : bal > 0
+                            ? <span style={{ marginLeft:".35rem", color:"#16a34a", fontWeight:600 }}>{bal} credit{bal>1?"s":""} available</span>
+                            : <span style={{ marginLeft:".35rem", color:"#ef4444", fontWeight:600 }}>No credits</span>
+                        }
+                        {currentDraftId && !isRejectedDraft && <span style={{ marginLeft:".5rem", fontSize:".72rem", color:"#6366f1", background:"#eef2ff", padding:".1rem .45rem", borderRadius:"99px" }}>Draft</span>}
                       </div>
                     </div>
                     <div style={{ display:"flex", gap:".6rem", flexWrap:"wrap", alignItems:"center" }}>
@@ -670,20 +678,25 @@ RULES:
                       <button onClick={handleSaveDraft} style={{ padding:".6rem 1rem", borderRadius:".6rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".82rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem" }}>
                         💾 Save Draft
                       </button>
-                      {/* Schedule */}
-                      <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first","error"); return; } handleOpenSchedule(); }}
+                      {/* Schedule — hide for rejected resubmit */}
+                      {!isRejectedDraft && <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first","error"); return; } handleOpenSchedule(); }}
                         style={{ padding:".6rem 1rem", borderRadius:".6rem", border:`1px solid ${cfg.color}`, background:"white", color:cfg.color, fontWeight:700, fontSize:".82rem", cursor:"pointer", display:"flex", alignItems:"center", gap:".4rem" }}>
                         📅 Schedule
-                      </button>
-                      {/* Order & Launch */}
-                      {bal > 0
+                      </button>}
+                      {/* Order & Launch OR Resubmit OR Buy Credits */}
+                      {isRejectedDraft
                         ? <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first","error"); return; } handlePlaceOrder(); }}
-                            style={{ background: agreedToTerms ? `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` : "#e2e8f0", color: agreedToTerms ? "white" : "#94a3b8", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor: agreedToTerms ? "pointer" : "not-allowed", whiteSpace:"nowrap", boxShadow: agreedToTerms ? `0 4px 14px ${cfg.color}40` : "none", transition:"all .2s" }}>
-                            🚀 Order & Launch
+                            style={{ background: agreedToTerms ? "linear-gradient(135deg,#d97706,#b45309)" : "#e2e8f0", color: agreedToTerms ? "white" : "#94a3b8", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor: agreedToTerms ? "pointer" : "not-allowed", whiteSpace:"nowrap", boxShadow: agreedToTerms ? "0 4px 14px rgba(217,119,6,.35)" : "none", transition:"all .2s" }}>
+                            ↩ Resubmit PR
                           </button>
-                        : <button onClick={onOpenCredits} style={{ background:"#ef4444", color:"white", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-                            Buy {selectedTier} Credits →
-                          </button>
+                        : bal > 0
+                          ? <button onClick={() => { if (!agreedToTerms) { showToast("Please agree to the Editorial Standards first","error"); return; } handlePlaceOrder(); }}
+                              style={{ background: agreedToTerms ? `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` : "#e2e8f0", color: agreedToTerms ? "white" : "#94a3b8", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor: agreedToTerms ? "pointer" : "not-allowed", whiteSpace:"nowrap", boxShadow: agreedToTerms ? `0 4px 14px ${cfg.color}40` : "none", transition:"all .2s" }}>
+                              🚀 Order & Launch
+                            </button>
+                          : <button onClick={onOpenCredits} style={{ background:"#ef4444", color:"white", border:"none", borderRadius:".6rem", padding:".7rem 1.4rem", fontWeight:800, fontSize:".95rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+                              Buy {selectedTier} Credits →
+                            </button>
                       }
                     </div>
                   </div>

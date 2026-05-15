@@ -115,9 +115,6 @@ export default function PublicReport() {
                 <div style={{ color:"#e2e8f0", fontWeight:700, fontSize:".82rem" }}>{val}</div>
               </div>
             ))}
-            <span style={{ background:`${tierStats.color}22`, color:tierStats.color, border:`1px solid ${tierStats.color}44`, fontSize:".68rem", fontWeight:800, padding:".2rem .7rem", borderRadius:"99px", textTransform:"uppercase", letterSpacing:".08em", alignSelf:"center" }}>
-              {tierStats.label}
-            </span>
           </div>
         </div>
       </div>

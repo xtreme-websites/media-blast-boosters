@@ -1829,21 +1829,22 @@ export default function AdminDashboard() {
                           // Visual editor: formatting toolbar
                           <>
                             {[
-                              { label:"B", cmd:"bold",       title:"Bold",           style:{ fontWeight:800 } },
-                              { label:"I", cmd:"italic",     title:"Italic",         style:{ fontStyle:"italic" } },
-                              { label:"U", cmd:"underline",  title:"Underline",      style:{ textDecoration:"underline" } },
-                              { label:"H1",cmd:"formatBlock",title:"Heading 1",      val:"h1" },
-                              { label:"H2",cmd:"formatBlock",title:"Heading 2",      val:"h2" },
-                              { label:"¶", cmd:"formatBlock",title:"Paragraph",      val:"p" },
-                              { label:"•", cmd:"insertUnorderedList",title:"Bullet list" },
-                              { label:"🔗",cmd:"createLink", title:"Insert link"     },
-                              { label:"⛓️✕",cmd:"unlink",   title:"Remove link"     },
-                            ].map(btn => (
-                              <button key={btn.label} type="button"
+                              { label:"B",  cmd:"bold",       title:"Bold",        style:{ fontWeight:800 } },
+                              { label:"I",  cmd:"italic",     title:"Italic",      style:{ fontStyle:"italic" } },
+                              { label:"U",  cmd:"underline",  title:"Underline",   style:{ textDecoration:"underline" } },
+                              { label:"H1", cmd:"formatBlock",title:"Heading 1",   val:"h1" },
+                              { label:"H2", cmd:"formatBlock",title:"Heading 2",   val:"h2" },
+                              { label:"¶",  cmd:"formatBlock",title:"Paragraph",   val:"p" },
+                              { label:null, cmd:"insertUnorderedList", title:"Bullet list", svg:<svg width="13" height="11" viewBox="0 0 14 12" fill="currentColor"><circle cx="1.5" cy="1.5" r="1.5"/><rect x="4.5" y="0.4" width="9.5" height="2.2" rx="0.8"/><circle cx="1.5" cy="6" r="1.5"/><rect x="4.5" y="4.9" width="9.5" height="2.2" rx="0.8"/><circle cx="1.5" cy="10.5" r="1.5"/><rect x="4.5" y="9.4" width="9.5" height="2.2" rx="0.8"/></svg> },
+                              { label:null, cmd:"insertOrderedList",   title:"Numbered list", svg:<svg width="14" height="11" viewBox="0 0 15 12" fill="currentColor"><text x="0" y="3" fontSize="3.8" fontFamily="system-ui,sans-serif" fontWeight="700">1</text><text x="2.2" y="3" fontSize="3.8" fontFamily="system-ui,sans-serif">.</text><rect x="5" y="0.4" width="10" height="2.2" rx="0.8"/><text x="0" y="7.5" fontSize="3.8" fontFamily="system-ui,sans-serif" fontWeight="700">2</text><text x="2.2" y="7.5" fontSize="3.8" fontFamily="system-ui,sans-serif">.</text><rect x="5" y="4.9" width="10" height="2.2" rx="0.8"/><text x="0" y="12" fontSize="3.8" fontFamily="system-ui,sans-serif" fontWeight="700">3</text><text x="2.2" y="12" fontSize="3.8" fontFamily="system-ui,sans-serif">.</text><rect x="5" y="9.4" width="10" height="2.2" rx="0.8"/></svg> },
+                              { label:"🔗",  cmd:"createLink",  title:"Insert link"  },
+                              { label:"⛓️✕", cmd:"unlink",      title:"Remove link"  },
+                            ].map((btn:any) => (
+                              <button key={btn.cmd} type="button"
                                 title={btn.title}
-                                onClick={() => execEmailCmd(btn.cmd, (btn as any).val)}
-                                style={{ padding:".2rem .45rem", border:"1px solid #e2e8f0", borderRadius:".3rem", fontSize:".75rem", cursor:"pointer", background:"white", lineHeight:1.4, ...(btn.style||{}) }}>
-                                {btn.label}
+                                onClick={() => execEmailCmd(btn.cmd, btn.val)}
+                                style={{ padding:".2rem .45rem", border:"1px solid #e2e8f0", borderRadius:".3rem", fontSize:".75rem", cursor:"pointer", background:"white", lineHeight:1.4, display:"flex", alignItems:"center", justifyContent:"center", ...(btn.style||{}) }}>
+                                {btn.svg || btn.label}
                               </button>
                             ))}
                           </>
