@@ -164,7 +164,7 @@ export default function PublicReport() {
               </h2>
               <div style={{ height:2, flex:1, background:"linear-gradient(90deg, transparent, #8929bd)" }}/>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:"1rem" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:"1rem", justifyItems: power5InReport.length < 5 ? "center" : undefined, justifyContent: power5InReport.length < 5 ? "center" : undefined }}>
               {power5InReport.map(([domain, info]) => {
                 const row = published.find(r => r.domain?.toLowerCase().includes(domain) || domain.includes(r.domain?.toLowerCase()));
                 return (
@@ -262,7 +262,7 @@ export default function PublicReport() {
                   {row.da || "—"}
                 </div>
                 <span style={{ background:"#05140c", color:"#22c55e", border:"1px solid #22c55e33", fontSize:".65rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px", whiteSpace:"nowrap" }}>
-                  ✓ Verified
+                  ✓ Published
                 </span>
               </div>
             ))}
