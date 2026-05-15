@@ -525,6 +525,7 @@ export default function AdminDashboard() {
   const [originalContent, setOriginalContent] = useState<string>("");
   const adminEditorRef = useRef<HTMLDivElement>(null);
   const isAdminTypingRef = useRef(false);
+  const originalContentRef = useRef<string>(""); // ref so button always reads current value
 
   const showToast = (msg: string, type: "success"|"error" = "success") => {
     setToast({ msg, type });
@@ -544,7 +545,8 @@ export default function AdminDashboard() {
       isAdminTypingRef.current = false;
       const content = previewOrder.pr_content || "<p>No content</p>";
       adminEditorRef.current.innerHTML = content;
-      setOriginalContent(content);  // must be set here — button handler compares against it
+      originalContentRef.current = content;  // ref update is synchronous — no batching delay
+      setOriginalContent(content);
       setEditedContent(content);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2124,11 +2126,10 @@ export default function AdminDashboard() {
                 </button>
                 <button onClick={async()=>{
                     if(!session)return;
-                    // Always read from DOM ref — avoids stale-closure issue where
-                    // onBlur sets editedContent state but the click handler reads the
-                    // previous render's value before the batch update flushes.
-                    const currentContent = adminEditorRef.current?.innerHTML || originalContent;
-                    const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContent, new_content:currentContent, location_id:previewOrder.location_id }, session.access_token);
+                    // Read both from DOM refs — bypasses React state batching entirely
+                    // originalContentRef is set synchronously in useEffect (no render delay)
+                    const currentContent = adminEditorRef.current?.innerHTML || originalContentRef.current;
+                    const d = await adminPost("approve_with_changes",{ order_id:previewOrder.id, original_content:originalContentRef.current, new_content:currentContent, location_id:previewOrder.location_id }, session.access_token);
                     if(!d.error){ showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
                     else showToast(d.error,"error");
                   }}

@@ -149,6 +149,7 @@ export default function PartnerDashboard() {
   const [editedContent,   setEditedContent]   = useState("");
   const partnerEditorRef = useRef<HTMLDivElement>(null);
   const isPartnerTypingRef = useRef(false);
+  const originalContentRef = useRef<string>("");
   const [originalContent, setOriginalContent] = useState("");
   // Hydrate partner editor imperatively when a new order is opened (prevents scroll reset)
   useEffect(() => {
@@ -156,7 +157,8 @@ export default function PartnerDashboard() {
       isPartnerTypingRef.current = false;
       const content = previewOrder.pr_content || "<p>No content</p>";
       partnerEditorRef.current.innerHTML = content;
-      setOriginalContent(content);  // must be set here — button handler compares against it
+      originalContentRef.current = content;  // sync ref — no batching delay
+      setOriginalContent(content);
       setEditedContent(content);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -294,11 +296,10 @@ export default function PartnerDashboard() {
 
   const approveWithChanges = async () => {
     if (!previewOrder || !session) return;
-    // Read directly from DOM ref — avoids stale-closure issue where onBlur sets
-    // editedContent state but the click handler reads the previous render's value.
-    const currentContent = partnerEditorRef.current?.innerHTML || originalContent;
+    // Both refs read synchronously — no React batching delay
+    const currentContent = partnerEditorRef.current?.innerHTML || originalContentRef.current;
     const d = await partnerPost("approve_with_changes", {
-      order_id: previewOrder.id, original_content: originalContent,
+      order_id: previewOrder.id, original_content: originalContentRef.current,
       new_content: currentContent, location_id: previewOrder.location_id
     }, session.access_token);
     if (!d.error) { showToast("Approved with changes — client notified ✓"); setPreviewOrder(null); setEditedContent(""); setOriginalContent(""); load("queue"); }
