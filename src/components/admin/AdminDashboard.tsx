@@ -1749,6 +1749,7 @@ export default function AdminDashboard() {
             if (!d.error) { setEditHtml(d.default_template || defaultTmpl); setEmailTemplates(prev=>prev.filter(t=>t.key!==editingTemplate.key)); showToast("Reset to default"); }
           };
 
+          const VARS = ["{{badge}}","{{title}}","{{message}}","{{dashUrl}}"];
           const KEY_PREVIEWS: Record<string, { badge:string; title:string; message:string; dashUrl:string }> = {
             mc_scheduled:   { badge:"Media Creator",      title:"Your PR Has Been Scheduled 📅",          message:"Your press release has been scheduled for distribution. We'll notify you when it goes live.", dashUrl:"https://mediablast.xlogic.app" },
             mc_submitted:   { badge:"Media Creator",      title:"Your PR Has Been Approved ✅",           message:"Your press release was approved by your account manager with some changes. Go to \"Published Press\" and click on the latest PR Document — once opened, you will be able to see the changes made.", dashUrl:"https://mediablast.xlogic.app" },

@@ -40,6 +40,7 @@ export interface Order {
   publishedDate?: string;
   reportLink?: string;
   prContentOriginal?: string;
+  rejectionReason?: string;
   lastEditedAt?: string;
   formData?: Record<string, unknown>;
 }

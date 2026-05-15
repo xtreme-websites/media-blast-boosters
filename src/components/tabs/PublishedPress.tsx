@@ -275,11 +275,11 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                 <div style={{ fontSize:".72rem", color:"#94a3b8", marginTop:".15rem" }}>{articleModal.productName} · {articleModal.date}</div>
               </div>
               <div style={{ display:"flex", gap:".5rem", alignItems:"center", flexShrink:0, marginLeft:".75rem" }}>
-                {/* Edit Instructions: only for draft / scheduled (manually created) — NOT for submitted or draft_pending_review */}
-                {(articleModal.status === "draft" || articleModal.status === "scheduled") && (
+                {/* Edit Instructions: draft / scheduled / rejected */}
+                {(articleModal.status === "draft" || articleModal.status === "scheduled" || articleModal.status === "rejected") && (
                   <button onClick={() => { onLoadDraft?.(articleModal); setArticleModal(null); setShowDiff(false); }}
                     style={{ padding:".4rem .85rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontSize:".78rem", fontWeight:600, cursor:"pointer" }}>
-                    ✏️ Edit Instructions
+                    {articleModal.status === "rejected" ? "✏️ Revise & Resubmit" : "✏️ Edit Instructions"}
                   </button>
                 )}
                 <button onClick={() => { setArticleModal(null); setShowDiff(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", padding:".25rem", fontSize:"1.4rem", lineHeight:1 }}>×</button>
@@ -311,7 +311,25 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
               </div>
             )}
 
-            {/* PR content — editable for draft/scheduled/draft_pending_review, read-only for submitted */}
+            {/* Rejection banner — shows reason + prompt to revise */}
+            {articleModal.status === "rejected" && (
+              <div style={{ background:"#fef2f2", borderBottom:"1px solid #fecaca", padding:".85rem 1.25rem", flexShrink:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom: articleModal.rejectionReason ? ".5rem" : 0 }}>
+                  <span>❌</span>
+                  <span style={{ fontSize:".82rem", fontWeight:700, color:"#991b1b" }}>This PR was rejected — revision required</span>
+                </div>
+                {articleModal.rejectionReason && (
+                  <div style={{ background:"#fff5f5", border:"1px solid #fecaca", borderRadius:".4rem", padding:".6rem .85rem", fontSize:".8rem", color:"#7f1d1d", lineHeight:1.6, whiteSpace:"pre-wrap" }}>
+                    <span style={{ fontWeight:700 }}>Feedback: </span>{articleModal.rejectionReason}
+                  </div>
+                )}
+                <div style={{ fontSize:".73rem", color:"#ef4444", marginTop:".5rem" }}>
+                  Click <strong>Revise &amp; Resubmit</strong> in the top-right to edit this PR and send it back for review.
+                </div>
+              </div>
+            )}
+
+            {/* PR content — editable for draft/scheduled/draft_pending_review, read-only for submitted/published/rejected */}
             {(() => {
               const isReadOnly = articleModal.status === "submitted" || !articleModal.status || articleModal.status === "published" || articleModal.status === "rejected";
               const hasDiff = !!(articleModal.prContentOriginal && articleModal.prContentOriginal !== articleModal.prContent);
