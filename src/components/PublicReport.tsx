@@ -164,11 +164,11 @@ export default function PublicReport() {
               </h2>
               <div style={{ height:2, flex:1, background:"linear-gradient(90deg, transparent, #8929bd)" }}/>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:"1rem", justifyItems: power5InReport.length < 5 ? "center" : undefined, justifyContent: power5InReport.length < 5 ? "center" : undefined }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:"1rem", justifyContent: power5InReport.length < 5 ? "center" : "flex-start" }}>
               {power5InReport.map(([domain, info]) => {
                 const row = published.find(r => r.domain?.toLowerCase().includes(domain) || domain.includes(r.domain?.toLowerCase()));
                 return (
-                  <a key={domain} href={row?.published_url || `https://${domain}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration:"none" }}>
+                  <a key={domain} href={row?.published_url || `https://${domain}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration:"none", width:190, flexShrink:0 }}>
                     <div style={{ background:`linear-gradient(135deg, rgba(${info.color==='#6366f1'?'99,102,241':info.color==='#8929bd'?'137,41,189':info.color==='#0ea5e9'?'14,165,233':info.color==='#d97706'?'217,119,6':'16,185,129'},.15) 0%, rgba(8,5,20,.8) 100%)`, border:`1px solid ${info.color}44`, borderRadius:"1rem", padding:"1.25rem", transition:"transform .15s, border-color .15s", cursor:"pointer" }}
                       onMouseOver={e=>{(e.currentTarget as HTMLElement).style.transform="translateY(-3px)";(e.currentTarget as HTMLElement).style.borderColor=info.color;}}
                       onMouseOut={e=>{(e.currentTarget as HTMLElement).style.transform="";(e.currentTarget as HTMLElement).style.borderColor=info.color+"44";}}>

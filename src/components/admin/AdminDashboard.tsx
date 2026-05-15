@@ -690,12 +690,24 @@ export default function AdminDashboard() {
     else showToast(d.error, "error");
   };
 
-  const rejectOrder = async (order_id: string) => {
-    const reason = window.prompt("Rejection reason (shown to client):");
-    if (!reason || !session) return;
-    const d = await adminPost("reject_order", { order_id, reason }, session.access_token);
-    if (!d.error) { showToast("PR rejected"); load("queue"); }
+  const [rejectModal, setRejectModal] = useState<{orderId:string; title?:string} | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const rejectOrder = (order_id: string, title?: string) => {
+    setRejectReason("");
+    setRejectModal({ orderId: order_id, title });
+    // Close the preview modal if open
+    setPreviewOrder(null); setEditedContent(""); setOriginalContent("");
+  };
+
+  const submitReject = async () => {
+    if (!rejectModal || !rejectReason.trim() || !session) return;
+    setRejecting(true);
+    const d = await adminPost("reject_order", { order_id: rejectModal.orderId, reason: rejectReason.trim() }, session.access_token);
+    if (!d.error) { showToast("PR rejected — client notified ✓"); load("queue"); load("pr_orders"); setRejectModal(null); setRejectReason(""); }
     else showToast(d.error, "error");
+    setRejecting(false);
   };
 
   const submitOverride = async () => {
@@ -1158,7 +1170,7 @@ export default function AdminDashboard() {
                           style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"none", background:"#dcfce7", color:"#166534", fontSize:".8rem", fontWeight:700, cursor:"pointer" }}>
                           ✅ Approve
                         </button>
-                        <button onClick={()=>rejectOrder(order.id)}
+                        <button onClick={()=>rejectOrder(order.id, order.pr_title)}
                           style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontSize:".8rem", fontWeight:700, cursor:"pointer" }}>
                           ✕ Reject
                         </button>
@@ -2120,7 +2132,7 @@ export default function AdminDashboard() {
                   Close
                 </button>
               ) : (<>
-                <button onClick={()=>rejectOrder(previewOrder.id)}
+                <button onClick={()=>rejectOrder(previewOrder.id, previewOrder.pr_title)}
                   style={{ padding:".6rem 1.1rem", borderRadius:".45rem", border:"none", background:"#fee2e2", color:"#991b1b", fontWeight:700, fontSize:".83rem", cursor:"pointer" }}>
                   ✕ Reject
                 </button>
@@ -2146,6 +2158,39 @@ export default function AdminDashboard() {
         </div>
         );
       })()}
+
+      {/* Reject Modal */}
+      {rejectModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:440, padding:"2rem", boxShadow:"0 24px 60px rgba(0,0,0,.3)" }}>
+            <h3 style={{ fontWeight:900, fontSize:"1.05rem", color:"#1e293b", margin:"0 0 .25rem" }}>✕ Reject PR</h3>
+            <p style={{ color:"#64748b", fontSize:".8rem", margin:"0 0 1.25rem", lineHeight:1.5 }}>
+              {rejectModal.title && <><strong style={{ color:"#1e293b" }}>{rejectModal.title}</strong><br/></>}
+              Provide a reason — this will be sent to the client so they know what to revise.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={e=>setRejectReason(e.target.value)}
+              placeholder="e.g. Please revise the second paragraph — the service description needs to be more specific about the target area and include the phone number."
+              rows={4}
+              style={{ width:"100%", padding:".65rem .85rem", borderRadius:".5rem", border:"1.5px solid #e2e8f0", fontSize:".83rem", lineHeight:1.55, resize:"vertical", boxSizing:"border-box", outline:"none", fontFamily:"inherit" }}
+              onFocus={e=>(e.target.style.borderColor="#6366f1")}
+              onBlur={e=>(e.target.style.borderColor="#e2e8f0")}
+              autoFocus
+            />
+            <div style={{ display:"flex", gap:".75rem", marginTop:"1.25rem" }}>
+              <button onClick={submitReject} disabled={!rejectReason.trim()||rejecting}
+                style={{ flex:1, padding:".7rem", borderRadius:".5rem", border:"none", background:(!rejectReason.trim()||rejecting)?"#e2e8f0":"#dc2626", color:(!rejectReason.trim()||rejecting)?"#94a3b8":"white", fontWeight:800, fontSize:".85rem", cursor:(!rejectReason.trim()||rejecting)?"not-allowed":"pointer" }}>
+                {rejecting ? "Rejecting…" : "✕ Reject & Notify Client"}
+              </button>
+              <button onClick={()=>{setRejectModal(null);setRejectReason("");}}
+                style={{ padding:".7rem 1.25rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".85rem", cursor:"pointer", color:"#64748b" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
