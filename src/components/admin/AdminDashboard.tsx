@@ -1362,10 +1362,25 @@ export default function AdminDashboard() {
                           <div style={{ fontWeight:700, fontSize:".95rem", color:"#1e293b", marginBottom:".2rem" }}>{order.pr_title||"Untitled PR"}</div>
                           <div style={{ fontSize:".78rem", color:"#8929bd" }}>{(order as any).company_name||order.location_id}</div>
                         </div>
-                        <button onClick={()=>{ setAdminReportUploadModal(order); setAdminReportCsvFile(null); setAdminReportCsvPreview(null); setAdminReportConfirmed(false); }}
-                          style={{ padding:".5rem 1.1rem", borderRadius:".45rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontSize:".8rem", fontWeight:700, cursor:"pointer", flexShrink:0 }}>
-                          📤 Add Report
-                        </button>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:".4rem", flexShrink:0 }}>
+                          <button onClick={()=>{ setAdminReportUploadModal(order); setAdminReportCsvFile(null); setAdminReportCsvPreview(null); setAdminReportConfirmed(false); }}
+                            style={{ padding:".5rem 1.1rem", borderRadius:".45rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontSize:".8rem", fontWeight:700, cursor:"pointer" }}>
+                            📤 Add Report
+                          </button>
+                          {(() => {
+                            const days = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 86400000);
+                            const cfg = days >= 7
+                              ? { icon:"🔴", label:`${days} days — Urgent`,    bg:"#fef2f2", color:"#dc2626", border:"#fecaca" }
+                              : days >= 4
+                              ? { icon:"🟡", label:`${days} days — Follow up`, bg:"#fefce8", color:"#ca8a04", border:"#fef08a" }
+                              : { icon:"🟢", label:`${days === 1 ? "1 day" : `${days} days`} — On track`, bg:"#f0fdf4", color:"#16a34a", border:"#bbf7d0" };
+                            return (
+                              <span style={{ fontSize:".68rem", fontWeight:700, color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.border}`, padding:".2rem .55rem", borderRadius:"99px", whiteSpace:"nowrap" }}>
+                                {cfg.icon} Pending {cfg.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                   ))}
