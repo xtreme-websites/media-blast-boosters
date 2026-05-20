@@ -48,7 +48,7 @@ interface Order {
 }
 
 const TIER_COLORS: Record<string, string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
-const PAYOUT: Record<string, number> = { starter:120, standard:220, premium:400 };
+const PAYOUT: Record<string, number> = { starter:120, standard:220, premium:350 };
 const STATUS_COLORS: Record<string, { bg:string; color:string }> = {
   submitted:          { bg:"#dbeafe", color:"#1d4ed8" },
   published:          { bg:"#dcfce7", color:"#166534" },
@@ -908,7 +908,7 @@ export default function PartnerDashboard() {
           const TIERS = [
             { key:"starter",  label:"Starter",  price:120, color:"#6366f1", bg:"#eef2ff" },
             { key:"standard", label:"Standard", price:220, color:"#8929bd", bg:"#f5f3ff" },
-            { key:"premium",  label:"Premium",  price:400, color:"#d97706", bg:"#fef3c7" },
+            { key:"premium",  label:"Premium",  price:350, color:"#d97706", bg:"#fef3c7" },
           ];
           const DEFAULT_BULLETS: Record<string,string[]> = {
             starter:  ["Published across 200+ media outlets","300-400 word press release","24-48 hour turnaround","Full distribution report included"],

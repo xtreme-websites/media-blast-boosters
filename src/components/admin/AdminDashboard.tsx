@@ -496,6 +496,33 @@ export default function AdminDashboard() {
   const [savingTmpl,      setSavingTmpl]      = useState(false);
   const [sendingTest,     setSendingTest]     = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // ── Admin document upload ──────────────────────────────────────────────────
+  const [adminDocModal,     setAdminDocModal]     = useState(false);
+  const [adminDocName,      setAdminDocName]      = useState("");
+  const [adminDocDesc,      setAdminDocDesc]      = useState("");
+  const [adminDocFile,      setAdminDocFile]      = useState<File|null>(null);
+  const [adminDocOnly,      setAdminDocOnly]      = useState(false); // false = shared with partner
+  const [adminDocUploading, setAdminDocUploading] = useState(false);
+
+  const handleAdminUploadDoc = async () => {
+    if (!adminDocFile || !adminDocName.trim() || !session) return;
+    setAdminDocUploading(true);
+    try {
+      const ext = adminDocFile.name.split(".").pop() || "bin";
+      const path = `admin/${crypto.randomUUID()}.${ext}`;
+      const { data: storageData, error: storageErr } = await supabase.storage.from("partner-docs").upload(path, adminDocFile, { contentType: adminDocFile.type });
+      if (storageErr) throw storageErr;
+      const { data: { publicUrl } } = supabase.storage.from("partner-docs").getPublicUrl(storageData.path);
+      const d = await adminPost("admin_save_document_metadata", { name: adminDocName.trim(), description: adminDocDesc.trim() || null, file_url: publicUrl, file_name: adminDocFile.name, file_size: adminDocFile.size, admin_only: adminDocOnly }, session.access_token);
+      if (!d.error) {
+        showToast(adminDocOnly ? "Document saved (Admin Only) ✓" : "Document shared with partner ✓ — email sent");
+        if (d.document) setPdDocuments((prev: any[]) => [d.document, ...prev]);
+        setAdminDocModal(false); setAdminDocName(""); setAdminDocDesc(""); setAdminDocFile(null); setAdminDocOnly(false);
+      } else showToast(d.error, "error");
+    } catch (e: any) { showToast(e.message || "Upload failed", "error"); }
+    setAdminDocUploading(false);
+  };
   const execEmailCmd = (cmd: string, val?: string) => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
@@ -1033,7 +1060,7 @@ export default function AdminDashboard() {
 
         {/* PIPELINE */}
         {!loading && activeTab==="pipeline" && (() => {
-          const PIPE_PAYOUT: Record<string,number> = { starter:120, standard:220, premium:400 };
+          const PIPE_PAYOUT: Record<string,number> = { starter:120, standard:220, premium:350 };
           const STATUS_STYLES: Record<string,{bg:string;color:string;label:string}> = {
             scheduled: { bg:"#fef3c7", color:"#92400e", label:"Scheduled"     },
             draft:     { bg:"#dbeafe", color:"#1d4ed8", label:"In Draft"      },
@@ -1500,7 +1527,7 @@ export default function AdminDashboard() {
           const TIERS = [
             { key:"starter",  label:"Starter",  price:120, color:"#6366f1", bg:"#eef2ff" },
             { key:"standard", label:"Standard", price:220, color:"#8929bd", bg:"#f5f3ff" },
-            { key:"premium",  label:"Premium",  price:400, color:"#d97706", bg:"#fef3c7" },
+            { key:"premium",  label:"Premium",  price:350, color:"#d97706", bg:"#fef3c7" },
           ];
           const DEFAULT_BULLETS: Record<string,string[]> = {
             starter:  ["Published across 200+ media outlets","300-400 word press release","24-48 hour turnaround","Full distribution report included"],
@@ -1666,27 +1693,33 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Partner Documents — all documents from all partners */}
+              {/* Documents — partner-uploaded + admin-uploaded */}
               <div>
-                <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .75rem" }}>Partner Documents</h3>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:".75rem" }}>
+                  <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:0 }}>Documents</h3>
+                  <button onClick={() => setAdminDocModal(true)}
+                    style={{ padding:".45rem 1rem", borderRadius:".5rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:700, fontSize:".78rem", cursor:"pointer" }}>
+                    + Upload Document
+                  </button>
+                </div>
                 {pdDocuments.length === 0 ? (
                   <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"2.5rem", textAlign:"center" }}>
                     <div style={{ fontSize:"2rem", marginBottom:".4rem" }}>📁</div>
-                    <div style={{ fontWeight:600, color:"#1e293b" }}>No documents uploaded yet</div>
-                    <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".25rem" }}>Partners can upload documents from their Partner Details tab</div>
+                    <div style={{ fontWeight:600, color:"#1e293b" }}>No documents yet</div>
+                    <div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".25rem" }}>Upload a document or wait for your partner to share one</div>
                   </div>
                 ) : (
                   <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
                       <thead><tr style={{ background:"#1e1b4b" }}>
-                        {["Partner","Document","Description","File","Uploaded"].map(h=>(
+                        {["Source","Visibility","Document","Description","File","Uploaded",""].map(h=>(
                           <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>
                         {pdDocuments.map((doc:any)=>{
-                          // Try to match partner name from partner_id
-                          const partnerName = doc.partner_id
+                          const isAdminDoc = doc.uploaded_by_role === "admin";
+                          const partnerName = !isAdminDoc && doc.partner_id
                             ? pdPartners.find((p:any)=>p.id===doc.partner_id)?.name || doc.uploaded_by
                             : doc.uploaded_by || "—";
                           return (
@@ -1694,10 +1727,19 @@ export default function AdminDashboard() {
                               onMouseOver={e=>(e.currentTarget.style.background="#fafafa")}
                               onMouseOut={e=>(e.currentTarget.style.background="white")}>
                               <td style={{ padding:".75rem 1rem" }}>
-                                <span style={{ fontWeight:600, color:"#8929bd", fontSize:".8rem" }}>{partnerName}</span>
+                                {isAdminDoc
+                                  ? <span style={{ background:"#eef2ff", color:"#6366f1", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>Admin</span>
+                                  : <span style={{ background:"#f5f3ff", color:"#8929bd", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>{partnerName}</span>}
+                              </td>
+                              <td style={{ padding:".75rem 1rem" }}>
+                                {isAdminDoc
+                                  ? doc.admin_only
+                                    ? <span style={{ background:"#fef3c7", color:"#92400e", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>🔒 Admin Only</span>
+                                    : <span style={{ background:"#dcfce7", color:"#166534", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>👥 Shared</span>
+                                  : <span style={{ color:"#cbd5e1", fontSize:".72rem" }}>—</span>}
                               </td>
                               <td style={{ padding:".75rem 1rem", fontWeight:600, color:"#1e293b" }}>{doc.name}</td>
-                              <td style={{ padding:".75rem 1rem", color:"#64748b", fontSize:".78rem", maxWidth:200 }}>
+                              <td style={{ padding:".75rem 1rem", color:"#64748b", fontSize:".78rem", maxWidth:180 }}>
                                 <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{doc.description||"—"}</div>
                               </td>
                               <td style={{ padding:".75rem 1rem" }}>
@@ -1710,6 +1752,22 @@ export default function AdminDashboard() {
                               </td>
                               <td style={{ padding:".75rem 1rem", color:"#64748b", whiteSpace:"nowrap", fontSize:".78rem" }}>
                                 {doc.uploaded_at?new Date(doc.uploaded_at).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}):"—"}
+                              </td>
+                              <td style={{ padding:".75rem 1rem", textAlign:"center" }}>
+                                {isAdminDoc && (
+                                  <button
+                                    title="Delete document"
+                                    onClick={async () => {
+                                      if (!session || !window.confirm(`Delete "${doc.name}"?`)) return;
+                                      const d = await adminPost("admin_delete_document", { id: doc.id, file_url: doc.file_url }, session.access_token);
+                                      if (d.ok) { showToast("Document deleted"); setPdDocuments((prev:any[])=>prev.filter((x:any)=>x.id!==doc.id)); }
+                                      else showToast(d.error || "Delete failed", "error");
+                                    }}
+                                    style={{ background:"none", border:"none", cursor:"pointer", color:"#ef4444", fontSize:".82rem", padding:".2rem .4rem", borderRadius:".25rem" }}
+                                    onMouseEnter={e=>(e.currentTarget.style.background="#fee2e2")}
+                                    onMouseLeave={e=>(e.currentTarget.style.background="none")}
+                                  >🗑</button>
+                                )}
                               </td>
                             </tr>
                           );
@@ -2231,6 +2289,64 @@ export default function AdminDashboard() {
         </div>
         );
       })()}
+
+      {/* Admin Document Upload Modal */}
+      {adminDocModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+          <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:460, padding:"2rem", boxShadow:"0 24px 60px rgba(0,0,0,.3)" }}>
+            <h3 style={{ fontWeight:900, fontSize:"1.05rem", color:"#1e293b", margin:"0 0 1.25rem" }}>📁 Upload Document</h3>
+            <div style={{ display:"flex", flexDirection:"column", gap:".85rem" }}>
+              <div>
+                <label style={{ fontSize:".78rem", fontWeight:600, color:"#374151", display:"block", marginBottom:".3rem" }}>Document Name *</label>
+                <input value={adminDocName} onChange={e=>setAdminDocName(e.target.value)} placeholder="e.g. Q2 Partner Brief"
+                  style={{ width:"100%", padding:".55rem .75rem", border:"1.5px solid #e2e8f0", borderRadius:".45rem", fontSize:".85rem", boxSizing:"border-box", outline:"none" }}
+                  onFocus={e=>(e.target.style.borderColor="#6366f1")} onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
+              </div>
+              <div>
+                <label style={{ fontSize:".78rem", fontWeight:600, color:"#374151", display:"block", marginBottom:".3rem" }}>Description <span style={{ fontWeight:400, color:"#94a3b8" }}>(optional)</span></label>
+                <input value={adminDocDesc} onChange={e=>setAdminDocDesc(e.target.value)} placeholder="Brief description of the document"
+                  style={{ width:"100%", padding:".55rem .75rem", border:"1.5px solid #e2e8f0", borderRadius:".45rem", fontSize:".85rem", boxSizing:"border-box", outline:"none" }}
+                  onFocus={e=>(e.target.style.borderColor="#6366f1")} onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
+              </div>
+              <div>
+                <label style={{ fontSize:".78rem", fontWeight:600, color:"#374151", display:"block", marginBottom:".3rem" }}>File *</label>
+                <div onClick={()=>document.getElementById("admin-doc-file-input")?.click()}
+                  style={{ border:"2px dashed #e2e8f0", borderRadius:".6rem", padding:"1.25rem", textAlign:"center", cursor:"pointer", background:adminDocFile?"#f0fdf4":"#fafafa" }}>
+                  {adminDocFile
+                    ? <><div style={{ fontSize:"1.25rem" }}>📄</div><div style={{ fontWeight:600, color:"#1e293b", fontSize:".82rem", marginTop:".25rem" }}>{adminDocFile.name}</div><div style={{ color:"#94a3b8", fontSize:".72rem" }}>{fmtSize(adminDocFile.size)}</div></>
+                    : <><div style={{ fontSize:"1.5rem" }}>📂</div><div style={{ color:"#94a3b8", fontSize:".82rem", marginTop:".25rem" }}>Click to browse</div></>}
+                </div>
+                <input id="admin-doc-file-input" type="file" style={{ display:"none" }}
+                  onChange={e=>{ if(e.target.files?.[0]) setAdminDocFile(e.target.files[0]); e.target.value=""; }} />
+              </div>
+              {/* Visibility toggle */}
+              <div style={{ background:"#f8fafc", borderRadius:".6rem", padding:".85rem 1rem" }}>
+                <div style={{ fontSize:".78rem", fontWeight:700, color:"#374151", marginBottom:".55rem" }}>Visibility</div>
+                <div style={{ display:"flex", gap:".6rem" }}>
+                  {[{ val:false, label:"👥 Shared with Partner", desc:"Partner receives email + sees in their portal", color:"#22c55e" },
+                    { val:true,  label:"🔒 Admin Only",           desc:"Only visible to admin — partner won't see it",    color:"#d97706" }].map(opt=>(
+                    <button key={String(opt.val)} type="button" onClick={()=>setAdminDocOnly(opt.val)}
+                      style={{ flex:1, padding:".6rem .75rem", borderRadius:".5rem", border:`2px solid ${adminDocOnly===opt.val ? opt.color : "#e2e8f0"}`, background:adminDocOnly===opt.val ? `${opt.color}15` : "white", cursor:"pointer", textAlign:"left" }}>
+                      <div style={{ fontWeight:700, fontSize:".78rem", color:adminDocOnly===opt.val ? opt.color : "#374151" }}>{opt.label}</div>
+                      <div style={{ fontSize:".68rem", color:"#94a3b8", marginTop:".2rem", lineHeight:1.4 }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:".75rem", marginTop:"1.5rem" }}>
+              <button onClick={handleAdminUploadDoc} disabled={!adminDocFile||!adminDocName.trim()||adminDocUploading}
+                style={{ flex:1, padding:".7rem", borderRadius:".5rem", border:"none", background:(!adminDocFile||!adminDocName.trim()||adminDocUploading)?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:(!adminDocFile||!adminDocName.trim()||adminDocUploading)?"#94a3b8":"white", fontWeight:800, fontSize:".85rem", cursor:(!adminDocFile||!adminDocName.trim()||adminDocUploading)?"not-allowed":"pointer" }}>
+                {adminDocUploading ? "Uploading…" : "Upload Document"}
+              </button>
+              <button onClick={()=>{setAdminDocModal(false);setAdminDocName("");setAdminDocDesc("");setAdminDocFile(null);setAdminDocOnly(false);}}
+                style={{ padding:".7rem 1.25rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".85rem", cursor:"pointer", color:"#64748b" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reject Modal */}
       {rejectModal && (
