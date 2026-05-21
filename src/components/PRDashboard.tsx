@@ -296,17 +296,9 @@ export default function PRDashboard() {
     setTimeout(() => setAlertToast(null), 10000);
   };
 
-  const [notifiedPublished, setNotifiedPublished] = useState<Set<string>>(new Set());
-
-  // Detect orders newly transitioned to 'published' and notify
-  useEffect(() => {
-    orders.forEach(o => {
-      if (o.status === "published" && !notifiedPublished.has(o.id)) {
-        setNotifiedPublished(prev => { const s = new Set(prev); s.add(o.id); return s; });
-        sendNotification("mc_published", "PR Published!", `Your press release "${o.prTitle || "PR"}" is now live and distributed. Check the report for details.`);
-      }
-    });
-  }, [orders]);
+  // NOTE: mc_published notification is sent by the backend (admin/partner upload_report).
+  // The frontend notification block was removed — it fired on every mount/state update
+  // for all existing published orders, causing duplicate emails.
 
   const runAutoGenerate = async (packageType: string, seoFocus: string, scheduledDate?: string) => {
     // step 1
