@@ -120,6 +120,7 @@ export default function PartnerDashboard() {
   const [connectId,    setConnectId]    = useState<string|null>(null);
   const [connectStatus,setConnectStatus]= useState("not_connected");
   const [accountSession, setAccountSession] = useState<string|null>(null);
+  const [accountSessionError, setAccountSessionError] = useState<string|null>(null);
   const [partnerName,  setPartnerName]  = useState("");
   const [showDisconnect, setShowDisconnect] = useState(false);
   const [profile,       setProfile]       = useState({ email:"", contact:"", company:"", phone:"", website:"" });
@@ -262,7 +263,8 @@ export default function PartnerDashboard() {
         if (!cs.error) { setConnectId(cs.stripe_connect_id); setConnectStatus(cs.stripe_connect_status||"not_connected"); setConnectClientId(cs.connect_client_id||"ca_UVPxtVObJ1J2nUieqPiHROqJn7etM44E"); }
         if (cs.stripe_connect_id) {
           const as = await partnerPost("get_account_session", {}, session.access_token);
-          if (!as.error) setAccountSession(as.client_secret);
+          if (!as.error) { setAccountSession(as.client_secret); setAccountSessionError(null); }
+          else setAccountSessionError(as.error as string);
         }
       }
       if (tab === "pr_orders") {
@@ -1342,6 +1344,21 @@ export default function PartnerDashboard() {
             </div>
           ) : accountSession ? (
             <PayoutsEmbed clientSecret={accountSession} />
+          ) : accountSessionError ? (
+            <div style={{ textAlign:"center", padding:"3rem" }}>
+              <div style={{ fontSize:"2rem", marginBottom:".75rem" }}>⚠️</div>
+              <div style={{ fontWeight:700, color:"#1e293b", marginBottom:".4rem" }}>Payout Dashboard Unavailable</div>
+              <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:".5rem", padding:".75rem 1rem", fontSize:".8rem", color:"#991b1b", maxWidth:400, margin:"0 auto .75rem", textAlign:"left", wordBreak:"break-word" }}>
+                {accountSessionError}
+              </div>
+              <p style={{ fontSize:".82rem", color:"#64748b", maxWidth:380, margin:"0 auto .75rem" }}>
+                If your Stripe account was connected in a different mode (live vs test), you may need to disconnect and reconnect.
+              </p>
+              <button onClick={() => load("payouts")}
+                style={{ padding:".55rem 1.1rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".82rem", cursor:"pointer" }}>
+                ↺ Retry
+              </button>
+            </div>
           ) : (
             <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}>Loading payout dashboard…</div>
           )}
