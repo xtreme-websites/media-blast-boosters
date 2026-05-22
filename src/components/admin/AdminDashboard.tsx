@@ -503,6 +503,7 @@ export default function AdminDashboard() {
   const [adminDocDesc,      setAdminDocDesc]      = useState("");
   const [adminDocFile,      setAdminDocFile]      = useState<File|null>(null);
   const [adminDocOnly,      setAdminDocOnly]      = useState(false); // false = shared with partner
+  const [adminDocPartnerId, setAdminDocPartnerId] = useState(""); // "" = all partners
   const [adminDocUploading, setAdminDocUploading] = useState(false);
 
   const handleAdminUploadDoc = async () => {
@@ -514,11 +515,11 @@ export default function AdminDashboard() {
       const { data: storageData, error: storageErr } = await supabase.storage.from("partner-docs").upload(path, adminDocFile, { contentType: adminDocFile.type });
       if (storageErr) throw storageErr;
       const { data: { publicUrl } } = supabase.storage.from("partner-docs").getPublicUrl(storageData.path);
-      const d = await adminPost("admin_save_document_metadata", { name: adminDocName.trim(), description: adminDocDesc.trim() || null, file_url: publicUrl, file_name: adminDocFile.name, file_size: adminDocFile.size, admin_only: adminDocOnly }, session.access_token);
+      const d = await adminPost("admin_save_document_metadata", { name: adminDocName.trim(), description: adminDocDesc.trim() || null, file_url: publicUrl, file_name: adminDocFile.name, file_size: adminDocFile.size, admin_only: adminDocOnly, partner_id: adminDocOnly ? null : (adminDocPartnerId || null) }, session.access_token);
       if (!d.error) {
-        showToast(adminDocOnly ? "Document saved (Admin Only) ✓" : "Document shared with partner ✓ — email sent");
+        const recipientName = !adminDocOnly && adminDocPartnerId ? (pdPartners.find((p:any)=>p.id===adminDocPartnerId)?.name||"partner") : "all partners"; showToast(adminDocOnly ? "Document saved (Admin Only) ✓" : `Document shared with ${recipientName} ✓ — email sent`);
         if (d.document) setPdDocuments((prev: any[]) => [d.document, ...prev]);
-        setAdminDocModal(false); setAdminDocName(""); setAdminDocDesc(""); setAdminDocFile(null); setAdminDocOnly(false);
+        setAdminDocModal(false); setAdminDocName(""); setAdminDocDesc(""); setAdminDocFile(null); setAdminDocOnly(false); setAdminDocPartnerId("");
       } else showToast(d.error, "error");
     } catch (e: any) { showToast(e.message || "Upload failed", "error"); }
     setAdminDocUploading(false);
@@ -2334,12 +2335,32 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+            {/* Partner selector - only when Shared */}
+            {!adminDocOnly && (
+              <div style={{ marginTop:".85rem" }}>
+                <label style={{ fontSize:".78rem", fontWeight:700, color:"#374151", display:"block", marginBottom:".35rem" }}>
+                  Send to
+                </label>
+                <select value={adminDocPartnerId} onChange={e=>setAdminDocPartnerId(e.target.value)}
+                  style={{ width:"100%", padding:".55rem .75rem", border:"1.5px solid #e2e8f0", borderRadius:".45rem", fontSize:".85rem", background:"white", outline:"none", cursor:"pointer" }}>
+                  <option value="">👥 All Partners</option>
+                  {pdPartners.map((p:any)=>(
+                    <option key={p.id} value={p.id}>{p.name||p.email}{p.company ? ` (${p.company})` : ""}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize:".68rem", color:"#94a3b8", marginTop:".3rem" }}>
+                  {adminDocPartnerId
+                    ? "Only this partner will be notified and see this document"
+                    : "All partners will be notified and see this document"}
+                </div>
+              </div>
+            )}
             <div style={{ display:"flex", gap:".75rem", marginTop:"1.5rem" }}>
               <button onClick={handleAdminUploadDoc} disabled={!adminDocFile||!adminDocName.trim()||adminDocUploading}
                 style={{ flex:1, padding:".7rem", borderRadius:".5rem", border:"none", background:(!adminDocFile||!adminDocName.trim()||adminDocUploading)?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:(!adminDocFile||!adminDocName.trim()||adminDocUploading)?"#94a3b8":"white", fontWeight:800, fontSize:".85rem", cursor:(!adminDocFile||!adminDocName.trim()||adminDocUploading)?"not-allowed":"pointer" }}>
                 {adminDocUploading ? "Uploading…" : "Upload Document"}
               </button>
-              <button onClick={()=>{setAdminDocModal(false);setAdminDocName("");setAdminDocDesc("");setAdminDocFile(null);setAdminDocOnly(false);}}
+              <button onClick={()=>{setAdminDocModal(false);setAdminDocName("");setAdminDocDesc("");setAdminDocFile(null);setAdminDocOnly(false);setAdminDocPartnerId("");}}
                 style={{ padding:".7rem 1.25rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", fontWeight:600, fontSize:".85rem", cursor:"pointer", color:"#64748b" }}>
                 Cancel
               </button>
