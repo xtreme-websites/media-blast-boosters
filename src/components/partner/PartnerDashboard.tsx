@@ -6,7 +6,7 @@ import RichEditor, { RichToolbar } from "../RichEditor";
 // ── Stripe Connect Embedded Payouts ───────────────────────────────────────────
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51QRk7nKWRQxDCjAzFSFjlNJRBK9ORKpxB0k4eP4nH5gCi8mBFkmpNm9OxupGbJnKlQ6TU0X4CQxLDXW1dHFf3Ns00oJlasEdZS";
 
-function PayoutsEmbed({ clientSecret }: { clientSecret: string }) {
+function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; publishableKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let instance: any;
@@ -14,7 +14,7 @@ function PayoutsEmbed({ clientSecret }: { clientSecret: string }) {
       try {
         const { loadConnectAndInitialize } = await import("@stripe/connect-js");
         instance = loadConnectAndInitialize({
-          publishableKey: STRIPE_PUBLISHABLE_KEY,
+          publishableKey,
           fetchClientSecret: () => Promise.resolve(clientSecret),
           appearance: {
             overlays: "drawer",
@@ -121,6 +121,7 @@ export default function PartnerDashboard() {
   const [connectStatus,setConnectStatus]= useState("not_connected");
   const [accountSession, setAccountSession] = useState<string|null>(null);
   const [accountSessionError, setAccountSessionError] = useState<string|null>(null);
+  const [payoutsPublishableKey, setPayoutsPublishableKey] = useState<string>(STRIPE_PUBLISHABLE_KEY);
   const [partnerName,  setPartnerName]  = useState("");
   const [showDisconnect, setShowDisconnect] = useState(false);
   const [profile,       setProfile]       = useState({ email:"", contact:"", company:"", phone:"", website:"" });
@@ -263,8 +264,11 @@ export default function PartnerDashboard() {
         if (!cs.error) { setConnectId(cs.stripe_connect_id); setConnectStatus(cs.stripe_connect_status||"not_connected"); setConnectClientId(cs.connect_client_id||"ca_UVPxtVObJ1J2nUieqPiHROqJn7etM44E"); }
         if (cs.stripe_connect_id) {
           const as = await partnerPost("get_account_session", {}, session.access_token);
-          if (!as.error) { setAccountSession(as.client_secret); setAccountSessionError(null); }
-          else setAccountSessionError(as.error as string);
+          if (!as.error) {
+            setAccountSession(as.client_secret);
+            setAccountSessionError(null);
+            if (as.publishable_key) setPayoutsPublishableKey(as.publishable_key);
+          } else setAccountSessionError(as.error as string);
         }
       }
       if (tab === "pr_orders") {
@@ -1343,7 +1347,7 @@ export default function PartnerDashboard() {
               </button>
             </div>
           ) : accountSession ? (
-            <PayoutsEmbed clientSecret={accountSession} />
+            <PayoutsEmbed clientSecret={accountSession} publishableKey={payoutsPublishableKey} />
           ) : accountSessionError ? (
             <div style={{ textAlign:"center", padding:"3rem" }}>
               <div style={{ fontSize:"2rem", marginBottom:".75rem" }}>⚠️</div>
