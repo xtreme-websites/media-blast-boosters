@@ -8,11 +8,9 @@ const STRIPE_PUBLISHABLE_KEY = "pk_live_jem1i1ni1P4sQXEJTkgNSx8z";
 
 function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; publishableKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [sdkLoading, setSdkLoading] = useState(true);
   const [sdkError, setSdkError] = useState<string|null>(null);
   useEffect(() => {
     let instance: any;
-    setSdkLoading(true);
     setSdkError(null);
     (async () => {
       try {
@@ -31,17 +29,20 @@ function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; 
           },
         });
         if (containerRef.current) {
-          const payouts = instance.create("payouts");
-          payouts.setOnLoadError((e: any) => setSdkError(e?.error?.message || "Stripe component failed to load"));
-          payouts.setOnLoaderStart(() => setSdkLoading(false));
-          payouts.mount(containerRef.current);
+          // @stripe/connect-js v3 returns a custom HTML element — use appendChild, not .mount()
+          const payoutsEl = instance.create("payouts");
+          containerRef.current.appendChild(payoutsEl);
+          const balancesEl = instance.create("balances");
+          containerRef.current.appendChild(balancesEl);
         }
       } catch (e: any) {
         setSdkError(e?.message || "Failed to initialize Stripe Connect");
-        setSdkLoading(false);
       }
     })();
-    return () => { try { instance?.destroy(); } catch {} };
+    return () => {
+      try { instance?.destroy(); } catch {}
+      if (containerRef.current) containerRef.current.innerHTML = "";
+    };
   }, [clientSecret]);
   if (sdkError) return (
     <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, padding:"1.5rem", textAlign:"center" }}>
@@ -49,12 +50,7 @@ function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; 
       <div style={{ color:"#7f1d1d", fontSize:".875rem" }}>{sdkError}</div>
     </div>
   );
-  return (
-    <div>
-      {sdkLoading && <div style={{ textAlign:"center", padding:"2rem", color:"#94a3b8" }}>Initializing Stripe dashboard…</div>}
-      <div ref={containerRef} style={{ minHeight: sdkLoading ? 0 : 400 }}/>
-    </div>
-  );
+  return <div ref={containerRef} style={{ minHeight:400 }}/>;
 }
 
 type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "pipeline" | "report_pending" | "details" | "payouts";
