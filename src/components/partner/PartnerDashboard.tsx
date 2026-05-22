@@ -181,7 +181,7 @@ export default function PartnerDashboard() {
     if (stripeReturn || stripeRefresh) {
       // Clear params, land on details tab
       window.history.replaceState({}, "", "/partner?tab=details");
-      if (tabParam !== "details") setActiveTab("details");
+      setActiveTab("details"); // always navigate to details after Stripe redirect
 
       if (stripeReturn) {
         // Verify account status after onboarding
