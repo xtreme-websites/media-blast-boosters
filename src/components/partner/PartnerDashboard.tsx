@@ -8,8 +8,12 @@ const STRIPE_PUBLISHABLE_KEY = "pk_live_jem1i1ni1P4sQXEJTkgNSx8z";
 
 function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; publishableKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [sdkLoading, setSdkLoading] = useState(true);
+  const [sdkError, setSdkError] = useState<string|null>(null);
   useEffect(() => {
     let instance: any;
+    setSdkLoading(true);
+    setSdkError(null);
     (async () => {
       try {
         const { loadConnectAndInitialize } = await import("@stripe/connect-js");
@@ -28,15 +32,29 @@ function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; 
         });
         if (containerRef.current) {
           const payouts = instance.create("payouts");
+          payouts.setOnLoadError((e: any) => setSdkError(e?.error?.message || "Stripe component failed to load"));
+          payouts.setOnLoaderStart(() => setSdkLoading(false));
           payouts.mount(containerRef.current);
         }
-      } catch (e) {
-        console.error("Stripe Connect failed to load:", e);
+      } catch (e: any) {
+        setSdkError(e?.message || "Failed to initialize Stripe Connect");
+        setSdkLoading(false);
       }
     })();
     return () => { try { instance?.destroy(); } catch {} };
   }, [clientSecret]);
-  return <div ref={containerRef} style={{ minHeight:400 }}/>;
+  if (sdkError) return (
+    <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, padding:"1.5rem", textAlign:"center" }}>
+      <div style={{ color:"#dc2626", fontWeight:700, marginBottom:".5rem" }}>⚠️ Stripe Error</div>
+      <div style={{ color:"#7f1d1d", fontSize:".875rem" }}>{sdkError}</div>
+    </div>
+  );
+  return (
+    <div>
+      {sdkLoading && <div style={{ textAlign:"center", padding:"2rem", color:"#94a3b8" }}>Initializing Stripe dashboard…</div>}
+      <div ref={containerRef} style={{ minHeight: sdkLoading ? 0 : 400 }}/>
+    </div>
+  );
 }
 
 type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "pipeline" | "report_pending" | "details" | "payouts";
