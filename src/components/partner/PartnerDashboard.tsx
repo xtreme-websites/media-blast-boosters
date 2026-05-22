@@ -122,7 +122,6 @@ export default function PartnerDashboard() {
   const [accountSession, setAccountSession] = useState<string|null>(null);
   const [accountSessionError, setAccountSessionError] = useState<string|null>(null);
   const [payoutsPublishableKey, setPayoutsPublishableKey] = useState<string>(STRIPE_PUBLISHABLE_KEY);
-  const [payoutsDebug, setPayoutsDebug] = useState<string>("");
   const [partnerName,  setPartnerName]  = useState("");
   const [showDisconnect, setShowDisconnect] = useState(false);
   const [profile,       setProfile]       = useState({ email:"", contact:"", company:"", phone:"", website:"" });
@@ -261,21 +260,15 @@ export default function PartnerDashboard() {
         if (!d.error) { setPipelineItems(d.items || []); setPipelineTotal(d.total_pipeline || 0); }
       }
       if (tab === "payouts") {
-        setPayoutsDebug("step1:calling get_connect_status session="+(session?"ok":"NULL"));
         const cs = await partnerPost("get_connect_status", {}, session.access_token);
-        setPayoutsDebug("step2:cs="+JSON.stringify(cs).substring(0,200));
         if (!cs.error) { setConnectId(cs.stripe_connect_id); setConnectStatus(cs.stripe_connect_status||"not_connected"); }
         if (cs.stripe_connect_id) {
-          setPayoutsDebug("step3:calling get_account_session");
           const as = await partnerPost("get_account_session", {}, session.access_token);
-          setPayoutsDebug("step4:as="+JSON.stringify(as).substring(0,200));
           if (!as.error) {
             setAccountSession(as.client_secret || null);
             setAccountSessionError(null);
             if (as.publishable_key) setPayoutsPublishableKey(as.publishable_key);
           } else setAccountSessionError(as.error as string);
-        } else {
-          setPayoutsDebug("step3:SKIPPED - cs.stripe_connect_id was falsy: "+JSON.stringify(cs.stripe_connect_id));
         }
       }
       if (tab === "pr_orders") {
@@ -1371,7 +1364,7 @@ export default function PartnerDashboard() {
               </button>
             </div>
           ) : (
-            <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}><div>Loading payout dashboard…</div>{payoutsDebug && <div style={{fontSize:".65rem",marginTop:8,color:"#ef4444",wordBreak:"break-all"}}>{payoutsDebug}</div>}</div>
+            <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8" }}>Loading payout dashboard…</div>
           )}
         </div>
       )}
