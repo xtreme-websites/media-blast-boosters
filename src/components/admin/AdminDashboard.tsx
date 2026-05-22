@@ -483,6 +483,7 @@ export default function AdminDashboard() {
   const [adminPipeFilter,  setAdminPipeFilter]  = useState<"all"|"scheduled"|"draft"|"unused">("all");
   const [pdPartners,     setPdPartners]     = useState<any[]>([]);
   const [pdDefaultId,    setPdDefaultId]    = useState<string>("");
+  const [pdInvitations,  setPdInvitations]  = useState<any[]>([]);
   const [pdNotes,        setPdNotes]        = useState<any[]>([]);
   const [pdDocuments,    setPdDocuments]    = useState<any[]>([]);
   const [pdSettingMain,  setPdSettingMain]  = useState(false);
@@ -661,6 +662,7 @@ export default function AdminDashboard() {
           setPdDefaultId(d.default_partner_id || "");
           setPdNotes(d.notes || []);
           setPdDocuments(d.documents || []);
+          setPdInvitations(d.invitations || []);
         }
       }
     if (tab === "pipeline") {
@@ -1609,6 +1611,51 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Pending / Expired Invitations */}
+              {pdInvitations.length > 0 && (
+                <div style={{ marginBottom:"2rem" }}>
+                  <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .75rem" }}>📨 Pending Invitations</h3>
+                  <div style={{ display:"flex", flexDirection:"column", gap:".5rem" }}>
+                    {pdInvitations.map((inv:any) => {
+                      const expired = new Date(inv.expires_at) < new Date();
+                      const status = expired ? "expired" : "pending";
+                      return (
+                        <div key={inv.id} style={{ background:"white", borderRadius:".75rem", border:, padding:".85rem 1.1rem", display:"flex", alignItems:"center", gap:".85rem", flexWrap:"wrap" }}>
+                          {/* Status badge */}
+                          <span style={{ background:expired?"#fef2f2":"#fefce8", color:expired?"#dc2626":"#854d0e", fontSize:".68rem", fontWeight:800, padding:".25rem .65rem", borderRadius:"99px", whiteSpace:"nowrap", border: }}>
+                            {expired ? "⏰ Expired" : "⏳ Pending"}
+                          </span>
+                          {/* Identity */}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontWeight:700, fontSize:".9rem", color:"#1e293b" }}>{inv.name}</div>
+                            <div style={{ fontSize:".75rem", color:"#64748b", marginTop:".1rem" }}>{inv.email}</div>
+                          </div>
+                          {/* Sent date */}
+                          <div style={{ fontSize:".72rem", color:"#94a3b8", flexShrink:0 }}>
+                            Sent {new Date(inv.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
+                          </div>
+                          {/* Expiry info */}
+                          <div style={{ fontSize:".72rem", color:expired?"#dc2626":"#64748b", flexShrink:0 }}>
+                            {expired ? "Expired" : "Expires"} {new Date(inv.expires_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}
+                          </div>
+                          {/* Delete */}
+                          <button onClick={async () => {
+                              if (!confirm(`Delete invitation for ${inv.email}?`)) return;
+                              const d = await adminPost("delete_invitation", { id: inv.id }, session!.access_token);
+                              if (d.ok) { setPdInvitations(prev => prev.filter((i:any) => i.id !== inv.id)); showToast("Invitation deleted"); }
+                              else showToast(d.error || "Failed to delete", "error");
+                            }}
+                            title="Delete invitation"
+                            style={{ padding:".35rem .65rem", borderRadius:".4rem", border:"1px solid #fecaca", background:"white", cursor:"pointer", color:"#dc2626", fontSize:".82rem", flexShrink:0 }}>
+                            🗑
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Partner Profile Modal */}
               {viewingPartner && (
