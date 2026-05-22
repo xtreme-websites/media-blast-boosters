@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Partner from "./pages/Partner";
+import PartnerRegister from "./pages/PartnerRegister";
 import NotFound from "./pages/NotFound";
 import PublicReport from "./components/PublicReport";
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/*" element={<Admin />} />
           <Route path="/partner" element={<Partner />} />
+          <Route path="/partner/register" element={<PartnerRegister />} />
           <Route path="/partner/*" element={<Partner />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="/report/:orderId" element={<PublicReport />} />
