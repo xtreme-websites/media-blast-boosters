@@ -1073,8 +1073,8 @@ export default function PartnerDashboard() {
 
               {/* Stripe Connect section */}
               <div style={{ marginTop:"2.5rem" }}>
-                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Stripe Connect</h2>
-                <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Connect your Stripe account to receive automatic payouts when PRs are fulfilled.</p>
+                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Bank Account</h2>
+                <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Connect your bank account to receive payouts when PRs are fulfilled. No Stripe account required — just your bank details.</p>
                 {connectStatus === "active" && connectId ? (
                   <div style={{ background:"linear-gradient(135deg,#f5f3ff,#ede9fe)", border:"1.5px solid #635bff40", borderRadius:".875rem", overflow:"hidden" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"1rem", padding:"1rem 1.5rem" }}>
@@ -1084,7 +1084,7 @@ export default function PartnerDashboard() {
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
-                          <span style={{ fontWeight:800, fontSize:".95rem", color:"#3730a3" }}>Stripe Connected</span>
+                          <span style={{ fontWeight:800, fontSize:".95rem", color:"#3730a3" }}>Bank Account Connected</span>
                           <span style={{ background:"#635bff", color:"white", fontWeight:700, fontSize:".65rem", padding:".15rem .55rem", borderRadius:"99px", letterSpacing:".04em", textTransform:"uppercase" }}>Active</span>
                         </div>
                         <div style={{ fontSize:".78rem", color:"#6366f1", marginTop:".15rem" }}>
@@ -1117,7 +1117,7 @@ export default function PartnerDashboard() {
                         }}
                         style={{ display:"inline-flex", alignItems:"center", gap:".5rem", padding:".75rem 1.75rem", borderRadius:".6rem", background:"linear-gradient(135deg,#635bff,#0a2540)", color:"white", fontWeight:800, fontSize:".9rem", border:"none", cursor:"pointer", boxShadow:"0 4px 14px rgba(99,91,255,.35)" }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>
-                        {connectStatus === "pending" ? "Continue Stripe Setup" : "Connect with Stripe"}
+                        {connectStatus === "pending" ? "Continue Bank Account Setup" : "Connect Bank Account"}
                       </button>
                       {connectStatus === "pending" && (
                         <button onClick={async () => {
@@ -1126,7 +1126,7 @@ export default function PartnerDashboard() {
                             if (d.ok) {
                               setConnectStatus(d.status);
                               if (d.status === "active") setConnectId(connectId);
-                              showToast(d.status === "active" ? "✅ Stripe connected!" : "Setup still pending on Stripe's end");
+                              showToast(d.status === "active" ? "✅ Bank account connected!" : "Setup still pending — check your email from Stripe");
                             } else showToast(d.error || "Could not verify status", "error");
                           }}
                           style={{ padding:".75rem 1.25rem", borderRadius:".6rem", border:"1.5px solid #e2e8f0", background:"white", color:"#374151", fontWeight:700, fontSize:".9rem", cursor:"pointer" }}>
@@ -1144,11 +1144,11 @@ export default function PartnerDashboard() {
                   <div style={{ background:"white", borderRadius:"1rem", width:"100%", maxWidth:420, boxShadow:"0 24px 80px rgba(0,0,0,.3)", overflow:"hidden" }}>
                     <div style={{ background:"linear-gradient(135deg,#991b1b,#dc2626)", padding:"1.25rem 1.5rem", display:"flex", alignItems:"center", gap:".75rem" }}>
                       <span style={{ fontSize:"1.4rem" }}>⚠️</span>
-                      <h3 style={{ fontWeight:900, color:"white", margin:0, fontSize:"1.05rem" }}>Disconnect Stripe?</h3>
+                      <h3 style={{ fontWeight:900, color:"white", margin:0, fontSize:"1.05rem" }}>Disconnect Bank Account?</h3>
                     </div>
                     <div style={{ padding:"1.5rem" }}>
                       <p style={{ color:"#374151", fontSize:".88rem", lineHeight:1.65, margin:"0 0 1rem" }}>
-                        Are you sure? Disconnecting Stripe will <strong>remove your payout method</strong>. You will no longer receive automatic payments for fulfilled PRs until you reconnect.
+                        Are you sure? Disconnecting will <strong>remove your payout method</strong>. You will no longer receive payouts for fulfilled PRs until you reconnect.
                       </p>
                       <ul style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.5rem", paddingLeft:"1.25rem", lineHeight:1.8 }}>
                         <li>Your Stripe Express account is <strong>not deleted</strong></li>
@@ -1349,9 +1349,9 @@ export default function PartnerDashboard() {
           {!connectId || connectStatus !== "active" ? (
             <div style={{ background:"white", borderRadius:".875rem", border:"1px solid #f1f5f9", padding:"4rem 2rem", textAlign:"center" }}>
               <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>🔗</div>
-              <h3 style={{ fontWeight:800, fontSize:"1.1rem", color:"#1e293b", margin:"0 0 .5rem" }}>Stripe not connected</h3>
+              <h3 style={{ fontWeight:800, fontSize:"1.1rem", color:"#1e293b", margin:"0 0 .5rem" }}>Bank account not connected</h3>
               <p style={{ color:"#64748b", fontSize:".88rem", margin:"0 0 1.5rem", maxWidth:420, marginLeft:"auto", marginRight:"auto", lineHeight:1.65 }}>
-                Please complete your Stripe setup in the Partner Details tab to view earnings and receive payouts.
+                Connect your bank account in the Partner Details tab to view your balance and receive payouts.
               </p>
               <button onClick={()=>navigateTab("details")}
                 style={{ padding:".7rem 1.75rem", borderRadius:".6rem", border:"none", background:"linear-gradient(135deg,#6366f1,#8929bd)", color:"white", fontWeight:800, fontSize:".9rem", cursor:"pointer" }}>
@@ -1368,7 +1368,7 @@ export default function PartnerDashboard() {
                 {accountSessionError}
               </div>
               <p style={{ fontSize:".82rem", color:"#64748b", maxWidth:380, margin:"0 auto .75rem" }}>
-                If your Stripe account was connected in a different mode (live vs test), you may need to disconnect and reconnect.
+                If you are having trouble, try disconnecting and reconnecting your bank account from the Partner Details tab.
               </p>
               <button onClick={() => load("payouts")}
                 style={{ padding:".55rem 1.1rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", color:"#374151", fontWeight:600, fontSize:".82rem", cursor:"pointer" }}>
