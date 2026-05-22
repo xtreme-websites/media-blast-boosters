@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import RichEditor, { RichToolbar } from "../RichEditor";
 
 // ── Stripe Connect Embedded Payouts ───────────────────────────────────────────
-const STRIPE_PUBLISHABLE_KEY = "pk_live_51QRk7nKWRQxDCjAzFSFjlNJRBK9ORKpxB0k4eP4nH5gCi8mBFkmpNm9OxupGbJnKlQ6TU0X4CQxLDXW1dHFf3Ns00oJlasEdZS";
+const STRIPE_PUBLISHABLE_KEY = "pk_live_jem1i1ni1P4sQXEJTkgNSx8z";
 
 function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; publishableKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
