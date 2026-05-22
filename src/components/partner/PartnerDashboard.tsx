@@ -1073,7 +1073,10 @@ export default function PartnerDashboard() {
 
               {/* Stripe Connect section */}
               <div style={{ marginTop:"2.5rem" }}>
-                <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:"0 0 .3rem" }}>Bank Account</h2>
+                <div style={{ display:"flex", alignItems:"center", gap:".6rem", marginBottom:".3rem" }}>
+                  <h2 style={{ fontWeight:900, fontSize:"1.25rem", color:"#1e293b", margin:0 }}>Bank Account</h2>
+                  <span style={{ fontSize:".68rem", color:"#94a3b8", fontWeight:500, letterSpacing:".01em" }}>Powered by Stripe Connect</span>
+                </div>
                 <p style={{ color:"#64748b", fontSize:".82rem", margin:"0 0 1.25rem" }}>Connect your bank account to receive payouts when PRs are fulfilled. No Stripe account required — just your bank details.</p>
                 {connectStatus === "active" && connectId ? (
                   <div style={{ background:"linear-gradient(135deg,#f5f3ff,#ede9fe)", border:"1.5px solid #635bff40", borderRadius:".875rem", overflow:"hidden" }}>
