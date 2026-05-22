@@ -1621,9 +1621,9 @@ export default function AdminDashboard() {
                       const expired = new Date(inv.expires_at) < new Date();
                       const status = expired ? "expired" : "pending";
                       return (
-                        <div key={inv.id} style={{ background:"white", borderRadius:".75rem", border:, padding:".85rem 1.1rem", display:"flex", alignItems:"center", gap:".85rem", flexWrap:"wrap" }}>
+                        <div key={inv.id} style={{ background:"white", borderRadius:".75rem", border:`1.5px solid ${expired?"#fecaca":"#fef9c3"}`, padding:".85rem 1.1rem", display:"flex", alignItems:"center", gap:".85rem", flexWrap:"wrap" }}>
                           {/* Status badge */}
-                          <span style={{ background:expired?"#fef2f2":"#fefce8", color:expired?"#dc2626":"#854d0e", fontSize:".68rem", fontWeight:800, padding:".25rem .65rem", borderRadius:"99px", whiteSpace:"nowrap", border: }}>
+                          <span style={{ background:expired?"#fef2f2":"#fefce8", color:expired?"#dc2626":"#854d0e", fontSize:".68rem", fontWeight:800, padding:".25rem .65rem", borderRadius:"99px", whiteSpace:"nowrap", border:`1px solid ${expired?"#fecaca":"#fde68a"}` }}>
                             {expired ? "⏰ Expired" : "⏳ Pending"}
                           </span>
                           {/* Identity */}
