@@ -32,8 +32,6 @@ function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; 
           // @stripe/connect-js v3 returns a custom HTML element — use appendChild, not .mount()
           const payoutsEl = instance.create("payouts");
           containerRef.current.appendChild(payoutsEl);
-          const balancesEl = instance.create("balances");
-          containerRef.current.appendChild(balancesEl);
         }
       } catch (e: any) {
         setSdkError(e?.message || "Failed to initialize Stripe Connect");
@@ -50,7 +48,7 @@ function PayoutsEmbed({ clientSecret, publishableKey }: { clientSecret: string; 
       <div style={{ color:"#7f1d1d", fontSize:".875rem" }}>{sdkError}</div>
     </div>
   );
-  return <div ref={containerRef} style={{ minHeight:400 }}/>;
+  return <div style={{ background:"#fff", borderRadius:12, padding:"1.5rem", boxShadow:"0 1px 3px rgba(0,0,0,.06)" }}><div ref={containerRef}/></div>;
 }
 
 type Tab = "overview" | "revenue" | "queue" | "pr_orders" | "pipeline" | "report_pending" | "details" | "payouts";
