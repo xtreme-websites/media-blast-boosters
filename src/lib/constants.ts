@@ -59,9 +59,9 @@ export const PR_PACKAGES: Record<string, {
   price: string; outlets: number; words: number;
   readers: string; authority: number; paymentLink: string;
 }> = {
-  Starter:  { price: "$497",  outlets: 200, words: 350,  readers: "2.2M",   authority: 69, paymentLink: "https://buy.stripe.com/fZu6oHdbu3zH6DTdMl6J201" },
-  Standard: { price: "$797",  outlets: 300, words: 500,  readers: "26.4M",  authority: 88, paymentLink: "https://buy.stripe.com/aFadR9gnGb290fveQp6J202" },
-  Premium:  { price: "$997",  outlets: 450, words: 1000, readers: "224.5M", authority: 94, paymentLink: "https://buy.stripe.com/bJeeVd3AU5HP7HXeQp6J203" },
+  Starter:  { price: "$497",  outlets: 200, words: 400,  readers: "2.2M",   authority: 69, paymentLink: "https://buy.stripe.com/fZu6oHdbu3zH6DTdMl6J201" },
+  Standard: { price: "$797",  outlets: 350, words: 600,  readers: "26.4M",  authority: 88, paymentLink: "https://buy.stripe.com/aFadR9gnGb290fveQp6J202" },
+  Premium:  { price: "$997",  outlets: 500, words: 800, readers: "224.5M", authority: 94, paymentLink: "https://buy.stripe.com/bJeeVd3AU5HP7HXeQp6J203" },
 };
 
 // ─── PR Creator Options ───────────────────────────────────────────────────────

@@ -62,9 +62,9 @@ const stripePromises: Record<string, ReturnType<typeof loadStripe>> = {};
 const getStripe = (pk: string) => { if (!stripePromises[pk]) stripePromises[pk] = loadStripe(pk); return stripePromises[pk]; };
 
 const TIERS = {
-  starter:  { label:"Starter",  color:"#6366f1", light:"#eef2ff", outlets:"200+", words:350,  readers:"2.2M",   authority:69 },
-  standard: { label:"Standard", color:"#8929bd", light:"#f5f3ff", outlets:"300+", words:500,  readers:"26.4M",  authority:88 },
-  premium:  { label:"Premium",  color:"#d97706", light:"#fffbeb", outlets:"450+", words:1000, readers:"224.5M", authority:94 },
+  starter:  { label:"Starter",  color:"#6366f1", light:"#eef2ff", outlets:"200+", words:400,  readers:"2.2M",   authority:69 },
+  standard: { label:"Standard", color:"#8929bd", light:"#f5f3ff", outlets:"350+", words:600,  readers:"26.4M",  authority:88 },
+  premium:  { label:"Premium",  color:"#d97706", light:"#fffbeb", outlets:"500+", words:800, readers:"224.5M", authority:94 },
 } as const;
 type Tier = keyof typeof TIERS;
 
@@ -359,9 +359,9 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
               const bal     = credits[`${key}_credits`] ?? 0;
               const pending = credits[`pending_${key}_credits`] ?? 0;
               const bullets: Record<Tier,string[]> = {
-                starter:  ["200 News Outlets","350 Words","2.2M Monthly Readers","Max Authority: 69"],
-                standard: ["300 News Outlets","500 Words","26.4M Monthly Readers","Max Authority: 88"],
-                premium:  ["450 News Outlets","1,000 Words","224.5M Monthly Readers","Max Authority: 94"],
+                starter:  ["200+ News Outlets","400 Words","2.2M Monthly Readers","Max Authority: 69"],
+                standard: ["350+ News Outlets","600 Words","26.4M Monthly Readers","Max Authority: 88"],
+                premium:  ["500+ News Outlets","800 Words","224.5M Monthly Readers","Max Authority: 94"],
               };
               return (
                 <div key={key} className="card" style={{ padding:"1.5rem", borderTop:`4px solid ${ti.color}`, position:"relative", overflow:"hidden" }}>

@@ -1537,9 +1537,9 @@ export default function AdminDashboard() {
             { key:"premium",  label:"Premium",  price:350, color:"#d97706", bg:"#fef3c7" },
           ];
           const DEFAULT_BULLETS: Record<string,string[]> = {
-            starter:  ["Published across 200+ media outlets","300-400 word press release","24-48 hour turnaround","Full distribution report included"],
-            standard: ["Published across 400+ premium outlets","500-600 word press release","24 hour turnaround","Distribution report + analytics","Enhanced editorial placement"],
-            premium:  ["Published across 600+ top-tier outlets","800-1000 word press release","Priority same-day processing","Full distribution report + analytics","TV/radio syndication included","Dedicated account support"],
+            starter:  ["200+ News Outlets","400 Words","2.2M Monthly Readers","Max Authority: 69"],
+            standard: ["350+ News Outlets","600 Words","26.4M Monthly Readers","Max Authority: 88"],
+            premium:  ["500+ News Outlets","800 Words","224.5M Monthly Readers","Max Authority: 94"],
           };
           const getBullets = (tier: string) => pdNotes.find(n=>n.tier===tier)?.bullets || DEFAULT_BULLETS[tier] || [];
 

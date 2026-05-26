@@ -26,7 +26,7 @@ interface TrustAssetsProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const VERIFICATION_URL = "https://xtremewebsites.com/press-release-marketing/";
-const OUTLET_COUNT: Record<Tier, string> = { starter: "200+", standard: "300+", premium: "450+" };
+const OUTLET_COUNT: Record<Tier, string> = { starter: "200+", standard: "350+", premium: "500+" };
 const LAYOUTS: { id: Layout; label: string }[] = [
   { id: "horizontal", label: "Horizontal" },
   { id: "slider",     label: "Slider"     },

@@ -218,9 +218,9 @@ interface PRCreatorProps {
 
 const PROXY = "https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy";
 const TIER_CONFIG = {
-  Starter:  { color:"#6366f1", light:"#eef2ff", words:"350",  outlets:"200+", readers:"2.2M",   authority:69  },
-  Standard: { color:"#8929bd", light:"#f5f3ff", words:"500",  outlets:"300+", readers:"26.4M",  authority:88  },
-  Premium:  { color:"#d97706", light:"#fffbeb", words:"1000", outlets:"450+", readers:"224.5M", authority:94  },
+  Starter:  { color:"#6366f1", light:"#eef2ff", words:"400",  outlets:"200+", readers:"2.2M",   authority:69  },
+  Standard: { color:"#8929bd", light:"#f5f3ff", words:"600",  outlets:"350+", readers:"26.4M",  authority:88  },
+  Premium:  { color:"#d97706", light:"#fffbeb", words:"800",  outlets:"500+", readers:"224.5M", authority:94  },
 } as const;
 type PRTier = keyof typeof TIER_CONFIG;
 
