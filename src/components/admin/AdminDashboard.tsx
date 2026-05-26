@@ -1639,6 +1639,18 @@ export default function AdminDashboard() {
                           <div style={{ fontSize:".72rem", color:expired?"#dc2626":"#64748b", flexShrink:0 }}>
                             {expired ? "Expired" : "Expires"} {new Date(inv.expires_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}
                           </div>
+                          {/* Resend */}
+                          <button onClick={async () => {
+                              const d = await adminPost("resend_invitation", { id: inv.id }, session!.access_token);
+                              if (d.ok) {
+                                setPdInvitations(prev => prev.map((i:any) => i.id === inv.id ? { ...i, expires_at: d.expires_at } : i));
+                                showToast(`✉️ Invitation resent to ${inv.email}`);
+                              } else showToast(d.error || "Failed to resend", "error");
+                            }}
+                            title="Resend invitation"
+                            style={{ padding:".35rem .65rem", borderRadius:".4rem", border:"1px solid #c7d2fe", background:"white", cursor:"pointer", color:"#4f46e5", fontSize:".82rem", flexShrink:0 }}>
+                            ✉️
+                          </button>
                           {/* Delete */}
                           <button onClick={async () => {
                               if (!confirm(`Delete invitation for ${inv.email}?`)) return;
