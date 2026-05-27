@@ -138,7 +138,7 @@ export default function PartnerRegister() {
 
                 {/* Company */}
                 <div>
-                  <label style={label}>Company / Agency <span style={{ fontWeight:400, color:"#94a3b8" }}>(optional)</span></label>
+                  <label style={label}>Company / Agency *</label>
                   <input value={company} onChange={e=>setCompany(e.target.value)} placeholder="e.g. NewswireJet" style={inp}
                     onFocus={e=>(e.target.style.borderColor="#8929bd")} onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
                 </div>
@@ -153,7 +153,7 @@ export default function PartnerRegister() {
                 {/* Phone + Website side by side */}
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:".65rem" }}>
                   <div>
-                    <label style={label}>Phone <span style={{ fontWeight:400, color:"#94a3b8" }}>(optional)</span></label>
+                    <label style={label}>Phone *</label>
                     <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+1 (555) 000-0000" style={inp}
                       onFocus={e=>(e.target.style.borderColor="#8929bd")} onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
                   </div>
@@ -186,8 +186,8 @@ export default function PartnerRegister() {
                   </div>
                 )}
 
-                <button onClick={handleSubmit} disabled={submitting || !name || !password || !confirm}
-                  style={{ padding:".75rem", borderRadius:".5rem", border:"none", background:submitting||!name||!password||!confirm?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:submitting||!name||!password||!confirm?"#94a3b8":"white", fontWeight:800, fontSize:".95rem", cursor:submitting||!name||!password||!confirm?"not-allowed":"pointer", marginTop:".25rem" }}>
+                <button onClick={handleSubmit} disabled={submitting || !name || !company || !phone || !password || !confirm}
+                  style={{ padding:".75rem", borderRadius:".5rem", border:"none", background:submitting||!name||!company||!phone||!password||!confirm?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:submitting||!name||!company||!phone||!password||!confirm?"#94a3b8":"white", fontWeight:800, fontSize:".95rem", cursor:submitting||!name||!company||!phone||!password||!confirm?"not-allowed":"pointer", marginTop:".25rem" }}>
                   {submitting ? "Creating Account…" : "Create Account & Sign In →"}
                 </button>
               </div>
