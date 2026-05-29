@@ -17,6 +17,7 @@ interface RevenueData { gross: number; payout: number; margin: number; count: nu
 interface AdminSettings { review_mode_global: boolean; review_mode_overrides: Record<string,boolean>; }
 
 const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} MB`:bytes>1024?`${Math.round(bytes/1024)} KB`:`${bytes} B`;
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin, accessDenied }: { onLogin: () => void; accessDenied?: boolean }) {
@@ -1250,6 +1251,7 @@ export default function AdminDashboard() {
             scheduled:{bg:"#fef3c7",color:"#92400e"}, draft_pending_review:{bg:"#faf5ff",color:"#7e22ce"},
           };
           const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} MB`:bytes>1024?`${Math.round(bytes/1024)} KB`:`${bytes} B`;
 
           return (
             <div>
@@ -1382,6 +1384,7 @@ export default function AdminDashboard() {
         {/* REPORT PENDING */}
         {!loading && activeTab==="report_pending" && (() => {
           const TIER_COLORS: Record<string,string> = { starter:"#6366f1", standard:"#8929bd", premium:"#d97706" };
+const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} MB`:bytes>1024?`${Math.round(bytes/1024)} KB`:`${bytes} B`;
 
           const parseAdminCsv = (text: string) =>
             text.trim().split(/\r?\n/).slice(1).map(line => {
@@ -1551,8 +1554,6 @@ export default function AdminDashboard() {
             else showToast(d.error || "Failed to update", "error");
             setPdSettingMain(false);
           };
-
-          const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} MB`:bytes>1024?`${Math.round(bytes/1024)} KB`:`${bytes} B`;
 
           return (
             <div>
