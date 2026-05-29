@@ -1033,7 +1033,7 @@ export default function PartnerDashboard() {
                   <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
                       <thead><tr style={{ background:"#1a0a2e" }}>
-                        {["Document","Description","File","Uploaded",""].map(h=>(
+                        {["Document","Description","Visibility","File","Uploaded",""].map(h=>(
                           <th key={h} style={{ padding:".65rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
                         ))}
                       </tr></thead>
@@ -1047,6 +1047,13 @@ export default function PartnerDashboard() {
                               <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{doc.description||"—"}</div>
                             </td>
                             <td style={{ padding:".75rem 1rem" }}>
+                              {doc.uploaded_by_role === "admin"
+                                ? doc.partner_id
+                                  ? <span style={{ background:"#f0fdf4", color:"#15803d", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>📨 Shared to You</span>
+                                  : <span style={{ background:"#dcfce7", color:"#166534", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>👥 Shared to All</span>
+                                : <span style={{ background:"#eef2ff", color:"#6366f1", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>📁 My Upload</span>}
+                            </td>
+                            <td style={{ padding:".75rem 1rem" }}>
                               {doc.file_url?(
                                 <a href={doc.file_url} target="_blank" rel="noreferrer"
                                   style={{ color:"#8929bd", fontWeight:600, fontSize:".78rem", textDecoration:"none", display:"flex", alignItems:"center", gap:".3rem" }}>
@@ -1058,10 +1065,12 @@ export default function PartnerDashboard() {
                               {doc.uploaded_at?new Date(doc.uploaded_at).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}):"—"}
                             </td>
                             <td style={{ padding:".75rem 1rem" }}>
-                              <button onClick={()=>deleteDoc(doc)}
-                                style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #fee2e2", background:"white", color:"#991b1b", cursor:"pointer", fontWeight:600 }}>
-                                🗑 Delete
-                              </button>
+                              {doc.uploaded_by_role !== "admin" ? (
+                                <button onClick={()=>deleteDoc(doc)}
+                                  style={{ fontSize:".72rem", padding:".25rem .65rem", borderRadius:".35rem", border:"1px solid #fee2e2", background:"white", color:"#991b1b", cursor:"pointer", fontWeight:600 }}>
+                                  🗑 Delete
+                                </button>
+                              ) : <span style={{ color:"#cbd5e1", fontSize:".72rem" }}>—</span>}
                             </td>
                           </tr>
                         ))}

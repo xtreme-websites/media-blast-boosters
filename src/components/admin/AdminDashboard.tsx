@@ -1777,7 +1777,7 @@ const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} 
                   <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", overflow:"auto" }}>
                     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:".82rem" }}>
                       <thead><tr style={{ background:"#1e1b4b" }}>
-                        {["Source","Visibility","Document","Description","File","Uploaded",""].map(h=>(
+                        {["Source","Visibility","Shared To","Document","Description","File","Uploaded",""].map(h=>(
                           <th key={h} style={{ padding:".7rem 1rem", textAlign:"left", fontWeight:700, color:"rgba(255,255,255,.8)", fontSize:".68rem", textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr></thead>
@@ -1800,8 +1800,17 @@ const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} 
                                 {isAdminDoc
                                   ? doc.admin_only
                                     ? <span style={{ background:"#fef3c7", color:"#92400e", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>🔒 Admin Only</span>
-                                    : <span style={{ background:"#dcfce7", color:"#166534", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>👥 Shared</span>
+                                    : doc.partner_id
+                                      ? <span style={{ background:"#f0fdf4", color:"#15803d", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>👤 Shared to Partner</span>
+                                      : <span style={{ background:"#dcfce7", color:"#166534", fontSize:".68rem", fontWeight:700, padding:".15rem .5rem", borderRadius:"99px" }}>👥 Shared to All</span>
                                   : <span style={{ color:"#cbd5e1", fontSize:".72rem" }}>—</span>}
+                              </td>
+                              <td style={{ padding:".75rem 1rem", fontSize:".78rem", color:"#374151" }}>
+                                {isAdminDoc && !doc.admin_only && doc.partner_id
+                                  ? <span style={{ fontWeight:600 }}>{pdPartners.find((p:any)=>p.id===doc.partner_id)?.company || pdPartners.find((p:any)=>p.id===doc.partner_id)?.name || "—"}</span>
+                                  : isAdminDoc && !doc.admin_only
+                                    ? <span style={{ color:"#94a3b8" }}>All Partners</span>
+                                    : <span style={{ color:"#cbd5e1" }}>—</span>}
                               </td>
                               <td style={{ padding:".75rem 1rem", fontWeight:600, color:"#1e293b" }}>{doc.name}</td>
                               <td style={{ padding:".75rem 1rem", color:"#64748b", fontSize:".78rem", maxWidth:180 }}>
