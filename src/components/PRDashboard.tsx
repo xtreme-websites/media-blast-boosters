@@ -140,7 +140,7 @@ export default function PRDashboard() {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?location_id=eq.${locationId}&order=created_at.desc`, { headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` } });
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content, status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date, submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, lastEditedAt: o.last_edited_at, formData: o.form_data, prContentOriginal: o.pr_content_original, rejectionReason: o.rejection_reason })));
+        if (Array.isArray(data) && data.length > 0) setOrders(data.map(o => ({ id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`, date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content, status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date, submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, reportData: o.report_data, lastEditedAt: o.last_edited_at, formData: o.form_data, prContentOriginal: o.pr_content_original, rejectionReason: o.rejection_reason })));
       } catch {}
       setDataLoaded(true);
       // Card-on-file lookup priority:
@@ -195,7 +195,7 @@ export default function PRDashboard() {
         id: o.id, prTitle: o.pr_title, productName: o.product_name, price: `$${o.price}`,
         date: new Date(o.created_at).toLocaleDateString("en-US"), prContent: o.pr_content,
         status: o.status, seoFocus: o.seo_focus, scheduledDate: o.scheduled_date,
-        submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link,
+        submittedAt: o.submitted_at, publishedDate: o.published_date, reportLink: o.report_link, reportData: o.report_data,
         lastEditedAt: o.last_edited_at, formData: o.form_data,
         prContentOriginal: o.pr_content_original, rejectionReason: o.rejection_reason
       })));
