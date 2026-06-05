@@ -269,8 +269,8 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
     try { await store.set(`mbb:variations:${locationId}`, JSON.stringify(vars)); } catch {}
   };
 
-  // logos always from autoTier so widget creation/embed reflects actual purchased package
-  const logos  = LOGOS[autoTier];
+  const logos       = LOGOS[autoTier]; // used for actual widget: modal, thumbnails, embed code
+  const previewLogos = LOGOS[tier];      // used only for the preview tab display
   const active = variations.find(v => v.id === activeId) ?? variations[0];
 
   const openNew  = () => { setDraft({ id: crypto.randomUUID(), name: `Variation ${variations.length + 1}`, ...EMPTY_CONFIG }); setEditingId(null); setShowModal(true); };
@@ -403,7 +403,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
             )}
           </div>
           <div className="card" style={{ padding:"1rem", overflow:"hidden", position:"relative" }}>
-            <BadgePreview config={active} logos={logos} tier={isPreviewMode ? tier : autoTier}/>
+            <BadgePreview config={active} logos={isPreviewMode ? previewLogos : logos} tier={isPreviewMode ? tier : autoTier}/>
             {isPreviewMode && (
               <div style={{ position:"absolute", inset:0, borderRadius:".75rem", overflow:"hidden", pointerEvents:"none",
                 backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Ctext transform='rotate(-45 90 90)' x='-10' y='98' fill='rgba(0%2C0%2C0%2C0.07)' font-size='16' font-family='Arial' font-weight='700' letter-spacing='6'%3EPREVIEW%3C/text%3E%3C/svg%3E")`,
