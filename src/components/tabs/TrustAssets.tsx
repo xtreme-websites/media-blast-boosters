@@ -225,9 +225,12 @@ function MiniThumb({ config, tier }: { config: BadgeConfig; tier: Tier }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function TrustAssets({ orders, locationId, showToast, credits, isDevAccess = false, hasCompanyData = true, onNavigateToCompanyProfile }: TrustAssetsProps) {
-  const autoTier: Tier = credits?.premium_credits  ? "premium"
-                        : credits?.standard_credits ? "standard"
-                        : "starter";
+  // autoTier = highest package ever purchased (from orders), not current credit balance
+  // A user with 0 credits left still deserves their purchased tier's badge
+  const _rank: Record<string, number> = { Starter: 1, Standard: 2, Premium: 3 };
+  const _maxRank = orders.reduce((m, o) => Math.max(m, _rank[o.productName] ?? 0), 0);
+  const autoTier: Tier = _maxRank >= 3 ? "premium" : _maxRank >= 2 ? "standard" : "starter";
+
   const [tier, setTier] = useState<Tier>(autoTier);
   const [variations,  setVariations]  = useState<BadgeConfig[]>([]);
   const [activeId,    setActiveId]    = useState<string | null>(null);
@@ -241,12 +244,10 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
   const [verifyReason, setVerifyReason] = useState("");
   const [verifyData,   setVerifyData]   = useState<Record<string,unknown>>({});
 
+  // Keep tier in sync with autoTier when orders load (only when not in preview mode)
   useEffect(() => {
-    const rank: Record<string, number> = { Starter: 1, Standard: 2, Premium: 3 };
-    const max = orders.reduce((m, o) => Math.max(m, rank[o.productName] ?? 0), 0);
-    if (max >= 3) setTier("premium");
-    else if (max >= 2) setTier("standard");
-  }, [orders]);
+    if (!isPreviewMode) setTier(autoTier);
+  }, [autoTier]);
 
   useEffect(() => {
     (async () => {
