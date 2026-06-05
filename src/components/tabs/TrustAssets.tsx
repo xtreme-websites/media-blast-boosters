@@ -414,7 +414,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
           <div style={{ marginTop:".65rem", background:"#f8faff", border:"1px solid #dde8ff", borderRadius:".5rem", padding:".55rem .85rem", display:"flex", alignItems:"flex-start", gap:".5rem" }}>
             <span style={{ fontSize:"1rem", flexShrink:0 }}>ℹ️</span>
             <span style={{ fontSize:".75rem", color:"#4a5568", lineHeight:1.5 }}>
-              Your badge widget reflects your <strong>highest purchased package</strong>. Buying a higher-tier PR package automatically upgrades the media outlets displayed on your badge.
+              Media outlets displayed on your badge widget reflect your <strong>highest purchased package</strong>.
             </span>
           </div>
         </div>
