@@ -82,9 +82,9 @@ const TIER_STRATEGY: Record<string, { bestFor: string; useCase: string }> = {
 };
 
 const PACKS = [
-  { qty:3,  label:"3-Pack",  discount:null,        discountColor:"" },
-  { qty:6,  label:"6-Pack",  discount:"5% Off",    discountColor:"#0ea5e9" },
-  { qty:12, label:"12-Pack", discount:"10% Off",   discountColor:"#10b981" },
+  { qty:2,  label:"2-Pack",  discount:null,        discountColor:"" },
+  { qty:4,  label:"4-Pack",  discount:"5% Off",    discountColor:"#0ea5e9" },
+  { qty:6,  label:"6-Pack",  discount:"10% Off",   discountColor:"#10b981" },
 ];
 
 interface Credits {
@@ -391,7 +391,7 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
                   {savedCard ? (
                     <div style={{ display:"flex", flexDirection:"column", gap:".4rem" }}>
                       <button onClick={() => {
-                        const qty = 3;
+                        const qty = 2;
                         const amount = PACK_PRICES[key]?.[qty];
                         if (amount) setConfirmCharge({ tier:key, quantity:qty, amount: amount * qty });
                       }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:800, fontSize:".78rem", background:`linear-gradient(135deg,${ti.color},${ti.color}cc)`, color:"white" }}>
