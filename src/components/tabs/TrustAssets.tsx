@@ -231,6 +231,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
   const [tier, setTier] = useState<Tier>(autoTier);
   const [variations,  setVariations]  = useState<BadgeConfig[]>([]);
   const [activeId,    setActiveId]    = useState<string | null>(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [showModal,   setShowModal]   = useState(false);
   const [editingId,   setEditingId]   = useState<string | null>(null);
   const [draft,       setDraft]       = useState<BadgeConfig>({ id: "", name: "", ...EMPTY_CONFIG });
@@ -377,13 +378,12 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
           <p style={{ color:"#64748b", fontSize:".875rem" }}>Embed a professional trust badge on your website</p>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:".4rem" }}>
-          {isDevAccess && (["starter","standard","premium"] as Tier[]).map(t => (
-            <button key={t} onClick={() => setTier(t)} style={{ padding:".3rem .75rem", borderRadius:"99px", fontSize:".75rem", fontWeight:600, border: tier===t ? "1.5px solid #534AB7" : "0.5px solid #e2e8f0", background: tier===t ? "#EEEDFE" : "white", color: tier===t ? "#3C3489" : "#64748b", cursor:"pointer", transition:"all .15s", textTransform:"capitalize" }}>
+          {(["starter","standard","premium"] as Tier[]).map(t => (
+            <button key={t} onClick={() => { setTier(t); setIsPreviewMode(true); }} style={{ padding:".3rem .75rem", borderRadius:"99px", fontSize:".75rem", fontWeight:600, border: tier===t ? "1.5px solid #534AB7" : "0.5px solid #e2e8f0", background: tier===t ? "#EEEDFE" : "white", color: tier===t ? "#3C3489" : "#64748b", cursor:"pointer", transition:"all .15s", textTransform:"capitalize" }}>
               {t.charAt(0).toUpperCase()+t.slice(1)}
             </button>
           ))}
-          {isDevAccess && <span style={{ fontSize:".62rem", color:"#94a3b8", paddingLeft:"2px" }}>admin</span>}
-          {!isDevAccess && <span style={{ fontSize:".72rem", fontWeight:600, color:"#534AB7", background:"#EEEDFE", padding:".2rem .65rem", borderRadius:"99px", textTransform:"capitalize" }}>{tier}</span>}
+          <span style={{ fontSize:".62rem", color:"#94a3b8", paddingLeft:"2px" }}>Preview</span>
         </div>
       </div>
 
@@ -391,14 +391,31 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
       {active && (
         <div style={{ marginBottom:"1.25rem" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:".5rem" }}>
-            <span style={{ fontSize:".72rem", fontWeight:600, color:"#64748b", letterSpacing:".04em", textTransform:"uppercase" }}>Active badge · {active.name}</span>
-            <div style={{ display:"flex", gap:".5rem" }}>
-              <button onClick={() => copyScript(active)} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
-              <button onClick={() => openEdit(active)} className="btn-primary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><SparklesIcon size={13}/> Customize</button>
-            </div>
+            <span style={{ fontSize:".72rem", fontWeight:600, color:"#64748b", letterSpacing:".04em", textTransform:"uppercase" }}>
+              {isPreviewMode ? `Preview — ${tier} badge` : `Active badge · ${active.name}`}
+            </span>
+            {!isPreviewMode && (
+              <div style={{ display:"flex", gap:".5rem" }}>
+                <button onClick={() => copyScript(active)} className="btn-secondary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}>📋 Copy Script Tag</button>
+                <button onClick={() => openEdit(active)} className="btn-primary" style={{ fontSize:".78rem", padding:".4rem .85rem" }}><SparklesIcon size={13}/> Customize</button>
+              </div>
+            )}
           </div>
-          <div className="card" style={{ padding:"1rem", overflow:"hidden" }}>
+          <div className="card" style={{ padding:"1rem", overflow:"hidden", position:"relative" }}>
             <BadgePreview config={active} logos={logos} tier={tier}/>
+            {isPreviewMode && (
+              <div style={{ position:"absolute", inset:0, borderRadius:".75rem", overflow:"hidden", pointerEvents:"none",
+                backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Ctext transform='rotate(-45 90 90)' x='-10' y='98' fill='rgba(0%2C0%2C0%2C0.07)' font-size='16' font-family='Arial' font-weight='700' letter-spacing='6'%3EPREVIEW%3C/text%3E%3C/svg%3E")`,
+                backgroundRepeat:"repeat" }}>
+              </div>
+            )}
+          </div>
+          {/* Notification box */}
+          <div style={{ marginTop:".65rem", background:"#f8faff", border:"1px solid #dde8ff", borderRadius:".5rem", padding:".55rem .85rem", display:"flex", alignItems:"flex-start", gap:".5rem" }}>
+            <span style={{ fontSize:"1rem", flexShrink:0 }}>ℹ️</span>
+            <span style={{ fontSize:".75rem", color:"#4a5568", lineHeight:1.5 }}>
+              Your badge widget reflects your <strong>highest purchased package</strong>. Buying a higher-tier PR package automatically upgrades the media outlets displayed on your badge.
+            </span>
           </div>
         </div>
       )}
@@ -410,7 +427,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:".6rem" }}>
           {variations.map((v, idx) => (
-            <div key={v.id} onClick={() => setActiveId(v.id)} style={{ border: activeId===v.id ? "1.5px solid #534AB7" : "1px solid #e2e8f0", borderRadius:".75rem", padding:".75rem 1rem", cursor:"pointer", background: activeId===v.id ? "#fafafe" : "white", transition:"all .15s", boxShadow: activeId===v.id ? "0 0 0 3px rgba(83,74,183,.08)" : "none", display:"flex", alignItems:"center", gap:".85rem" }}>
+            <div key={v.id} onClick={() => { setActiveId(v.id); setIsPreviewMode(false); }} style={{ border: activeId===v.id ? "1.5px solid #534AB7" : "1px solid #e2e8f0", borderRadius:".75rem", padding:".75rem 1rem", cursor:"pointer", background: activeId===v.id ? "#fafafe" : "white", transition:"all .15s", boxShadow: activeId===v.id ? "0 0 0 3px rgba(83,74,183,.08)" : "none", display:"flex", alignItems:"center", gap:".85rem" }}>
               {/* Mini preview */}
               <div style={{ flexShrink:0, width:80 }}>
                 <MiniThumb config={v} tier={tier}/>
