@@ -314,17 +314,18 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
                         <div style={{ fontSize:"1.65rem", fontWeight:900, color:"#1e293b", lineHeight:1 }}>${(PACK_PRICES[key][p.qty] * p.qty).toLocaleString()}</div>
                         <div style={{ fontSize:".75rem", color:"#64748b", marginTop:".25rem" }}>${PACK_PRICES[key][p.qty].toLocaleString()} per credit</div>
                       </div>
-                      <button onClick={() => openCheckout(key, p.qty)} style={{ width:"100%", padding:".6rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", background:ti.color, color:"white", transition:"opacity .15s" }}
-                        onMouseOver={e=>e.currentTarget.style.opacity=".85"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
-                        Buy Now
-                      </button>
-                      {savedCard && (
+                      {savedCard ? (
                         <button onClick={() => {
                           const amount = PACK_PRICES[key]?.[p.qty];
                           if (amount) setConfirmCharge({ tier:key, quantity:p.qty, amount: amount * p.qty });
-                        }} style={{ width:"100%", padding:".5rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".75rem", background:`linear-gradient(135deg,${ti.color},${ti.color}cc)`, color:"white", marginTop:".4rem", opacity:.9 }}
-                          onMouseOver={e=>e.currentTarget.style.opacity="1"} onMouseOut={e=>e.currentTarget.style.opacity=".9"}>
+                        }} style={{ width:"100%", padding:".6rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", background:ti.color, color:"white", transition:"opacity .15s" }}
+                          onMouseOver={e=>e.currentTarget.style.opacity=".85"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
                           💳 Buy with ••••{savedCard.last4}
+                        </button>
+                      ) : (
+                        <button onClick={() => openCheckout(key, p.qty)} style={{ width:"100%", padding:".6rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".82rem", background:ti.color, color:"white", transition:"opacity .15s" }}
+                          onMouseOver={e=>e.currentTarget.style.opacity=".85"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
+                          Buy Now
                         </button>
                       )}
                     </div>
