@@ -269,7 +269,8 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
     try { await store.set(`mbb:variations:${locationId}`, JSON.stringify(vars)); } catch {}
   };
 
-  const logos  = LOGOS[tier];
+  // logos always from autoTier so widget creation/embed reflects actual purchased package
+  const logos  = LOGOS[autoTier];
   const active = variations.find(v => v.id === activeId) ?? variations[0];
 
   const openNew  = () => { setDraft({ id: crypto.randomUUID(), name: `Variation ${variations.length + 1}`, ...EMPTY_CONFIG }); setEditingId(null); setShowModal(true); };
@@ -291,7 +292,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
   };
 
   const copyHTML = (cfg: BadgeConfig) => {
-    navigator.clipboard.writeText(generateEmbedHTML(cfg, logos, tier));
+    navigator.clipboard.writeText(generateEmbedHTML(cfg, logos, autoTier));
     showToast("HTML copied!");
   };
 
@@ -402,7 +403,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
             )}
           </div>
           <div className="card" style={{ padding:"1rem", overflow:"hidden", position:"relative" }}>
-            <BadgePreview config={active} logos={logos} tier={tier}/>
+            <BadgePreview config={active} logos={logos} tier={isPreviewMode ? tier : autoTier}/>
             {isPreviewMode && (
               <div style={{ position:"absolute", inset:0, borderRadius:".75rem", overflow:"hidden", pointerEvents:"none",
                 backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Ctext transform='rotate(-45 90 90)' x='-10' y='98' fill='rgba(0%2C0%2C0%2C0.07)' font-size='16' font-family='Arial' font-weight='700' letter-spacing='6'%3EPREVIEW%3C/text%3E%3C/svg%3E")`,
@@ -427,10 +428,10 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:".6rem" }}>
           {variations.map((v, idx) => (
-            <div key={v.id} onClick={() => { setActiveId(v.id); setIsPreviewMode(false); }} style={{ border: activeId===v.id ? "1.5px solid #534AB7" : "1px solid #e2e8f0", borderRadius:".75rem", padding:".75rem 1rem", cursor:"pointer", background: activeId===v.id ? "#fafafe" : "white", transition:"all .15s", boxShadow: activeId===v.id ? "0 0 0 3px rgba(83,74,183,.08)" : "none", display:"flex", alignItems:"center", gap:".85rem" }}>
+            <div key={v.id} onClick={() => { setActiveId(v.id); setIsPreviewMode(false); setTier(autoTier); }} style={{ border: activeId===v.id ? "1.5px solid #534AB7" : "1px solid #e2e8f0", borderRadius:".75rem", padding:".75rem 1rem", cursor:"pointer", background: activeId===v.id ? "#fafafe" : "white", transition:"all .15s", boxShadow: activeId===v.id ? "0 0 0 3px rgba(83,74,183,.08)" : "none", display:"flex", alignItems:"center", gap:".85rem" }}>
               {/* Mini preview */}
               <div style={{ flexShrink:0, width:80 }}>
-                <MiniThumb config={v} tier={tier}/>
+                <MiniThumb config={v} tier={autoTier}/>
               </div>
               {/* Name + version */}
               <div style={{ flex:1, minWidth:0 }}>
@@ -514,7 +515,7 @@ export default function TrustAssets({ orders, locationId, showToast, credits, is
             <div style={{ marginBottom:".9rem" }}>
               <div className="field-label" style={{ marginBottom:".5rem" }}>Preview</div>
               <div style={{ background:"#f8fafc", borderRadius:".6rem", padding:"1rem", border:"0.5px solid #e2e8f0", overflow:"hidden" }}>
-                <BadgePreview config={draft} logos={logos} tier={tier} scale={0.88}/>
+                <BadgePreview config={draft} logos={logos} tier={autoTier} scale={0.88}/>
               </div>
             </div>
 
