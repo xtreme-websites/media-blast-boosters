@@ -70,9 +70,9 @@ type Tier = keyof typeof TIERS;
 
 // Per-pack pricing (volume discount per credit)
 const PACK_PRICES: Record<Tier, Record<number,number>> = {
-  starter:  { 2: 497, 4: 472, 6: 447 },
-  standard: { 2: 797, 4: 757, 6: 717 },
-  premium:  { 2: 997, 4: 947, 6: 897 },
+  starter:  { 2: 397, 4: 377, 6: 357 },
+  standard: { 2: 597, 4: 567, 6: 537 },
+  premium:  { 2: 897, 4: 852, 6: 807 },
 };
 
 const TIER_STRATEGY: Record<string, { bestFor: string; useCase: string }> = {
