@@ -366,7 +366,7 @@ export default function PRDashboard() {
       // Confirm pending credit if this was a reserved (auto-generated) order
     try {
       const submittingOrder = orders.find(o => o.id === orderId);
-      if (submittingOrder?.status === "draft_pending_review") {
+      if (orderId && submittingOrder && ["draft_pending_review","draft","scheduled"].includes(submittingOrder.status)) {
         await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
           method:"POST", headers:{"Content-Type":"application/json"},
           body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:packageType.toLowerCase(), reason:`🪄 ${prTitle}` })
@@ -584,9 +584,10 @@ export default function PRDashboard() {
             onLoadDraft={(o) => { setDraftToLoad(o); setActiveTab("pr"); }}
             onApproveAndSubmit={async (o) => {
               try {
+                // Save edited content + mark submitted
                 await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
                   method:"POST", headers:{"Content-Type":"application/json"},
-                  body: JSON.stringify({ table:"orders", operation:"update", eq:{id:o.id}, data:{ status:"submitted", submitted_at:new Date().toISOString() } })
+                  body: JSON.stringify({ table:"orders", operation:"update", eq:{id:o.id}, data:{ status:"submitted", submitted_at:new Date().toISOString(), pr_content: o.prContent, last_edited_at: new Date().toISOString() } })
                 });
                 await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
                   method:"POST", headers:{"Content-Type":"application/json"},

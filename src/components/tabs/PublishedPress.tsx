@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // Simple word-level diff for PR content comparison
 // Block-level HTML-aware diff — preserves h1/h2/p/bold/italic/links
@@ -114,6 +114,7 @@ function SeoFocusBadge({ seoFocus }: { seoFocus: string }) {
 export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onApproveAndSubmit, preOpenDraftId }: Props) {
   const [activeTab, setActiveTab] = useState<"published"|"drafts">("published");
   const [articleModal, setArticleModal] = useState<Order | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [showDiff, setShowDiff] = useState(false);
 
   // Auto-open draft if coming from auto-generate
@@ -295,7 +296,15 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                   <div style={{ fontSize:".75rem", color:"#78350f" }}>Your review and approval are required. You have until the scheduled date to approve or edit. After that, it will be automatically submitted for distribution.</div>
                 </div>
                 <div style={{ display:"flex", gap:".5rem", flexShrink:0 }}>
-                  <button onClick={() => { onApproveAndSubmit?.(articleModal!); setArticleModal(null); setShowDiff(false); }}
+                  <button onClick={() => {
+                      const edited = contentRef.current?.innerHTML;
+                      const orderToSubmit = edited && edited !== articleModal!.prContent
+                        ? { ...articleModal!, prContent: edited }
+                        : articleModal!;
+                      onApproveAndSubmit?.(orderToSubmit);
+                      setArticleModal(null);
+                      setShowDiff(false);
+                    }}
                     style={{ padding:".4rem .85rem", borderRadius:".4rem", border:"none", background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", fontSize:".78rem", fontWeight:700, cursor:"pointer" }}>
                     ✅ Approve & Submit
                   </button>
@@ -345,6 +354,7 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                     </div>
                   )}
                   <div
+                    ref={contentRef}
                     contentEditable={!isReadOnly && !showDiff}
                     suppressContentEditableWarning
                     style={{ overflowY:"auto", padding:"2rem 2.25rem", flex:1, outline:"none", cursor: isReadOnly ? "default" : "text",
