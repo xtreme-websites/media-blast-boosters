@@ -367,10 +367,19 @@ export default function PRDashboard() {
     try {
       const submittingOrder = orders.find(o => o.id === orderId);
       if (orderId && submittingOrder && ["draft_pending_review","draft","scheduled"].includes(submittingOrder.status)) {
-        await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+        const ccRes = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
           method:"POST", headers:{"Content-Type":"application/json"},
           body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:packageType.toLowerCase(), reason:`🪄 ${prTitle}` })
         });
+        try {
+          const ccData = await ccRes.json();
+          if (ccData?.data?.is_override && orderId) {
+            await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+              method:"POST", headers:{"Content-Type":"application/json"},
+              body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: orderId }, data:{ is_override_credit: true } })
+            });
+          }
+        } catch {}
       }
     } catch {}
     try {
@@ -589,10 +598,19 @@ export default function PRDashboard() {
                   method:"POST", headers:{"Content-Type":"application/json"},
                   body: JSON.stringify({ table:"orders", operation:"update", eq:{id:o.id}, data:{ status:"submitted", submitted_at:new Date().toISOString(), pr_content: o.prContent, last_edited_at: new Date().toISOString() } })
                 });
-                await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                const ccRes2 = await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
                   method:"POST", headers:{"Content-Type":"application/json"},
                   body: JSON.stringify({ table:"profiles", operation:"confirm_credit", location_id:locationId, tier:(o.productName||"starter").toLowerCase(), reason:`🪄 ${o.prTitle||"Press Release"}` })
                 });
+                try {
+                  const ccData2 = await ccRes2.json();
+                  if (ccData2?.data?.is_override) {
+                    await fetch("https://rsaoscgotumlvsbzwdiy.supabase.co/functions/v1/supabase-proxy", {
+                      method:"POST", headers:{"Content-Type":"application/json"},
+                      body: JSON.stringify({ table:"orders", operation:"update", eq:{ id: o.id }, data:{ is_override_credit: true } })
+                    });
+                  }
+                } catch {}
               } catch {}
               setOrders(prev => prev.map(x => x.id===o.id ? {...x, status:"submitted" as any, submittedAt:new Date().toISOString()} : x));
               showToast("✅ PR approved and submitted for distribution!");

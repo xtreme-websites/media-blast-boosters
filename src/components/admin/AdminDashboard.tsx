@@ -1,5 +1,54 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, adminPost, ADMIN_REVENUE, ADMIN_CREDITS } from "../../lib/supabase-admin";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+const STRIPE_PK_LIVE = "pk_live_jem1i1ni1P4sQXEJTkgNSx8z";
+const STRIPE_PK_TEST = "pk_test_FiKXMJBxEKrQqyMqdAILoROR";
+const adminStripe = loadStripe(STRIPE_PK_LIVE);
+
+// Stripe card setup form for admin billing
+function AdminCardSetupInner({ onSuccess, onCancel }: { onSuccess:(pmId:string)=>void; onCancel:()=>void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [saving, setSaving] = React.useState(false);
+  const [cardErr, setCardErr] = React.useState("");
+  const confirmSetup = async () => {
+    if (!stripe || !elements) return;
+    setSaving(true); setCardErr("");
+    const cardEl = elements.getElement(CardElement);
+    if (!cardEl) { setSaving(false); return; }
+    const { setupIntent, error } = await stripe.confirmCardSetup(
+      (elements as any)._commonOptions?.clientSecret || "",
+      { payment_method: { card: cardEl } }
+    );
+    if (error) { setCardErr(error.message || "Card setup failed"); setSaving(false); return; }
+    if (setupIntent?.payment_method) onSuccess(setupIntent.payment_method as string);
+    setSaving(false);
+  };
+  return (
+    <div>
+      <div style={{ border:"1.5px solid #e2e8f0", borderRadius:".5rem", padding:".75rem 1rem", marginBottom:".65rem", background:"white" }}>
+        <CardElement options={{ style:{ base:{ fontSize:"15px", color:"#1e293b", "::placeholder":{ color:"#94a3b8" } } } }} />
+      </div>
+      {cardErr && <div style={{ fontSize:".78rem", color:"#dc2626", marginBottom:".5rem" }}>{cardErr}</div>}
+      <div style={{ display:"flex", gap:".5rem" }}>
+        <button onClick={onCancel} style={{ padding:".5rem 1rem", borderRadius:".45rem", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:".82rem", color:"#64748b" }}>Cancel</button>
+        <button onClick={confirmSetup} disabled={saving} style={{ padding:".5rem 1.25rem", borderRadius:".45rem", border:"none", background:saving?"#e2e8f0":"linear-gradient(135deg,#6366f1,#8929bd)", color:saving?"#94a3b8":"white", fontWeight:700, fontSize:".82rem", cursor:saving?"not-allowed":"pointer" }}>
+          {saving ? "Saving…" : "Save Card"}
+        </button>
+      </div>
+    </div>
+  );
+}
+function AdminCardSetup({ clientSecret, onSuccess, onCancel }: { clientSecret:string; onSuccess:(pmId:string)=>void; onCancel:()=>void }) {
+  return (
+    <Elements stripe={adminStripe} options={{ clientSecret }}>
+      <AdminCardSetupInner onSuccess={onSuccess} onCancel={onCancel} />
+    </Elements>
+  );
+}
+
 import type { Session } from "@supabase/supabase-js";
 import RichEditor, { RichToolbar } from "../RichEditor";
 
@@ -699,7 +748,10 @@ export default function AdminDashboard() {
         }
       }
       if (tab === "settings") {
-        const d = await adminPost("get_settings", {}, session.access_token);
+        const [d, billing] = await Promise.all([
+          adminPost("get_settings", {}, session.access_token),
+          adminPost("get_admin_billing", {}, session.access_token),
+        ]);
         if (!d.error) {
           setSettings(d.settings);
           setAdminUsers(d.admin_users || []);
@@ -710,6 +762,7 @@ export default function AdminDashboard() {
           setNotifEmails(extras);
           setAdminNotifEmail(d.settings?.admin_notification_email || primary);
         }
+        if (billing?.ok) { setAdminCard(billing.card || null); setPendingCharges(billing.pending_charges || []); }
       }
     } catch {}
     setLoading(false);
@@ -791,6 +844,13 @@ export default function AdminDashboard() {
   const [partnerInviteEmail, setPartnerInviteEmail] = useState("");
   const [partnerInviteName,  setPartnerInviteName]  = useState("");
   const [partnerInviting,    setPartnerInviting]    = useState(false);
+  // Admin billing
+  const [adminCard,          setAdminCard]          = useState<any>(null);
+  const [pendingCharges,     setPendingCharges]     = useState<any[]>([]);
+  const [setupClientSecret,  setSetupClientSecret]  = useState<string|null>(null);
+  const [confirmCharge,      setConfirmCharge]      = useState<any>(null);
+  const [chargingId,         setChargingId]         = useState<string|null>(null);
+  const [billingLoading,     setBillingLoading]     = useState(false);
 
   const inviteAdmin = async () => {
     if (!inviteEmail || !invitePass || !session) return;
@@ -2173,7 +2233,126 @@ const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} 
               Save Settings
             </button>
 
-            {/* Add Admin User */}
+            {/* ── Pending Charges ── */}
+          {pendingCharges.length > 0 && (
+            <div style={{ background:"#fffbeb", border:"1.5px solid #fde68a", borderRadius:".75rem", padding:"1.25rem 1.5rem", marginBottom:"1rem" }}>
+              <div style={{ fontWeight:800, fontSize:"1rem", color:"#92400e", marginBottom:".6rem" }}>
+                ⚠️ {pendingCharges.length} Pending Charge{pendingCharges.length>1?"s":""} — Partner Payout Awaiting Approval
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:".5rem" }}>
+                {pendingCharges.map((ch:any) => (
+                  <div key={ch.id} style={{ background:"white", borderRadius:".5rem", border:"1px solid #fde68a", padding:".75rem 1rem", display:"flex", alignItems:"center", gap:".85rem", flexWrap:"wrap" }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:".88rem", color:"#1e293b" }}>{ch.company_name || ch.location_id}</div>
+                      <div style={{ fontSize:".75rem", color:"#64748b", marginTop:".1rem" }}>
+                        {ch.tier.charAt(0).toUpperCase()+ch.tier.slice(1)} PR · Partner payout: <strong>${ch.payout_amount}</strong>
+                      </div>
+                    </div>
+                    <div style={{ fontSize:".72rem", color:"#94a3b8" }}>{new Date(ch.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</div>
+                    <button onClick={() => setConfirmCharge(ch)}
+                      style={{ padding:".4rem 1rem", borderRadius:".45rem", border:"none", background:"linear-gradient(135deg,#d97706,#b45309)", color:"white", fontWeight:700, fontSize:".78rem", cursor:"pointer", flexShrink:0 }}>
+                      💳 Approve & Charge
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Company Billing ── */}
+          <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.5rem", marginBottom:"1rem" }}>
+            <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".3rem" }}>💳 Company Billing Card</div>
+            <div style={{ fontSize:".82rem", color:"#64748b", lineHeight:1.55, marginBottom:"1rem" }}>
+              This card is charged for partner payouts when you give a client a free credit override. The partner still gets paid — this card covers the cost.
+            </div>
+            {adminCard ? (
+              <div>
+                <div style={{ display:"flex", alignItems:"center", gap:".85rem", background:"#f8faff", border:"1px solid #dde8ff", borderRadius:".5rem", padding:".75rem 1rem", marginBottom:".75rem" }}>
+                  <span style={{ fontSize:"1.5rem" }}>💳</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:".9rem", color:"#1e293b", textTransform:"capitalize" }}>{adminCard.brand} ••••{adminCard.last4}</div>
+                    <div style={{ fontSize:".75rem", color:"#64748b" }}>Expires {adminCard.exp_month}/{adminCard.exp_year}</div>
+                  </div>
+                  <button onClick={async () => {
+                    if (!confirm("Remove this card?") || !session) return;
+                    const d = await adminPost("remove_admin_card", {}, session.access_token);
+                    if (d.ok) { setAdminCard(null); showToast("Card removed"); }
+                    else showToast(d.error || "Failed to remove", "error");
+                  }} style={{ padding:".35rem .75rem", borderRadius:".4rem", border:"1px solid #fecaca", background:"white", color:"#dc2626", cursor:"pointer", fontSize:".78rem", fontWeight:600 }}>
+                    Remove
+                  </button>
+                </div>
+                <div style={{ fontSize:".75rem", color:"#64748b" }}>Card is saved and ready. You'll be prompted to confirm before any charge is made.</div>
+              </div>
+            ) : (
+              <div>
+                {!setupClientSecret ? (
+                  <button onClick={async () => {
+                    if (!session) return;
+                    setBillingLoading(true);
+                    try {
+                      const d = await adminPost("create_admin_setup_intent", {}, session.access_token);
+                      if (d.ok) setSetupClientSecret(d.client_secret);
+                      else showToast(d.error || "Failed to start card setup", "error");
+                    } catch { showToast("Failed to start card setup", "error"); }
+                    setBillingLoading(false);
+                  }} disabled={billingLoading} style={{ padding:".55rem 1.25rem", borderRadius:".5rem", border:"none", background: billingLoading ? "#e2e8f0" : "linear-gradient(135deg,#6366f1,#8929bd)", color: billingLoading ? "#94a3b8" : "white", fontWeight:700, fontSize:".84rem", cursor: billingLoading ? "not-allowed" : "pointer" }}>
+                    {billingLoading ? "Loading…" : "➕ Add Credit Card"}
+                  </button>
+                ) : (
+                  <AdminCardSetup clientSecret={setupClientSecret}
+                    onSuccess={async (pmId:string) => {
+                      if (!session) return;
+                      const d = await adminPost("save_admin_card", { payment_method_id: pmId }, session.access_token);
+                      if (d.ok) { setAdminCard({ brand:d.brand, last4:d.last4, exp_month:d.exp_month, exp_year:d.exp_year }); setSetupClientSecret(null); showToast("Card saved ✓"); }
+                      else showToast(d.error || "Failed to save card", "error");
+                    }}
+                    onCancel={() => setSetupClientSecret(null)}
+                  />
+                )}
+                <div style={{ fontSize:".75rem", color:"#94a3b8", marginTop:".5rem" }}>No card on file. A card is required to process partner payouts for credit overrides.</div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Charge Confirmation Modal ── */}
+          {confirmCharge && (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
+              <div style={{ background:"white", borderRadius:"1rem", padding:"2rem", maxWidth:420, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,.3)" }}>
+                <div style={{ fontSize:"1.5rem", marginBottom:".75rem" }}>💳</div>
+                <div style={{ fontWeight:900, fontSize:"1.1rem", color:"#1e293b", marginBottom:".5rem" }}>Confirm Partner Payout</div>
+                <div style={{ fontSize:".88rem", color:"#475569", lineHeight:1.65, marginBottom:"1.25rem" }}>
+                  <strong>{confirmCharge.company_name || confirmCharge.location_id}</strong> had their {confirmCharge.tier} PR published using a complimentary credit.
+                  <br/><br/>
+                  {adminCard ? (
+                    <span>This will charge <strong>${confirmCharge.payout_amount}</strong> to your {adminCard.brand} ••••{adminCard.last4} and release the partner payout.</span>
+                  ) : (
+                    <span style={{ color:"#dc2626" }}>⚠️ No card on file. Please add a card in Settings before approving.</span>
+                  )}
+                </div>
+                <div style={{ display:"flex", gap:".75rem" }}>
+                  <button onClick={() => setConfirmCharge(null)} style={{ flex:1, padding:".6rem", borderRadius:".5rem", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", fontWeight:600, fontSize:".85rem", color:"#64748b" }}>
+                    Cancel
+                  </button>
+                  <button disabled={!adminCard || chargingId===confirmCharge.id} onClick={async () => {
+                    if (!adminCard || !session) return;
+                    setChargingId(confirmCharge.id);
+                    const d = await adminPost("approve_pending_charge", { charge_id: confirmCharge.id }, session.access_token);
+                    if (d.ok) {
+                      setPendingCharges(prev => prev.filter((c:any) => c.id !== confirmCharge.id));
+                      showToast(`✅ $${confirmCharge.payout_amount} charged — partner payout released`);
+                      setConfirmCharge(null);
+                    } else showToast(d.error || "Charge failed", "error");
+                    setChargingId(null);
+                  }} style={{ flex:1, padding:".6rem", borderRadius:".5rem", border:"none", background: !adminCard || chargingId===confirmCharge.id ? "#e2e8f0" : "linear-gradient(135deg,#d97706,#b45309)", color: !adminCard || chargingId===confirmCharge.id ? "#94a3b8" : "white", cursor: !adminCard || chargingId===confirmCharge.id ? "not-allowed" : "pointer", fontWeight:700, fontSize:".85rem" }}>
+                    {chargingId===confirmCharge.id ? "Charging…" : `Confirm $${confirmCharge.payout_amount} Charge`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add Admin User */}
             <div style={{ marginTop:"2rem", paddingTop:"2rem", borderTop:"1px solid #f1f5f9" }}>
               <h3 style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", margin:"0 0 .35rem" }}>👤 Add Admin User</h3>
               <p style={{ fontSize:".8rem", color:"#64748b", margin:"0 0 1rem", lineHeight:1.5 }}>
