@@ -2259,6 +2259,8 @@ const fmtSize = (bytes: number) => bytes>1048576?`${(bytes/1048576).toFixed(1)} 
             </div>
           )}
 
+          <div style={{ height:"1px", background:"#f1f5f9", margin:"1rem 0" }}/>
+
           {/* ── Company Billing ── */}
           <div style={{ background:"white", borderRadius:".75rem", border:"1px solid #f1f5f9", padding:"1.5rem", marginBottom:"1rem" }}>
             <div style={{ fontWeight:800, fontSize:"1rem", color:"#1e293b", marginBottom:".3rem" }}>💳 Company Billing Card</div>

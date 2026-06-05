@@ -259,6 +259,7 @@ export default function PRCreator({
   const [showStrategyWarning,  setShowStrategyWarning]  = useState(false);
   const [selectedTier,         setSelectedTierState]    = useState<PRTier>("Standard");
   const [credits,              setCredits]              = useState<Record<string,number>>({ starter_credits:0, standard_credits:0, premium_credits:0 });
+  const [creditsLoaded,        setCreditsLoaded]        = useState(false);
   const [isRejectedDraft,      setIsRejectedDraft]      = useState(false);
 
   // Load draft data when coming from Drafts tab
@@ -350,7 +351,7 @@ export default function PRCreator({
     if (!locationId) return;
     fetch(PROXY, { method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ table:"profiles", operation:"select", eq:{ location_id:locationId } }) })
-      .then(r => r.json()).then(d => { if (d.data) setCredits(d.data); }).catch(() => {});
+      .then(r => r.json()).then(d => { if (d.data) setCredits(d.data); setCreditsLoaded(true); }).catch(() => { setCreditsLoaded(true); });
   }, [locationId]);
 
   const setSelectedTier = (tier: PRTier) => {
@@ -744,7 +745,7 @@ RULES:
                       <div style={{ fontSize: ".7rem", color: "#64748b", lineHeight: 1.4 }}>
                         {cfg.outlets} outlets · {cfg.words} words<br/>{cfg.readers} readers · DA {cfg.authority}
                       </div>
-                      {isSelected && noCredits && (
+                      {isSelected && noCredits && creditsLoaded && (
                         <div style={{ marginTop:".5rem", fontSize:".7rem", color:cfg.color, fontWeight:600, textAlign:"center" }}>
                           ↓ See below to add credits
                         </div>
