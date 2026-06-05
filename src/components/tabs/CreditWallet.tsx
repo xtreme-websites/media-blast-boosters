@@ -318,6 +318,15 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
                         onMouseOver={e=>e.currentTarget.style.opacity=".85"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
                         Buy Now
                       </button>
+                      {savedCard && (
+                        <button onClick={() => {
+                          const amount = PACK_PRICES[key]?.[p.qty];
+                          if (amount) setConfirmCharge({ tier:key, quantity:p.qty, amount: amount * p.qty });
+                        }} style={{ width:"100%", padding:".5rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:700, fontSize:".75rem", background:`linear-gradient(135deg,${ti.color},${ti.color}cc)`, color:"white", marginTop:".4rem", opacity:.9 }}
+                          onMouseOver={e=>e.currentTarget.style.opacity="1"} onMouseOut={e=>e.currentTarget.style.opacity=".9"}>
+                          💳 Buy with ••••{savedCard.last4}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -387,28 +396,12 @@ export default function CreditWallet({ locationId, showToast, onNavigateToPR, sa
                       </div>
                     ))}
                   </div>
-                  {/* Card on file = primary; Checkout = secondary */}
-                  {savedCard ? (
-                    <div style={{ display:"flex", flexDirection:"column", gap:".4rem" }}>
-                      <button onClick={() => {
-                        const qty = 2;
-                        const amount = PACK_PRICES[key]?.[qty];
-                        if (amount) setConfirmCharge({ tier:key, quantity:qty, amount: amount * qty });
-                      }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:"none", cursor:"pointer", fontWeight:800, fontSize:".78rem", background:`linear-gradient(135deg,${ti.color},${ti.color}cc)`, color:"white" }}>
-                        💳 Buy with ••••{savedCard.last4}
-                      </button>
-                      <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }}
-                        style={{ width:"100%", padding:".4rem", borderRadius:".45rem", border:`1px solid ${ti.color}`, cursor:"pointer", fontWeight:600, fontSize:".73rem", background:"transparent", color:ti.color }}>
-                        {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
-                      </button>
-                    </div>
-                  ) : (
-                    <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:`1.5px solid ${ti.color}`, cursor:"pointer", fontWeight:700, fontSize:".78rem", background:"transparent", color:ti.color, transition:"all .15s" }}
-                      onMouseOver={e=>{ e.currentTarget.style.background=ti.color; e.currentTarget.style.color="white"; }}
-                      onMouseOut={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=ti.color; }}>
-                      {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
-                    </button>
-                  )}
+                  {/* Credits tab always navigates to Packages tab */}
+                  <button onClick={() => { setActiveTab("packages"); setActiveTier(key); }} style={{ width:"100%", padding:".55rem", borderRadius:".45rem", border:`1.5px solid ${ti.color}`, cursor:"pointer", fontWeight:700, fontSize:".78rem", background:"transparent", color:ti.color, transition:"all .15s" }}
+                    onMouseOver={e=>{ e.currentTarget.style.background=ti.color; e.currentTarget.style.color="white"; }}
+                    onMouseOut={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=ti.color; }}>
+                    {bal > 0 ? "➕ Add More" : "🚀 Get Started"}
+                  </button>
                 </div>
               );
             })}
