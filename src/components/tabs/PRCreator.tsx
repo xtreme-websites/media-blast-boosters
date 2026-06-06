@@ -757,7 +757,7 @@ RULES:
             </div>
             {/* ── ALL FIELDS BELOW — disabled when no credits ── */}
             <div style={{ position:"relative" }}>
-              {tierCredits(selectedTier) === 0 && (
+              {tierCredits(selectedTier) === 0 && creditsLoaded && (
                 <div style={{ position:"absolute", inset:0, zIndex:10, borderRadius:".75rem", background:"rgba(248,250,252,0.7)", backdropFilter:"blur(1px)", cursor:"not-allowed", display:"flex", alignItems:"flex-start", justifyContent:"center", paddingTop:"3rem" }}>
                   <div style={{ background:"white", border:"1.5px solid #fecaca", borderRadius:".75rem", padding:".75rem 1.25rem", display:"flex", alignItems:"center", gap:".6rem", boxShadow:"0 4px 16px rgba(0,0,0,.08)" }}>
                     <span style={{ fontSize:"1.1rem" }}>🔒</span>
