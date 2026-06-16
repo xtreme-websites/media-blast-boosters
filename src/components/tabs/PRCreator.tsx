@@ -545,10 +545,14 @@ RULES:
 - All h2 headings (About, Contact, and quote attributions) use <h2> tags.
 - Contact details: output each one as its own <p> tag — NO labels like "Email:", "Phone:", "Address:", "Website:". Just the raw value.
 - Do NOT add "Learn more at...", "Visit our website", "Visit ${siteUrl}", or ANY website URL or link inside the About section paragraph.
+- Do NOT mention, reference, or link to any video URL or YouTube link anywhere in the article body — the video will be embedded separately.
+- Return ONLY raw HTML. Do NOT wrap output in markdown code fences (no ```html or ```).
 - Make it genuinely newsworthy and professionally written.`;
 
-      const text = await callClaude(prompt, "You are an expert PR writer at a top agency. Write polished, publish-ready HTML press releases.", 2000);
-      if (!text) throw new Error("Empty response from AI — please try again.");
+      const rawText = await callClaude(prompt, "You are an expert PR writer at a top agency. Write polished, publish-ready HTML press releases.", 2000);
+      if (!rawText) throw new Error("Empty response from AI — please try again.");
+      // Strip markdown code fences if the model wrapped the output
+      const text = rawText.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
       const enriched = injectEmbeds(text, prFormData.videoUrl, prFormData.mapsEmbed);
       setGeneratedPR(enriched);
       setShowGeneratedView(true);
