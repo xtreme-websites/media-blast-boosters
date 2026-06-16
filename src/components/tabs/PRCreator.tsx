@@ -545,6 +545,7 @@ RULES:
 - Make it genuinely newsworthy and professionally written.`;
 
       const text = await callClaude(prompt, "You are an expert PR writer at a top agency. Write polished, publish-ready HTML press releases.", 2000);
+      if (!text) throw new Error("Empty response from AI — please try again.");
       const enriched = injectEmbeds(text, prFormData.videoUrl, prFormData.mapsEmbed);
       setGeneratedPR(enriched);
       setShowGeneratedView(true);
@@ -552,8 +553,9 @@ RULES:
       showToast("Press release generated!");
       // Start pulsating CTA after 30 seconds
       setTimeout(() => setCtaPulse(true), 30000);
-    } catch {
-      showToast("Generation failed — please try again", "error");
+    } catch (err: any) {
+      const msg = err?.message || "Generation failed — please try again";
+      showToast(msg, "error");
     }
     setIsLoading(false);
   };
