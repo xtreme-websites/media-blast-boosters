@@ -37,6 +37,75 @@ function KeywordTagInput({ keywords, onChange, maxKeywords = 2 }: { keywords: st
 // ─── KeywordPicker — 4 source sections ───────────────────────────────────────
 import type { ServicePage, LocationPage } from "../../lib/constants";
 
+// ── YouTube / Maps embed helpers ──────────────────────────────────────
+function extractYoutubeId(url: string): string | null {
+  const patterns = [
+    /[?&]v=([^&]+)/,
+    /youtu\.be\/([^?#]+)/,
+    /youtube\.com\/embed\/([^?#]+)/,
+    /youtube\.com\/v\/([^?#]+)/,
+    /youtube\.com\/shorts\/([^?#]+)/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function isYoutubeUrl(url: string): boolean {
+  return /youtube\.com|youtu\.be/i.test(url);
+}
+
+function isGoogleMapsUrl(url: string): boolean {
+  return /google\.com\/maps|maps\.google\.com|maps\.app\.goo\.gl/i.test(url);
+}
+
+function buildYoutubeEmbed(videoId: string): string {
+  return `<div style="position:relative;width:100%;padding-bottom:56.25%;margin:1.5rem 0;border-radius:.5rem;overflow:hidden"><iframe src="https://www.youtube.com/embed/${videoId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" title="Video"></iframe></div>`;
+}
+
+function normalizeMapsEmbed(raw: string): string {
+  // Make width 100% and height 400 for responsiveness
+  return raw
+    .replace(/width=["']\d+["']/i, 'width="100%"')
+    .replace(/height=["']\d+["']/i, 'height="400"')
+    .replace(/style=["']([^"']*)["']/i, 'style="border:0;border-radius:.5rem;"');
+}
+
+function injectEmbeds(html: string, videoUrl: string, mapsEmbed: string): string {
+  let result = html;
+
+  // YouTube — inject before first <blockquote (CEO quote)
+  if (videoUrl) {
+    const videoId = extractYoutubeId(videoUrl);
+    if (videoId) {
+      const embed = buildYoutubeEmbed(videoId);
+      const bqIdx = result.indexOf('<blockquote');
+      if (bqIdx > -1) {
+        result = result.slice(0, bqIdx) + embed + result.slice(bqIdx);
+      } else {
+        // Fallback: inject before the last <p> (about section area)
+        const lastP = result.lastIndexOf('<p');
+        result = lastP > -1
+          ? result.slice(0, lastP) + embed + result.slice(lastP)
+          : result + embed;
+      }
+    }
+  }
+
+  // Google Maps — inject at very end
+  const trimmed = mapsEmbed.trim();
+  if (trimmed.startsWith('<iframe')) {
+    const normalized = normalizeMapsEmbed(trimmed);
+    result += `
+<div style="margin-top:2rem">${normalized}</div>`;
+  }
+
+  return result;
+}
+
+
 function splitIndustryKws(industry: string): string[] {
   if (!industry) return [];
   // Split on: " and ", " & ", "/", ",", " or "
@@ -476,7 +545,8 @@ RULES:
 - Make it genuinely newsworthy and professionally written.`;
 
       const text = await callClaude(prompt, "You are an expert PR writer at a top agency. Write polished, publish-ready HTML press releases.", 2000);
-      setGeneratedPR(text);
+      const enriched = injectEmbeds(text, prFormData.videoUrl, prFormData.mapsEmbed);
+      setGeneratedPR(enriched);
       setShowGeneratedView(true);
       setCtaPulse(false);
       showToast("Press release generated!");
@@ -1080,12 +1150,29 @@ RULES:
                 </div>
                 <div>
                   <label className="field-label">YouTube URL</label>
-                  <input type="url" value={prFormData.videoUrl} onChange={e => setPrFormData(p => ({ ...p, videoUrl: e.target.value }))} placeholder="https://youtube.com/..." className="field-input"/>
+                  <input type="url" value={prFormData.videoUrl} onChange={e => setPrFormData(p => ({ ...p, videoUrl: e.target.value }))} placeholder="https://youtube.com/watch?v=..." className="field-input"/>
+                  {prFormData.videoUrl && !isYoutubeUrl(prFormData.videoUrl) && (
+                    <div style={{ fontSize:".72rem", color:"#ef4444", marginTop:".3rem" }}>⚠️ Please enter a YouTube URL (youtube.com or youtu.be).</div>
+                  )}
+                  {prFormData.videoUrl && isYoutubeUrl(prFormData.videoUrl) && !extractYoutubeId(prFormData.videoUrl) && (
+                    <div style={{ fontSize:".72rem", color:"#ef4444", marginTop:".3rem" }}>⚠️ Couldn't detect the video ID — try copying the full URL from your browser.</div>
+                  )}
+                  {prFormData.videoUrl && isYoutubeUrl(prFormData.videoUrl) && extractYoutubeId(prFormData.videoUrl) && (
+                    <div style={{ fontSize:".72rem", color:"#10b981", marginTop:".3rem" }}>✓ Video detected — will appear above the CEO quote in the article.</div>
+                  )}
                 </div>
               </div>
               <div style={{ marginTop: ".75rem" }}>
                 <label className="field-label">Google Maps Embed</label>
-                <textarea value={prFormData.mapsEmbed} onChange={e => setPrFormData(p => ({ ...p, mapsEmbed: e.target.value }))} placeholder="Paste Google Maps embed code here..." className="field-input" style={{ height: "70px", resize: "vertical" }}/>
+                <textarea value={prFormData.mapsEmbed} onChange={e => setPrFormData(p => ({ ...p, mapsEmbed: e.target.value }))} placeholder='Paste the <iframe> embed code from Google Maps...' className="field-input" style={{ height: "70px", resize: "vertical" }}/>
+                {prFormData.mapsEmbed && !prFormData.mapsEmbed.trim().startsWith("<iframe") && (
+                  isGoogleMapsUrl(prFormData.mapsEmbed)
+                    ? <div style={{ fontSize:".72rem", color:"#ef4444", marginTop:".3rem" }}>⚠️ This looks like a Google Maps URL. In Google Maps, click <strong>Share → Embed a map</strong> and paste the <code>&lt;iframe&gt;</code> code instead.</div>
+                    : <div style={{ fontSize:".72rem", color:"#ef4444", marginTop:".3rem" }}>⚠️ Please paste the full <code>&lt;iframe&gt;</code> embed code from Google Maps, not a URL.</div>
+                )}
+                {prFormData.mapsEmbed && prFormData.mapsEmbed.trim().startsWith("<iframe") && (
+                  <div style={{ fontSize:".72rem", color:"#10b981", marginTop:".3rem" }}>✓ Map embed detected — will appear at the end of the article.</div>
+                )}
               </div>
             </details>
 
