@@ -171,7 +171,7 @@ export default function PublishedPress({ orders, onLoadDraft, onDeleteDraft, onA
                 {published.map((order, i) => {
                   const sc = STATUS_CONFIG[order.status || "submitted"] || STATUS_CONFIG.submitted;
                   const submittedDt = new Date((order as any).submitted_at || order.date);
-                  const publishedDt = (order as any).published_date ? new Date((order as any).published_date) : null;
+                  const publishedDt = ((order as any).publishedDate || (order as any).published_date) ? new Date((order as any).publishedDate || (order as any).published_date) : null;
                   const isLast = i === published.length - 1;
                   const c  = (e: React.CSSProperties={}) => td({...e, borderBottom: isLast?"none":"1px solid #f8fafc"});
                   const cl = (e: React.CSSProperties={}) => tdLast({...e, borderBottom: isLast?"none":"1px solid #f8fafc"});
