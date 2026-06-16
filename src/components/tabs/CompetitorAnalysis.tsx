@@ -118,6 +118,28 @@ Replace example numbers with realistic varied scores 0-100. Include exactly 3 co
             </ResponsiveContainer>
           </div>
 
+          {/* Metrics legend */}
+          <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:".75rem", padding:"1rem 1.25rem" }}>
+            <div style={{ fontSize:".7rem", fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".08em", marginBottom:".65rem" }}>What each metric measures</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:".5rem .75rem" }}>
+              {[
+                { label:"AI Citation", icon:"🤖", desc:"How often AI systems like ChatGPT and Perplexity cite your brand in relevant queries." },
+                { label:"Media Authority", icon:"📰", desc:"The credibility and domain authority of outlets that have published coverage about you." },
+                { label:"News Volume", icon:"📊", desc:"Total number of press mentions and news articles over the tracking period." },
+                { label:"Sentiment", icon:"💬", desc:"Overall tone of your media coverage — from negative through neutral to positive." },
+                { label:"Topic Leadership", icon:"🏆", desc:"How often your brand is positioned as a primary source or thought leader on industry topics." },
+              ].map(m => (
+                <div key={m.label} style={{ display:"flex", gap:".5rem", alignItems:"flex-start" }}>
+                  <span style={{ fontSize:".9rem", flexShrink:0, marginTop:"1px" }}>{m.icon}</span>
+                  <div>
+                    <span style={{ fontSize:".75rem", fontWeight:700, color:"#374151" }}>{m.label} — </span>
+                    <span style={{ fontSize:".75rem", color:"#64748b", lineHeight:1.5 }}>{m.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Competitor cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(195px,1fr))", gap: "1rem" }}>
             {competitorData.competitors.map((c, i) => (
