@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { callClaude } from "../../lib/ai";
 import { supabase } from "../../lib/supabase";
@@ -118,27 +118,44 @@ Replace example numbers with realistic varied scores 0-100. Include exactly 3 co
             </ResponsiveContainer>
           </div>
 
-          {/* Metrics legend */}
-          <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:".75rem", padding:"1rem 1.25rem" }}>
-            <div style={{ fontSize:".7rem", fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".08em", marginBottom:".65rem" }}>What each metric measures</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:".5rem .75rem" }}>
-              {[
-                { label:"AI Citation", icon:"🤖", desc:"How often AI systems like ChatGPT and Perplexity cite your brand in relevant queries." },
-                { label:"Media Authority", icon:"📰", desc:"The credibility and domain authority of outlets that have published coverage about you." },
-                { label:"News Volume", icon:"📊", desc:"Total number of press mentions and news articles over the tracking period." },
-                { label:"Sentiment", icon:"💬", desc:"Overall tone of your media coverage — from negative through neutral to positive." },
-                { label:"Topic Leadership", icon:"🏆", desc:"How often your brand is positioned as a primary source or thought leader on industry topics." },
-              ].map(m => (
-                <div key={m.label} style={{ display:"flex", gap:".5rem", alignItems:"flex-start" }}>
-                  <span style={{ fontSize:".9rem", flexShrink:0, marginTop:"1px" }}>{m.icon}</span>
-                  <div>
-                    <span style={{ fontSize:".75rem", fontWeight:700, color:"#374151" }}>{m.label} — </span>
-                    <span style={{ fontSize:".75rem", color:"#64748b", lineHeight:1.5 }}>{m.desc}</span>
+          {/* Metrics legend — vertical tabs */}
+          {(() => {
+            const METRICS = [
+              { label:"AI Citation",      icon:"🤖", desc:"Measures how frequently your brand is mentioned or cited by AI systems like ChatGPT, Perplexity, and Gemini when users ask questions relevant to your industry. A higher score means AI is actively recommending your brand as a trusted source." },
+              { label:"Media Authority",  icon:"📰", desc:"Reflects the credibility and domain authority of the news outlets that have published coverage about you. Coverage from high-authority outlets like Forbes or Reuters scores higher than low-authority blogs." },
+              { label:"News Volume",      icon:"📊", desc:"The total count of press mentions, news articles, and media coverage published about your brand over the tracking period. Higher volume indicates broader media presence and active press activity." },
+              { label:"Sentiment",        icon:"💬", desc:"Analyzes the overall emotional tone of your media coverage — ranging from negative to neutral to positive. A high sentiment score means the majority of coverage frames your brand favorably." },
+              { label:"Topic Leadership", icon:"🏆", desc:"Measures how often your brand is cited as a primary source, expert voice, or thought leader on key industry topics. High scores indicate your brand shapes conversations rather than just participating in them." },
+            ];
+            const [activeMetric, setActiveMetric] = React.useState(0);
+            return (
+              <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:".75rem", overflow:"hidden" }}>
+                <div style={{ padding:".75rem 1.1rem .5rem", fontSize:".68rem", fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".08em" }}>What each metric measures</div>
+                <div style={{ display:"flex", minHeight:140 }}>
+                  {/* Vertical tab list */}
+                  <div style={{ width:165, flexShrink:0, borderRight:"1px solid #e2e8f0", display:"flex", flexDirection:"column" }}>
+                    {METRICS.map((m, i) => (
+                      <button key={m.label} onClick={() => setActiveMetric(i)}
+                        style={{ display:"flex", alignItems:"center", gap:".5rem", padding:".55rem .85rem", border:"none", background: activeMetric===i ? "white" : "transparent", cursor:"pointer", textAlign:"left", borderLeft: activeMetric===i ? "3px solid #6366f1" : "3px solid transparent", transition:"all .15s" }}>
+                        <span style={{ fontSize:".85rem" }}>{m.icon}</span>
+                        <span style={{ fontSize:".73rem", fontWeight: activeMetric===i ? 700 : 500, color: activeMetric===i ? "#4f46e5" : "#64748b", lineHeight:1.3 }}>{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Content panel */}
+                  <div style={{ flex:1, padding:"1rem 1.25rem", display:"flex", alignItems:"center" }}>
+                    <div>
+                      <div style={{ display:"flex", alignItems:"center", gap:".5rem", marginBottom:".5rem" }}>
+                        <span style={{ fontSize:"1.2rem" }}>{METRICS[activeMetric].icon}</span>
+                        <span style={{ fontWeight:700, fontSize:".92rem", color:"#1e293b" }}>{METRICS[activeMetric].label}</span>
+                      </div>
+                      <p style={{ fontSize:".83rem", color:"#475569", lineHeight:1.7, margin:0 }}>{METRICS[activeMetric].desc}</p>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Competitor cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(195px,1fr))", gap: "1rem" }}>
