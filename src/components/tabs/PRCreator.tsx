@@ -76,21 +76,24 @@ function normalizeMapsEmbed(raw: string): string {
 function injectEmbeds(html: string, videoUrl: string, mapsEmbed: string): string {
   let result = html;
 
-  // YouTube — inject before first <blockquote (CEO quote)
+  // YouTube — inject before the CEO quote section
+  // The CEO quote is always the first <h2> in the article (e.g. "Carlos, shared:")
+  // Fall-through chain: first <h2> → <blockquote → before last </p> → end
   if (videoUrl) {
     const videoId = extractYoutubeId(videoUrl);
     if (videoId) {
       const embed = buildYoutubeEmbed(videoId);
+      // 1. Find first <h2 that appears after the opening paragraphs (CEO attribution)
+      const h2Idx = result.indexOf('<h2');
+      // 2. Fallback to <blockquote
       const bqIdx = result.indexOf('<blockquote');
-      if (bqIdx > -1) {
-        result = result.slice(0, bqIdx) + embed + result.slice(bqIdx);
-      } else {
-        // Fallback: inject before the last <p> (about section area)
-        const lastP = result.lastIndexOf('<p');
-        result = lastP > -1
-          ? result.slice(0, lastP) + embed + result.slice(lastP)
-          : result + embed;
-      }
+      // 3. Fallback to before last </p>
+      const lastEndP = result.lastIndexOf('</p>');
+      const insertAt = h2Idx > -1 ? h2Idx
+        : bqIdx > -1 ? bqIdx
+        : lastEndP > -1 ? lastEndP
+        : result.length;
+      result = result.slice(0, insertAt) + embed + result.slice(insertAt);
     }
   }
 
