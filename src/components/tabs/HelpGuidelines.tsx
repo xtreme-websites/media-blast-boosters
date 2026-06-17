@@ -5,6 +5,7 @@ const TABS = [
   { id: "prohibited", label: "Prohibited Content"  },
   { id: "support",    label: "Support & Resources" },
 ] as const;
+const VIDEO_TUTORIALS_URL = "https://xtremeplatform.com/kb/marketing/media-blast-boosters/";
 type TabId = typeof TABS[number]["id"];
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -44,6 +45,12 @@ export default function HelpGuidelines({ onOpenHelp }: Props) {
             boxShadow: activeTab===t.id ? "0 2px 8px rgba(137,41,189,.3)" : "none",
           }}>{t.label}</button>
         ))}
+        <a href={VIDEO_TUTORIALS_URL} target="_blank" rel="noopener noreferrer"
+          style={{ padding:".5rem 1.1rem", borderRadius:".5rem", border:"none", cursor:"pointer", fontWeight:600, fontSize:".82rem", transition:"all .15s", background:"transparent", color:"#64748b", textDecoration:"none", display:"flex", alignItems:"center", gap:".35rem", whiteSpace:"nowrap" }}
+          onMouseOver={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#f1f5f9"; (e.currentTarget as HTMLAnchorElement).style.color = "#1e293b"; }}
+          onMouseOut={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; (e.currentTarget as HTMLAnchorElement).style.color = "#64748b"; }}>
+          🎬 Video Tutorials ↗
+        </a>
       </div>
 
       {/* ── EDITORIAL STANDARDS ── */}
