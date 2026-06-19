@@ -69,7 +69,7 @@ export default function PublicReport() {
   );
 
   const rows: ReportRow[] = report.report_data?.rows || [];
-  const published = rows.filter(r => r.status?.toLowerCase() === "published");
+  const published = rows.filter(r => !r.status || r.status.toLowerCase() === "published");
   const tier = report.product_name?.toLowerCase() || "starter";
   const tierStats = TIER_STATS[tier] || TIER_STATS.starter;
   const pubDate = new Date(report.published_date).toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
