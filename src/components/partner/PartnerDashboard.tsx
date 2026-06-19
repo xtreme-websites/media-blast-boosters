@@ -346,22 +346,36 @@ export default function PartnerDashboard() {
   if (!session || !isPartner) return <PartnerLogin accessDenied={accessDenied} />;
 
   const parseReportCsv = (text: string): {domain:string;status:string;published_url:string;published_at:string;da:number}[] => {
-    // Proper CSV parser — respects quoted fields containing commas
-    const parseCsvLine = (line: string): string[] => {
-      const cols: string[] = [];
+    // Robust CSV parser: handles quoted fields AND unquoted commas in outlet names.
+    // For lines with more columns than expected (unquoted commas), it locates the
+    // URL column by finding the first token that starts with "http", then merges
+    // everything before it back into the outlet name.
+    const parseCsvLine = (line: string, numHeaderCols = 0): string[] => {
+      // Step 1: split respecting quoted fields
+      const raw: string[] = [];
       let cur = "", inQuotes = false;
       for (let i = 0; i < line.length; i++) {
         const ch = line[i];
         if (ch === '"') { inQuotes = !inQuotes; }
-        else if (ch === ',' && !inQuotes) { cols.push(cur.trim()); cur = ""; }
+        else if (ch === ',' && !inQuotes) { raw.push(cur.trim()); cur = ""; }
         else { cur += ch; }
       }
-      cols.push(cur.trim());
-      return cols;
+      raw.push(cur.trim());
+      // Step 2: if we have more columns than headers, outlet name likely had unquoted comma(s).
+      // Find the first http token and merge everything before it into col 0.
+      if (numHeaderCols > 0 && raw.length > numHeaderCols) {
+        const urlIdx = raw.findIndex(c => c.startsWith("http"));
+        if (urlIdx > 1) {
+          // Merge cols 0..urlIdx-1 as the outlet name, keep the rest in position
+          const outlet = raw.slice(0, urlIdx).join(", ");
+          return [outlet, ...raw.slice(urlIdx)];
+        }
+      }
+      return raw;
     };
     const lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
-    const rawHeaders = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g,""));
+    const rawHeaders = parseCsvLine(lines[0], 0).map(h => h.toLowerCase().replace(/[^a-z0-9]/g,""));
     // Detect column positions by header name (flexible matching)
     const domainIdx = rawHeaders.findIndex(h => h.includes("outlet") || h.includes("domain") || h.includes("publication") || h.includes("media") || h.includes("site"));
     const urlIdx    = rawHeaders.findIndex(h => h.includes("url") || h.includes("link"));
@@ -374,7 +388,7 @@ export default function PartnerDashboard() {
     const dti = dateIdx    > -1 ? dateIdx    : 3;
     const dai = daIdx      > -1 ? daIdx      : 5;
     return lines.slice(1).map(line => {
-      const cols = parseCsvLine(line);
+      const cols = parseCsvLine(line, rawHeaders.length);
       return {
         domain:        cols[di]?.trim()  || "",
         published_url: cols[ui]?.trim()  || "",
