@@ -21,6 +21,22 @@ const TIER_STATS: Record<string, { outlets: string; readers: string; authority: 
 };
 
 interface ReportRow { domain: string; status: string; published_url: string; published_at: string; da: number; }
+// Truncate by non-space character count (36 max), cutting at last word boundary
+const truncateDomain = (name: string, maxNonSpace = 36): string => {
+  if (!name) return name;
+  const stripped = name.replace(/\s/g, "");
+  if (stripped.length <= maxNonSpace) return name;
+  // Walk until we've seen maxNonSpace non-space chars
+  let count = 0, cutAt = 0;
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] !== " ") count++;
+    if (count === maxNonSpace) { cutAt = i + 1; break; }
+  }
+  // Prefer cutting at a word boundary
+  const lastSpace = name.lastIndexOf(" ", cutAt);
+  const cut = lastSpace > 0 ? lastSpace : cutAt;
+  return name.slice(0, cut).trimEnd() + "…";
+};
 interface ReportData { rows: ReportRow[]; uploaded_at: string; }
 interface Report {
   order_id: string; pr_title: string; product_name: string;
@@ -243,8 +259,8 @@ export default function PublicReport() {
                 <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
                   <Favicon domain={row.domain} />
                   <div>
-                    <div style={{ color:"#e2e8f0", fontWeight:600, fontSize:".78rem", textTransform:"capitalize" }}>{row.domain?.replace(/\.(com|net|org|io|co)$/i, "").replace(/[-.]/g, " ")}</div>
-                    <div style={{ color:"#334155", fontSize:".65rem" }}>{row.domain}</div>
+                    <div style={{ color:"#e2e8f0", fontWeight:600, fontSize:".78rem", textTransform:"capitalize" }}>{truncateDomain(row.domain?.replace(/\.(com|net|org|io|co)$/i, "").replace(/[-.]/g, " ") || "")}</div>
+                    <div style={{ color:"#334155", fontSize:".65rem" }}>{truncateDomain(row.domain || "")}</div>
                   </div>
                 </div>
                 <div style={{ overflow:"hidden" }}>
