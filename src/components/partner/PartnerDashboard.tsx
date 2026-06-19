@@ -348,10 +348,34 @@ export default function PartnerDashboard() {
   const parseReportCsv = (text: string): {domain:string;status:string;published_url:string;published_at:string;da:number}[] => {
     const lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
+    const rawHeaders = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g,""));
+    // Detect column positions by header name (flexible matching)
+    const domainIdx   = rawHeaders.findIndex(h => h.includes("outlet") || h.includes("domain") || h.includes("publication") || h.includes("media") || h.includes("site"));
+    const urlIdx      = rawHeaders.findIndex(h => h.includes("url") || h.includes("link"));
+    const statusIdx   = rawHeaders.findIndex(h => h === "status");
+    const dateIdx     = rawHeaders.findIndex(h => h.includes("date") || h.includes("publishedat"));
+    const daIdx       = rawHeaders.findIndex(h => h === "da" || h.includes("domainauthority"));
+    // Fall back to positional columns if headers not recognised
+    const di  = domainIdx  > -1 ? domainIdx  : 0;
+    const ui  = urlIdx     > -1 ? urlIdx     : 2;
+    const si  = statusIdx  > -1 ? statusIdx  : -1;
+    const dti = dateIdx    > -1 ? dateIdx    : 3;
+    const dai = daIdx      > -1 ? daIdx      : 5;
     return lines.slice(1).map(line => {
       const cols = line.split(",");
-      return { domain: cols[0]?.trim()||"", status: cols[1]?.trim()||"", published_url: cols[2]?.trim()||"", published_at: cols[3]?.trim()||"", da: parseInt(cols[5]?.trim()||"0")||0 };
-    }).filter(r => r.domain && r.status?.toLowerCase() === "published");
+      return {
+        domain:       cols[di]?.trim()  || "",
+        published_url:cols[ui]?.trim()  || "",
+        status:       si > -1 ? (cols[si]?.trim() || "") : "",
+        published_at: cols[dti]?.trim() || "",
+        da:           parseInt(cols[dai]?.trim()||"0")||0,
+      };
+    }).filter(r => {
+      if (!r.domain) return false;
+      // If status column present, require "published"; otherwise just need a domain (+ ideally a URL)
+      if (si > -1) return r.status.toLowerCase() === "published";
+      return true; // no status column — include all rows that have a domain
+    });
   };
 
   const handleReportCsvSelect = (file: File) => {
